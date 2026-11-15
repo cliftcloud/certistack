@@ -1,0 +1,62 @@
+# Binaries and build artifacts
+bin/
+dist/
+*.deb
+*.tar.gz
+
+# Private keys and customer license keys
+# Private keys, secrets and customer license keys
+*.key
+*.lic
+*.ed25519
+master.key
+private.key
+keyring.json
+.env
+.env.*
+*.env
+# Local test-lab material (runs, credentials, reports, generated cases) is never part of the repository.
+.lab/
+# Local Ansible state.
+.ansible/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+
+# Controller deployment runtime material (examples remain tracked).
+/deploy/controller/secrets/*
+!/deploy/controller/secrets/*.example
+/deploy/controller/state/
+/deploy/controller/plans/
+/deploy/appliance/packer/*.pkrvars.hcl
+
+# Temporary files and scratch space
+/tmp/
+scratch/
+reports/
+*.qcow2
+*.ppm
+*.png
+!website/*.png
+!docs/assets/*.png
+
+# Go test and coverage
+coverage.out
+*.test
+
+# IDE and OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# MkDocs output (make docs)
+/site/
+/.venv/
+
+# Locally built binaries must never be committed (one slipped into a feature branch).
+/certistack.exe
+/certistack
+/bin/

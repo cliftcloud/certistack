@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# Test fixture: two dependent tiers with explicit sandbox addresses and an
+# environment label. Addresses are RFC 5737 documentation addresses.
+version: "v1"
+plan_id: "multi-tier-sandbox"
+name: "Multi-tier isolated sandbox fixture"
+environment: "lab-validation"
+
+compliance:
+  frameworks:
+    - "DORA-Article-12"
+    - "SOC2-Type2-CC7.4"
+    - "ISO27001-A8.13"
+  retention_days: 90
+  sign_key_path: "/secure/certistack/controller-signing.ed25519"
+  rto_target_seconds: 180.0
+
+admission_control:
+  max_host_ram_percent: 90.0
+  max_host_iowait_percent: 25.0
+  defer_retry_interval_sec: 5
+  max_defer_retries: 2
+
+network:
+  mode: "simple"
+  zone_id: "csSbTier"
+  vnet_id: "csVnTier"
+  ip_range: "192.0.2.0/24"
+  probe_ip: "192.0.2.1"
+
+tiers:
+  - level: 1
+    name: "Tier 1: Directory service"
+    startup_grace_period_sec: 5
+    vms:
+      - vmid: 9110
+        source_vmid: 110
+        name: "sandbox-dc01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+          drives:
+            - slot: "scsi0"
+              archive: "drive-scsi0"
+        hardware_overrides:
+          cores: 2
+          memory_mb: 2048
+          cpu_weight: 50
+        network_recovery:
+          sandbox_ip: "192.0.2.10"
+        probes:
+          - type: "tcp"
+            target_ip: "192.0.2.10"
+            port: 389
+            description: "Directory LDAP listener"
+            timeout_sec: 45
+          - type: "dns"
+            target_ip: "192.0.2.10"
+            port: 53
+            domain: "example.test"
+            description: "DNS resolution from the restored directory server"
+            timeout_sec: 30
+
+  - level: 2
+    name: "Tier 2: Database"
+    startup_grace_period_sec: 5
+    vms:
+      - vmid: 9120
+        source_vmid: 120
+        name: "sandbox-db01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+          drives:
+            - slot: "scsi0"
+              archive: "drive-scsi0"
+            - slot: "scsi1"
+              archive: "drive-scsi1"
+        hardware_overrides:
+          cores: 2
+          memory_mb: 2048
+          cpu_weight: 50
+        network_recovery:
+          sandbox_ip: "192.0.2.20"
+        probes:
+          - type: "tcp"
+            target_ip: "192.0.2.20"
+            port: 5432
+            description: "PostgreSQL listener"
+            timeout_sec: 45

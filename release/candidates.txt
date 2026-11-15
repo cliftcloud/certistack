@@ -1,0 +1,18 @@
+# Release registry: the executables that were tested before a release.
+#
+# The release workflow publishes a version only if this file, as it stands on
+# the default branch, has one line for the tag, naming the tagged commit and
+# the SHA-256 of the executable the workflow rebuilds from it:
+#
+#   <tag> <full 40-digit commit> <64-digit sha256 of bin/certistack-linux-amd64>
+#
+# Print the line on the release commit with the pinned toolchain
+# (scripts/release-candidate.sh v0.1.0), test that executable, and propose the
+# line in a reviewed change to the default branch. The line is added after the
+# release commit, never in it: the digest covers the commit's hash, so a commit
+# cannot contain its own line. Tag the release commit once the line is on the
+# default branch. A candidate tag (vMAJOR.MINOR.PATCH-rcN) is registered the
+# same way and starts no release workflow. SECURITY.md ("How releases are
+# built") describes the whole path.
+#
+# Blank lines and lines starting with # are ignored.

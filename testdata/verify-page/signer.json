@@ -1,0 +1,5 @@
+{
+  "fingerprint": "SHA256:ee96f3701ec90bf115afa4febeba39b188d92960982bf790efd13ea0604009c9",
+  "note": "A throwaway key for the verify-page fixtures; its seed is derived from a public string. Not a CertiStack signing key.",
+  "public_key": "977c8efee66ec7b6a16a400690cbd90d1af89c70e1b36699bcbfca9f04176c6e"
+}

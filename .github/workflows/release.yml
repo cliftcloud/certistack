@@ -1,0 +1,588 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+name: Release
+
+# A release is cut from a stable tag on a commit that is on the default branch
+# and whose executable was tested: the default branch's
+# release/candidates.txt must hold this tag, this commit and the digest of the
+# executable this workflow rebuilds. All of that, and every test, runs in a
+# read-only job that holds no secret. Signing, the container registry and the
+# GitHub release are reached only by the publish job, after a maintainer
+# approves the `release` environment, and provenance is attested by two small
+# jobs that alone may request an identity token. The gate depends on a
+# protected `release` environment (required reviewers, deployable from v* tags
+# only) and on tag and default-branch protection; SECURITY.md ("How releases
+# are built") describes the path.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+# No job inherits a permission; each asks for its own.
+permissions: {}
+
+# Every step runs `bash -eo pipefail`, so a failure inside a pipeline fails
+# the step (the runner's default is `bash -e`).
+defaults:
+  run:
+    shell: bash
+
+# One run per tag at a time.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/${{ github.repository_owner }}/certistack-controller
+
+jobs:
+  verify:
+    name: Verify Release Candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Third-party code runs here (the Terraform provider plugin, govulncheck),
+    # so this job can read the repository and nothing else: no secret, no
+    # write access, no identity token, and no credential left in .git.
+    permissions:
+      contents: read
+    outputs:
+      sha256: ${{ steps.candidate.outputs.sha256 }}
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      # The guest-network tests skip where netplan's generator is missing; the
+      # gate fails them instead.
+      CERTISTACK_REQUIRE_NETPLAN: "1"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The Go version is go.mod's toolchain line. Nothing is cached: a cache
+      # written by another workflow is input this build cannot vouch for.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # The guest-network tests run netplan's own generator. It only
+      # runs those tests; nothing it installs reaches a release artifact.
+      - name: Install netplan
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends netplan.io
+
+      - name: Verify repository-owned release helpers
+        run: |
+          for required in \
+            scripts/campaign/generate_current_coverage_cases.go \
+            scripts/campaign/audit_compatibility_matrix.go \
+            scripts/run-lab-campaign_test.sh \
+            scripts/generate-current-coverage-cases_test.sh \
+            scripts/audit-compatibility-matrix_test.sh \
+            scripts/controller-container-smoke.sh \
+            scripts/check-image-binary.sh \
+            scripts/release-candidate.sh \
+            release/candidates.txt; do
+            git ls-files --error-unmatch "$required" >/dev/null
+          done
+
+      - name: Validate release metadata
+        run: |
+          # SemVer numeric components have no leading zeros.
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Release tags must use stable semantic versions without leading zeros, such as v0.1.0; got $RELEASE_TAG" >&2
+            exit 1
+          fi
+          release_version=${RELEASE_TAG#v}
+          # Compare each dated heading's version literally: a pattern built
+          # from the version would read its dots as wildcards.
+          dated_versions=$(sed -nE 's/^## \[([^]]+)\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$/\1/p' CHANGELOG.md)
+          if ! grep -Fxq -- "$release_version" <<<"$dated_versions"; then
+            echo "CHANGELOG.md must contain a dated section for $release_version before publication." >&2
+            exit 1
+          fi
+          # Legal text with an unconfirmed fact (entity, jurisdiction, such
+          # as CLA.md section 6) must not ship. The website's check-site.py
+          # applies the same rule to its pages.
+          if git grep -n -I -E 'CONFIRM before publishing|CONFIRM:' -- '*.md' '*.html' '*.txt'; then
+            echo "Resolve every CONFIRM marker above with counsel before publication." >&2
+            exit 1
+          fi
+          # The release signing key and its fingerprint are published in SECURITY.md
+          # before a release; the placeholder must not ship.
+          if git grep -n -I -F '<published with the release>' -- '*.md'; then
+            echo "SECURITY.md still has the release key placeholder above: publish the key and fingerprint before the release." >&2
+            exit 1
+          fi
+
+      # Anyone who can push a tag can start this workflow, so the tag proves
+      # nothing by itself. It counts only if its commit is on the default
+      # branch and that branch's registry (never the tagged tree's own copy)
+      # names this tag, this commit and a candidate digest.
+      - name: Check the tag names a registered candidate
+        id: registry
+        run: |
+          commit=$(git rev-parse --verify "$GITHUB_SHA^{commit}")
+          tagged=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          if [[ "$tagged" != "$commit" ]]; then
+            echo "Tag $RELEASE_TAG names $tagged now, not the commit $commit that started this run; it was moved. Cut a new version." >&2
+            exit 1
+          fi
+          branch="refs/remotes/origin/$DEFAULT_BRANCH"
+          if ! git rev-parse --verify --quiet "$branch" >/dev/null; then
+            echo "The default branch $DEFAULT_BRANCH was not fetched, so the tag cannot be checked against it." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$commit" "$branch"; then
+            echo "Commit $commit is not on $DEFAULT_BRANCH. Only a commit that went through review on the default branch can be released." >&2
+            exit 1
+          fi
+          if ! registry=$(git show "$branch:release/candidates.txt"); then
+            echo "$DEFAULT_BRANCH has no release/candidates.txt." >&2
+            exit 1
+          fi
+          lines=$(awk -v tag="$RELEASE_TAG" '/^[[:space:]]*#/ { next } $1 == tag { print }' <<<"$registry")
+          if [[ -z "$lines" ]]; then
+            echo "release/candidates.txt on $DEFAULT_BRANCH has no line for $RELEASE_TAG. Register the tested candidate first (see the header of release/candidates.txt)." >&2
+            exit 1
+          fi
+          if [[ "$lines" == *$'\n'* ]]; then
+            echo "release/candidates.txt on $DEFAULT_BRANCH has more than one line for $RELEASE_TAG." >&2
+            exit 1
+          fi
+          if [[ ! "$lines" =~ ^v[0-9.]+\ [0-9a-f]{40}\ [0-9a-f]{64}$ ]]; then
+            echo "The registry line for $RELEASE_TAG is not '<tag> <40-digit commit> <64-digit sha256>'." >&2
+            exit 1
+          fi
+          registered=${lines#* }
+          if [[ "${registered%% *}" != "$commit" ]]; then
+            echo "The registry names commit ${registered%% *} for $RELEASE_TAG, not the tagged commit $commit." >&2
+            exit 1
+          fi
+          echo "line=$lines" >> "$GITHUB_OUTPUT"
+
+      # The candidate is rebuilt from this commit with the pinned toolchain,
+      # and its digest must be the registered one: the bytes that were tested
+      # are the bytes released. This is the same script a maintainer ran.
+      - name: Rebuild the release candidate
+        id: candidate
+        env:
+          GOTOOLCHAIN: local
+          REGISTERED_LINE: ${{ steps.registry.outputs.line }}
+        run: |
+          if [[ "$REGISTERED_LINE" != "$RELEASE_TAG "* ]]; then
+            echo "No registered candidate line for $RELEASE_TAG reached this step." >&2
+            exit 1
+          fi
+          line=$(scripts/release-candidate.sh "$RELEASE_TAG")
+          if [[ "$line" != "$REGISTERED_LINE" ]]; then
+            echo "The rebuilt candidate is '$line' but the registry holds '$REGISTERED_LINE'. The release is not the executable that was tested; nothing is published." >&2
+            exit 1
+          fi
+          echo "sha256=${line##* }" >> "$GITHUB_OUTPUT"
+
+      # Hosted Ubuntu 24.04 runners no longer ship Terraform; install the
+      # pinned CLI rather than depending on the runner image.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.16.4'
+          terraform_wrapper: false
+
+      - name: Verify release candidate
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          make test
+          go test -race ./...
+          make fmt-check
+          make vet
+          go mod verify
+          git diff --check
+          bash -n scripts/run-lab-campaign.sh
+          bash scripts/run-lab-campaign_test.sh
+          bash scripts/generate-current-coverage-cases_test.sh
+          bash scripts/audit-compatibility-matrix_test.sh
+          terraform fmt -check -recursive
+          terraform -chdir=terraform init -backend=false
+          terraform -chdir=terraform validate
+          terraform -chdir=terraform test
+
+      - name: Check release Go vulnerabilities
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          govulncheck ./...
+          govulncheck -mode=binary bin/certistack-linux-amd64
+
+      - name: Upload the verified executable
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: certistack-linux-amd64
+          path: bin/certistack-linux-amd64
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Sign and Publish Release
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The gate: this job does not start until a maintainer approves the
+    # `release` environment, which also holds the signing secrets.
+    environment:
+      name: release
+      url: ${{ github.server_url }}/${{ github.repository }}/releases
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+    outputs:
+      image_digest: ${{ steps.stage.outputs.digest }}
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # GitHub creates an environment on first use without any protection,
+      # and this job runs whatever the environment says. Refuse to sign or
+      # write anything unless it requires a reviewer and limits the refs that
+      # may deploy to it.
+      - name: Require the release environment's protection
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! environment=$(gh api "repos/$GH_REPO/environments/release" 2>&1); then
+            echo "Could not read the release environment's protection rules: $environment" >&2
+            exit 1
+          fi
+          reviewers=$(jq '[.protection_rules[]? | select(.type == "required_reviewers")] | length' <<<"$environment")
+          if [[ "$reviewers" -lt 1 ]]; then
+            echo "The release environment requires no reviewer, so nobody approved this release. Add required reviewers (repository Settings, Environments), then re-run this job." >&2
+            exit 1
+          fi
+          if [[ "$(jq '.deployment_branch_policy != null' <<<"$environment")" != true ]]; then
+            echo "The release environment lets any ref deploy to it. Limit it to the v* tags (repository Settings, Environments), then re-run this job." >&2
+            exit 1
+          fi
+
+      - name: Download the verified executable
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: certistack-linux-amd64
+          path: bin
+
+      # The artifact crossed a job boundary: it must still be the executable
+      # the verify job rebuilt and matched to the registry.
+      - name: Check the executable is the verified one
+        env:
+          EXPECTED_SHA256: ${{ needs.verify.outputs.sha256 }}
+        run: |
+          if [[ ! "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "The verify job passed no executable digest." >&2
+            exit 1
+          fi
+          actual=$(sha256sum bin/certistack-linux-amd64)
+          if [[ "${actual%% *}" != "$EXPECTED_SHA256" ]]; then
+            echo "bin/certistack-linux-amd64 is ${actual%% *}, not the verified $EXPECTED_SHA256." >&2
+            exit 1
+          fi
+          chmod 0755 bin/certistack-linux-amd64
+
+      # Nothing is published unless it can be signed: prove the key, its
+      # passphrase and the independently managed public key produce a
+      # verifiable signature before anything is built or pushed.
+      - name: Check release signing configuration
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_RELEASE_PUBLIC_KEY: ${{ secrets.GPG_RELEASE_PUBLIC_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
+        run: |
+          for name in GPG_PRIVATE_KEY GPG_RELEASE_PUBLIC_KEY GPG_SIGNING_FINGERPRINT; do
+            if [[ -z "${!name}" ]]; then
+              echo "The $name secret is not set; a release cannot be signed." >&2
+              exit 1
+            fi
+          done
+          if [[ ! "$GPG_SIGNING_FINGERPRINT" =~ ^([A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})$ ]]; then
+            echo "GPG_SIGNING_FINGERPRINT must be a full 40- or 64-digit key fingerprint." >&2
+            exit 1
+          fi
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          trap 'gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"' EXIT
+          chmod 700 "$GNUPGHOME"
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --list-secret-keys "$GPG_SIGNING_FINGERPRINT" >/dev/null
+          probe="$GNUPGHOME/signing-check.txt"
+          printf 'CertiStack release signing check\n' > "$probe"
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --local-user "$GPG_SIGNING_FINGERPRINT" --detach-sign --armor \
+            "$probe" <<<"$GPG_PASSPHRASE"
+          release_keyring="$GNUPGHOME/release-signing-key.gpg"
+          printf '%s' "$GPG_RELEASE_PUBLIC_KEY" | gpg --batch --no-default-keyring --keyring "$release_keyring" --import
+          # Read all of gpg's output: an awk that exits at the first line
+          # can end the pipeline with SIGPIPE under pipefail.
+          public_fingerprint=$(gpg --batch --no-default-keyring --keyring "$release_keyring" --with-colons --fingerprint | awk -F: '$1 == "fpr" && !seen { print $10; seen = 1 }')
+          if [[ "${public_fingerprint^^}" != "${GPG_SIGNING_FINGERPRINT^^}" ]]; then
+            echo "GPG_RELEASE_PUBLIC_KEY is not the key GPG_SIGNING_FINGERPRINT names." >&2
+            exit 1
+          fi
+          gpgv --keyring "$release_keyring" "$probe.asc" "$probe"
+          # The key users are told to trust is the one committed in the tagged
+          # tree (release/release-public-key.asc, which the quickstart imports
+          # from a clone at the tag). A secret that holds another key would give
+          # a release that verifies here and for nobody else, and a published
+          # release is never rebuilt. So the same probe signature must verify
+          # against a keyring made from that file alone.
+          committed_keyring="$GNUPGHOME/committed-release-key.gpg"
+          if ! gpg --batch --no-default-keyring --keyring "$committed_keyring" --import release/release-public-key.asc; then
+            echo "release/release-public-key.asc is missing or is not an OpenPGP key; users could not verify this release." >&2
+            exit 1
+          fi
+          # Count all of gpg's output, for the same reason as above.
+          committed_keys=$(gpg --batch --no-default-keyring --keyring "$committed_keyring" --with-colons --list-keys | awk -F: '$1 == "pub" { n++ } END { print n + 0 }')
+          if [[ "$committed_keys" != "1" ]]; then
+            echo "release/release-public-key.asc must hold exactly one key; it holds $committed_keys." >&2
+            exit 1
+          fi
+          committed_fingerprint=$(gpg --batch --no-default-keyring --keyring "$committed_keyring" --with-colons --fingerprint | awk -F: '$1 == "fpr" && !seen { print $10; seen = 1 }')
+          if [[ "${committed_fingerprint^^}" != "${GPG_SIGNING_FINGERPRINT^^}" ]]; then
+            echo "release/release-public-key.asc is not the key GPG_SIGNING_FINGERPRINT names; users would verify against a different key than the one that signs." >&2
+            exit 1
+          fi
+          if ! gpgv --keyring "$committed_keyring" "$probe.asc" "$probe"; then
+            echo "The signing subkey is not in release/release-public-key.asc; users could not verify this release." >&2
+            exit 1
+          fi
+
+      # A published release is never rebuilt: its assets and image tag would
+      # move to a new build. A draft left by a failed run may be completed.
+      - name: Refuse to replace a published release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if release_state=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>&1); then
+            if [[ "$release_state" != true ]]; then
+              echo "Release $RELEASE_TAG is already published. Cut a new version instead of rebuilding it." >&2
+              exit 1
+            fi
+          elif [[ "$release_state" != *"release not found"* ]]; then
+            echo "Could not establish whether release $RELEASE_TAG exists: $release_state" >&2
+            exit 1
+          fi
+
+      # The notes are the changelog section the release commit was reviewed
+      # with, not generated from pull-request titles.
+      - name: Write release notes
+        env:
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version=${RELEASE_TAG#v}
+          # Compare the heading's version literally, as the metadata gate does.
+          awk -v want="$version" '
+            /^## \[/ {
+              if (in_section) { exit }
+              heading = $0
+              sub(/^## \[/, "", heading)
+              sub(/\].*$/, "", heading)
+              in_section = (heading == want)
+              next
+            }
+            in_section { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if [[ ! -s "$RUNNER_TEMP/release-notes.md" ]] || ! grep -q '[^[:space:]]' "$RUNNER_TEMP/release-notes.md"; then
+            echo "CHANGELOG.md has no notes under the $version heading." >&2
+            exit 1
+          fi
+          {
+            printf '\n---\n\n'
+            printf 'Verify this release before using it: [Verifying release integrity](https://github.com/%s/blob/%s/SECURITY.md#verifying-release-integrity). ' "$GH_REPO" "$RELEASE_TAG"
+            # shellcheck disable=SC2016  # the backticks are Markdown, not a command
+            printf 'The controller image to pin is the digest in `CONTAINER-IMAGE.txt`.\n'
+          } >> "$RUNNER_TEMP/release-notes.md"
+
+      # The image is built around the verified executable, not compiled again,
+      # and must start under the restrictions deploy/controller/compose.yaml
+      # publishes (read-only root, tmpfs at /tmp/certistack, no capabilities).
+      - name: Build controller image
+        run: |
+          candidate="$IMAGE_REPOSITORY:candidate-${RELEASE_TAG#v}"
+          make container-release IMAGE="$candidate"
+          bash scripts/check-image-binary.sh "$candidate" bin/certistack-linux-amd64
+          docker run --rm "$candidate" version
+          bash scripts/controller-container-smoke.sh "$candidate"
+
+      # Resolve the pushed image's immutable digest before signing. The
+      # checksum manifest authenticates both the CLI and the image reference.
+      # First publication creates a private GHCR package; make it public in
+      # package settings once, then later releases retain that visibility.
+      # Only the candidate tag is written here; the version tag comes last.
+      - name: Stage controller image under its candidate tag
+        id: stage
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          trap 'docker logout ghcr.io' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          candidate="$IMAGE_REPOSITORY:candidate-${RELEASE_TAG#v}"
+          docker push "$candidate"
+          digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$candidate")
+          [[ "$digest" == "$IMAGE_REPOSITORY@sha256:"* ]]
+          [[ "${digest##*@sha256:}" =~ ^[0-9a-f]{64}$ ]]
+          printf '%s\n' "$digest" > bin/CONTAINER-IMAGE.txt
+          echo "digest=sha256:${digest##*@sha256:}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Checksums
+        run: |
+          cd bin
+          sha256sum certistack-linux-amd64 CONTAINER-IMAGE.txt > SHA256SUMS-bin.txt
+
+      - name: Sign release checksums
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_RELEASE_PUBLIC_KEY: ${{ secrets.GPG_RELEASE_PUBLIC_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
+        run: |
+          test -n "$GPG_SIGNING_FINGERPRINT"
+          test -n "$GPG_RELEASE_PUBLIC_KEY"
+          [[ "$GPG_SIGNING_FINGERPRINT" =~ ^([A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})$ ]]
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          trap 'gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"' EXIT
+          chmod 700 "$GNUPGHOME"
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --list-secret-keys "$GPG_SIGNING_FINGERPRINT" >/dev/null
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --local-user "$GPG_SIGNING_FINGERPRINT" --detach-sign --armor \
+            bin/SHA256SUMS-bin.txt <<<"$GPG_PASSPHRASE"
+
+      - name: Verify release artifacts before publication
+        env:
+          GPG_RELEASE_PUBLIC_KEY: ${{ secrets.GPG_RELEASE_PUBLIC_KEY }}
+          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
+        run: |
+          (cd bin && sha256sum --strict --check SHA256SUMS-bin.txt)
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          trap 'gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"' EXIT
+          chmod 700 "$GNUPGHOME"
+          release_keyring="$GNUPGHOME/release-signing-key.gpg"
+          printf '%s' "$GPG_RELEASE_PUBLIC_KEY" | gpg --batch --no-default-keyring --keyring "$release_keyring" --import
+          public_fingerprint=$(gpg --batch --no-default-keyring --keyring "$release_keyring" --with-colons --fingerprint | awk -F: '$1 == "fpr" && !seen { print $10; seen = 1 }')
+          test "${public_fingerprint^^}" = "${GPG_SIGNING_FINGERPRINT^^}"
+          gpgv --keyring "$release_keyring" bin/SHA256SUMS-bin.txt.asc bin/SHA256SUMS-bin.txt
+
+      # A draft: the release is public only when a maintainer publishes it
+      # after reading its notes against the supported boundary
+      # (docs/compatibility.md). Re-running is safe until then.
+      - name: Create draft GitHub release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: |
+            bin/certistack-linux-amd64
+            bin/SHA256SUMS-bin.txt
+            bin/SHA256SUMS-bin.txt.asc
+            bin/CONTAINER-IMAGE.txt
+          body_path: ${{ runner.temp }}/release-notes.md
+          draft: true
+          prerelease: false
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+
+      # A carbon copy of the signed manifest, so the version tag names
+      # exactly the digest in the signed CONTAINER-IMAGE.txt. If this step
+      # fails, the draft release exists: promote by hand with the same
+      # command below, or re-run this job.
+      - name: Promote the signed image to its version tag
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          trap 'docker logout ghcr.io' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          signed=$(cat bin/CONTAINER-IMAGE.txt)
+          final="$IMAGE_REPOSITORY:${RELEASE_TAG#v}"
+          docker buildx imagetools create --prefer-index=false --tag "$final" "$signed"
+          published="sha256:$(docker buildx imagetools inspect --raw "$final" | sha256sum | cut -d' ' -f1)"
+          if [[ "$published" != "${signed##*@}" ]]; then
+            echo "$final names $published, not the signed ${signed##*@}." >&2
+            exit 1
+          fi
+
+  # Build provenance (SLSA) for the binary, verifiable with
+  # `gh attestation verify certistack-linux-amd64 --owner cliftcloud`. Its own
+  # job, because it alone needs an identity token, and after publication so a
+  # provenance-service outage cannot block a release that has already been
+  # signed and verified.
+  attest-binary:
+    name: Attest Binary Provenance
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the verified executable
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: certistack-linux-amd64
+          path: bin
+
+      - name: Check the executable is the verified one
+        env:
+          EXPECTED_SHA256: ${{ needs.verify.outputs.sha256 }}
+        run: |
+          if [[ ! "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "The verify job passed no executable digest." >&2
+            exit 1
+          fi
+          actual=$(sha256sum bin/certistack-linux-amd64)
+          if [[ "${actual%% *}" != "$EXPECTED_SHA256" ]]; then
+            echo "bin/certistack-linux-amd64 is ${actual%% *}, not the verified $EXPECTED_SHA256." >&2
+            exit 1
+          fi
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: bin/certistack-linux-amd64
+
+  # The same for the controller image, by the digest the signed manifest
+  # names: `gh attestation verify oci://<image>@<digest> --owner cliftcloud`.
+  attest-image:
+    name: Attest Image Provenance
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write
+    steps:
+      - name: Log in to the registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE_REPOSITORY }}
+          subject-digest: ${{ needs.publish.outputs.image_digest }}
+          push-to-registry: true

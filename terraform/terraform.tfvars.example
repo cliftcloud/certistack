@@ -1,0 +1,31 @@
+# ==============================================================================
+# CertiStack Lab Configuration: Proxmox VE & PBS Environment Example
+# ==============================================================================
+
+# 1. Proxmox VE Cluster Connection
+pve_api_endpoint = "https://pve-node-01.example.com:8006" # Primary Proxmox VE node
+pve_api_token    = "packer-or-bootstrap@pve!terraform=00000000-0000-0000-0000-000000000000"
+pve_node_name    = "pve-node-01"                     # Node that runs the worker and sandbox VMs
+pve_tls_insecure = false
+
+# 2. What a run touches (the module grants CertiStackRole on exactly these
+#    paths, to the service user and to its token; see
+#    docs/manual-setup.md)
+overlay_storage = "certistack-scratch"               # The plan's storage.overlay_storage
+# sandbox_sdn_zones = ["csSb01"]                     # Only for network.lifecycle: preprovisioned
+
+# 3. Proxmox Backup Server (PBS) Details
+pbs_host         = "192.0.2.50"                       # PBS server documentation address
+pbs_port         = 8007
+pbs_datastore    = "backup-anchor"                   # Datastore name on PBS
+pbs_user         = "certistack-ro@pbs!ro"             # Dedicated read-only PBS user or API token; never root@pam
+pbs_fingerprint  = "SHA256:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+
+# 4. Optional reference VM: a full clone of a prepared template (installed
+#    OS, cloud-init, enabled qemu-guest-agent, a listening service). Leave
+#    reference_template_vmid unset to create no VM.
+# reference_template_vmid = 9100                     # Your prepared template
+# reference_vmid          = 9000                     # VMID of the clone
+# reference_datastore     = "local-lvm"              # e.g. local-zfs on a ZFS install
+# pve_bridge              = "vmbr9"                  # Dedicated isolated bridge; never vmbr0
+# guest_password          = "ChangeThisGuestVMPasswordBeforeApplying"  # sensitive

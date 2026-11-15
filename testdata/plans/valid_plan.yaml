@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# Test fixture: a three-tier identity / database / application stack with wire
+# and guest-agent probes. Addresses are RFC 5737 documentation addresses.
+version: "v1"
+plan_id: "acme-erp-full-stack-dr"
+name: "ACME ERP Full Stack Disaster Recovery Test"
+
+compliance:
+  frameworks:
+    - "DORA-Article-12"
+    - "SOC2-Type2-CC7.4"
+  retention_days: 2555
+  sign_key_path: "/secure/certistack/controller-signing.ed25519"
+
+admission_control:
+  max_host_ram_percent: 85.0
+  max_host_iowait_percent: 12.0
+  defer_retry_interval_sec: 30
+  max_defer_retries: 10
+
+network:
+  mode: "simple"
+  zone_id: "csSb01"
+  vnet_id: "csVn01"
+  ip_range: "192.0.2.0/24"
+  probe_ip: "192.0.2.1"
+
+tiers:
+  - level: 1
+    name: "Identity & Core Infrastructure"
+    startup_grace_period_sec: 45
+    vms:
+      - vmid: 9001
+        source_vmid: 100
+        name: "cs-test-dc01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+          drives:
+            - slot: "scsi0"
+              archive: "drive-scsi0"
+        hardware_overrides:
+          cores: 2
+          memory_mb: 4096
+          balloon_mb: 2048
+          cpu_weight: 50
+        probes:
+          - type: "tcp"
+            target_ip: "192.0.2.10"
+            port: 389
+            timeout_sec: 30
+            description: "LDAP TCP handshake on domain controller"
+          - type: "tcp"
+            target_ip: "192.0.2.10"
+            port: 53
+            timeout_sec: 15
+            description: "DNS TCP listener on domain controller"
+          - type: "qga"
+            command: "systemctl is-active samba-ad-dc"
+            expected_output: "active"
+            timeout_sec: 30
+            description: "Verify Samba AD DC service is active via guest agent"
+
+  - level: 2
+    name: "Database Tier"
+    startup_grace_period_sec: 60
+    vms:
+      - vmid: 9002
+        source_vmid: 200
+        name: "cs-test-db01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+          drives:
+            - slot: "scsi0"
+              archive: "drive-scsi0"
+        hardware_overrides:
+          cores: 4
+          memory_mb: 8192
+          balloon_mb: 4096
+          cpu_weight: 50
+        probes:
+          - type: "tcp"
+            target_ip: "192.0.2.20"
+            port: 5432
+            timeout_sec: 30
+            description: "PostgreSQL TCP handshake"
+          - type: "qga"
+            # The cluster's own unit (Debian/Ubuntu). The bare `postgresql` unit
+            # there is a grouping unit that reports active with no database running.
+            command: "systemctl is-active postgresql@16-main"
+            expected_output: "active"
+            timeout_sec: 30
+            description: "Verify PostgreSQL service is active via guest agent"
+
+  - level: 3
+    name: "Application Tier"
+    startup_grace_period_sec: 90
+    vms:
+      - vmid: 9003
+        source_vmid: 300
+        name: "cs-test-app01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+          drives:
+            - slot: "scsi0"
+              archive: "drive-scsi0"
+        hardware_overrides:
+          cores: 2
+          memory_mb: 4096
+          balloon_mb: 2048
+          cpu_weight: 50
+        probes:
+          - type: "http"
+            target_ip: "192.0.2.30"
+            port: 443
+            path: "/health"
+            tls: true
+            expected_status: 200
+            timeout_sec: 30
+            description: "HTTPS health endpoint returns 200 OK"
+          - type: "http"
+            target_ip: "192.0.2.30"
+            port: 8080
+            path: "/api/v1/status"
+            tls: false
+            expected_status: 200
+            timeout_sec: 15
+            description: "Internal API status endpoint"
+          - type: "qga"
+            command: "systemctl is-active nginx"
+            expected_output: "active"
+            timeout_sec: 30
+            description: "Verify Nginx service is active via guest agent"

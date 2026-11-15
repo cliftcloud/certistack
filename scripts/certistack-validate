@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# certistack-validate PLAN.yaml
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+# Runs one plan, judges the report against that plan, and exits 0 only
+# when the recovery passed and every temporary resource was verified removed.
+set -uo pipefail
+
+# The controller's environment file: CERTISTACK_ENV_FILE, else the one
+# certistack setup writes. One script serves several sites, each with its own.
+ENV_FILE=${CERTISTACK_ENV_FILE:-/secure/certistack/controller.env}
+# CERTISTACK_KEYRING empty: the report is unsigned, as the Community Edition
+# writes it (--unsigned). A keyring file: the report is signed by the
+# Enterprise Edition and is verified against the keys in it (--keyring).
+KEYRING=${CERTISTACK_KEYRING:-}
+
+plan=${1:-}
+[ -r "$plan" ] || { echo "usage: certistack-validate PLAN.yaml (cannot read plan '$plan')" >&2; exit 2; }
+
+# Do not overlap with a previous run of the same plan.
+exec 9<"$plan"
+flock -n 9 || { echo "a previous run of $plan is still active" >&2; exit 75; }
+
+stdout=$(mktemp)
+trap 'rm -f "$stdout"' EXIT
+
+certistack run "$plan" --env-file "$ENV_FILE" >"$stdout" &
+child=$!
+# Forward a stop request so certistack cleans up the node before it exits.
+# Ctrl-C and a hangup reach certistack from the terminal itself; forwarding
+# them too would be a second signal, which abandons the cleanup.
+trap 'kill -TERM "$child" 2>/dev/null' TERM
+trap ':' INT HUP
+
+status=
+while [ -z "$status" ]; do
+  wait "$child"; result=$?
+  # Still running means a trapped signal ended the wait, not the child.
+  kill -0 "$child" 2>/dev/null || status=$result
+done
+
+report=$(sed -n 's/^.*Controller report saved to: //p' "$stdout" | tail -n 1)
+if [ -z "$report" ]; then
+  echo "certistack run exited $status and produced no report" >&2
+  # A report that could not be saved is printed between markers: keep it.
+  grep -q -- '-----BEGIN CERTISTACK REPORT-----' "$stdout" && cat "$stdout" >&2
+  exit $(( status == 0 ? 2 : status ))
+fi
+
+# verify-report exits 0 for a report that is accepted as a pass of this plan
+# (signed and trusted, or unsigned and read), 1 for one that is not accepted (a
+# failed recovery), and 2 or more for one that cannot be trusted or read.
+if [ -n "$KEYRING" ]; then trust=(--keyring "$KEYRING"); else trust=(--unsigned); fi
+summary=$(certistack verify-report "${trust[@]}" --expect-plan "$plan" --format json "$report")
+verified=$?
+if [ "$verified" -gt 1 ]; then
+  echo "report $report did not verify" >&2
+  exit 2
+fi
+echo "$summary"
+
+[ "$status" -eq 0 ] && [ "$verified" -eq 0 ] \
+  && [ "$(jq -r '.acceptance.verdict == "accepted" and .all_passed and .all_cleaned' <<<"$summary")" = true ] && exit 0
+exit $(( status == 0 ? 1 : status ))

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# Review is requested from the maintainers team for every change.
+*                               @cliftcloud/maintainers
+
+# Security-sensitive paths: the release pipeline, the CLA workflow, and the
+# signing/verification code always need a maintainer review.
+/.github/workflows/             @cliftcloud/maintainers
+/release/                       @cliftcloud/maintainers
+/Makefile                       @cliftcloud/maintainers
+/go.mod                         @cliftcloud/maintainers
+/scripts/                       @cliftcloud/maintainers
+/pkg/attest/                    @cliftcloud/maintainers
+/pkg/controller/                @cliftcloud/maintainers
+/deploy/                        @cliftcloud/maintainers
+/LICENSE                        @cliftcloud/maintainers
+/CLA.md                         @cliftcloud/maintainers
+/SECURITY.md                    @cliftcloud/maintainers

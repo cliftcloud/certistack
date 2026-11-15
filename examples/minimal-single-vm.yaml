@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# The smallest useful CertiStack plan: boot the latest PBS backup of one VM in
+# an isolated sandbox and prove that its SSH listener answers. Copy this file,
+# change the values marked CHANGE, and run `certistack validate` on the copy.
+#
+# Addresses use the RFC 5737 documentation range 192.0.2.0/24, which nearly
+# every node leaves unused. The range must not overlap any network the PVE
+# node uses (`ip -4 route` on the node lists them): while a run lasts the node
+# routes the whole range into the sandbox, so a range the node also has an
+# address or route in would take that real traffic into it.
+#
+# Editor completion and checks: run "certistack schema > certistack-plan.schema.json" next to this file, then make "# yaml-language-server: $schema=./certistack-plan.schema.json" its first line.
+version: "v1"
+plan_id: "minimal-single-vm"
+name: "Minimal single-VM recovery check"
+use_backup_config: true
+
+compliance:
+  # CHANGE: the frameworks the report maps its evidence to (DORA, SOC2, HIPAA,
+  # ISO27001, CIS_V8; a label, not a certification), or NONE if you have no
+  # standard to name; NONE stands alone. At least one is required.
+  frameworks: ["DORA-Article-12"]
+  # CHANGE: the days you keep each report, 1 to 36500 (2555 is seven years).
+  # Required: a plan without it, or with 0, does not validate.
+  retention_days: 90
+
+admission_control:
+  max_host_ram_percent: 85.0
+  max_host_iowait_percent: 12.0
+  defer_retry_interval_sec: 30
+  max_defer_retries: 10
+
+network:
+  mode: "simple"
+  zone_id: "csSbMin1"
+  vnet_id: "csVnMin1"
+  ip_range: "192.0.2.0/24"
+  probe_ip: "192.0.2.1"
+
+storage:
+  # CHANGE: file-based PVE storage with "images" content for the disposable COW
+  # overlays; stock Proxmox VE attaches only disks that belong to a storage.
+  overlay_storage: "certistack-scratch"
+
+tiers:
+  - level: 1
+    name: "Single VM"
+    vms:
+      # vmid is the temporary sandbox VM; it must not already exist on the node.
+      - vmid: 9100
+        # CHANGE: the protected VM whose latest PBS backup is being tested.
+        source_vmid: 100
+        name: "recovery-check-vm100"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        probes:
+          # The guest receives 192.0.2.10 through COW-only network recovery;
+          # the source VM and its backup are never modified.
+          - type: "tcp"
+            target_ip: "192.0.2.10"
+            port: 22
+            timeout_sec: 60
+            description: "SSH listener answers inside the sandbox"

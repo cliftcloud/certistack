@@ -1,0 +1,49 @@
+CertiStack report d3f589f5-c499-4181-a804-29da944b7fa1
+
+Signature:     signature NOT checked (no --keyring): this is what the file says, not verified evidence.
+               Check it: certistack verify-report --keyring <trusted-signers> <report.json>
+Outcome:       PASS (as the file states)
+
+Plan:          recovery-pve-node-01 "Recovery check of 1 VM(s) on pve-node-01"
+Node:          pve-node-01
+When:          2026-10-05T14:02:57Z (run-d3f589f5-c499-4181-a804-29da944b7fa1)
+Engine:        v0.1.0, commit 0123456789ab, built 2026-10-04T11:46:58Z
+Validation:    full_integrity: every mapped disk image was read back and checksummed
+Frameworks:    SOC2 (labels, not a certification; retention 90 days)
+Schema:        1.5
+
+RTO:           5m 43s (342.95 s); objective not recorded (older schema)
+  Where the time went:
+    Host admission               0.50 s
+    SDN sandbox setup            4.4 s
+    PBS image mapping            0.22 s
+    Overlay creation             0.12 s
+    Guest network preparation    3m 34s
+    Image integrity scan         1m 24s
+    VM registration              1.1 s
+    VM start and boot            3.1 s
+    QMP running wait             0.51 s
+    Probes                       33.1 s
+    Teardown (after the RTO)     10.3 s
+    Total (the RTO)              5m 43s
+
+VMs (1):
+
+  VM 9100 "cs-rocky-web"  PASS
+    Restored from:     source VM 100, snapshot vm/100/2026-10-05T13:32:03Z
+    Backup:            crypt mode none; quiesced (the guest agent froze the file systems for the snapshot)
+    Network recovery:  ifcfg, sandbox address 192.0.2.10, 3m 34s of offline preparation
+    Hardware:          1 socket(s) x 1 core(s), 1024 MiB, cpu host, boot disk scsi0, hardware from the backup's configuration
+    Boot:              3.7 s to hypervisor readiness
+    Integrity:         scsi0 verified, sha256 7f59c0196f93550731835832470b516a6f0662f6b7b90d3e42666c359db62be5
+                       full mapped image read (12884901888 bytes; the size the snapshot's manifest records)
+    Probes (1):
+      PASS http http://192.0.2.10:80/  (from the worker host over the sandbox network, 33.1 s)
+           asserts: nginx answers 200 on the sandbox address
+           result:  HTTP 200 OK (200 OK) in 33.118674869s
+
+Teardown:
+  cleanup verified (at 2026-10-05T14:02:59Z)
+  sandbox VM destroyed: yes; 1 overlay disk(s) removed; 1 loop device(s) unmapped
+  sandbox network: removed: zone csZone1, VNet csVnet1
+  every resource the run owned confirmed removed: yes; confirmed from the node's journal: yes

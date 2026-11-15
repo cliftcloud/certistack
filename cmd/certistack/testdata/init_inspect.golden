@@ -1,0 +1,13 @@
+The plan restores 3 VM(s). A run of it:
+  reads 60 GiB of backup disks, each in full
+  takes about 17 min (reading at 100 MB/s, a rate measured on older servers, plus 2 minutes to prepare each VM; a faster node takes less)
+  reserves 6.8 GiB of the node's RAM while it runs (each VM's memory plus 256 MiB)
+Wrote <dir>/plan.yaml: 3 VM(s) from node pve1's backups.
+  - Linux VMs checked on the services found in their newest backup (confirm each is what the VM is for): 100 (web-rocky): nginx HTTP 80; 101 (web-debian): nginx HTTP 80.
+  - Not inspected (init --inspect reads the Linux guests the sandbox gives an address): 102 (dc-01): a Windows guest.
+  - Windows VMs checked through their guest agent (the Event Log service): 102 (dc-01). Add the service each one provides.
+
+Next:
+  1. Check each probe marked CHANGE: confirm the probes init --inspect wrote, and change the SSH ones to the service that VM provides. The plan is valid as it stands (compliance.frameworks is [NONE]: replace it only to name a standard).
+  2. certistack plan <dir>/plan.yaml   (shows what a run would do; changes nothing)
+  3. certistack run <dir>/plan.yaml

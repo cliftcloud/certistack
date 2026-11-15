@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+name: Feature request
+description: Propose a change to the Community Edition
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Community Edition is deliberately CLI-only; the management daemon, dashboard,
+        API, and entitlements live in the separate Enterprise Edition (see
+        [docs/editions.md](../blob/main/docs/editions.md)). Requests for those belong
+        with sales@certistack.dev rather than here.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the recovery-validation situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: CLI flag, plan field, report field, documentation, or deployment change. Include an example plan snippet if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and evidence impact
+      description: How does the change interact with the guarantees under "What it does" in README.md (read-only sources, isolation, cleanup, a report of every run)?
+    validations:
+      required: false
+  - type: checkboxes
+    id: cla
+    attributes:
+      label: Contribution
+      options:
+        - label: I may open a pull request for this and understand it requires signing the CLA (CLA.md).

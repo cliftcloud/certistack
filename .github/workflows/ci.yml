@@ -1,0 +1,191 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    env:
+      # The guest-network tests skip where netplan's generator is missing; here
+      # a missing generator fails them instead.
+      CERTISTACK_REQUIRE_NETPLAN: "1"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # The Go version is go.mod's toolchain line, the one place it is set.
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
+      # The guest-network tests run netplan's own generator to see which
+      # networkd file wins over the recovery profile, so the runner
+      # needs it rather than whatever its image happens to ship.
+      - name: Install netplan
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends netplan.io
+
+      - name: Verify repository-owned CI helpers
+        run: |
+          for required in \
+            scripts/campaign/generate_current_coverage_cases.go \
+            scripts/campaign/audit_compatibility_matrix.go \
+            scripts/run-lab-campaign_test.sh \
+            scripts/generate-current-coverage-cases_test.sh \
+            scripts/audit-compatibility-matrix_test.sh \
+            scripts/controller-container-smoke.sh \
+            scripts/check-image-binary.sh \
+            scripts/release-candidate.sh; do
+            git ls-files --error-unmatch "$required" >/dev/null
+          done
+
+      # The open-core rule: Community builds on its own. This checkout has no
+      # Enterprise repository and no go.work; GOWORK=off keeps a developer's
+      # workspace file out of the question, and the build proves nothing here
+      # needs the proprietary product (see internal/repocontract/standalone_test.go).
+      - name: Build Community with no Enterprise and no workspace
+        env:
+          GOWORK: "off"
+        run: go build ./...
+
+      - name: Run Tests
+        run: make test
+
+      - name: Run Race Detector
+        run: go test -race ./...
+
+      - name: Check reachable Go vulnerabilities
+        env:
+          GOTOOLCHAIN: local
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          govulncheck ./...
+
+      - name: Static analysis
+        run: |
+          make fmt-check
+          make vet
+          go mod verify
+          git diff --check
+
+      - name: Validate release helper scripts
+        run: |
+          bash -n scripts/run-lab-campaign.sh
+          bash scripts/run-lab-campaign_test.sh
+          bash scripts/generate-current-coverage-cases_test.sh
+          bash scripts/audit-compatibility-matrix_test.sh
+
+      # Hosted Ubuntu 24.04 runners no longer ship Terraform; install the
+      # pinned CLI rather than depending on the runner image.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: '1.16.4'
+          terraform_wrapper: false
+
+      - name: Validate Terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform -chdir=terraform init -backend=false
+          terraform -chdir=terraform validate
+          terraform -chdir=terraform test
+
+      - name: Compile Community CLI
+        run: |
+          make build-linux
+          make build-linux-arm64
+
+      - name: Upload Community CLI artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: certistack-cli
+          path: |
+            bin/certistack-linux-amd64
+            bin/certistack-linux-arm64
+
+  # The published Compose deployment runs the controller read-only with a
+  # tmpfs at /tmp/certistack, UID 65532, and no capabilities. Prove a run
+  # starts under exactly those restrictions on every change, not only at
+  # release time, for the image built from source and for the image built the
+  # way a release builds it: around an executable made outside Docker.
+  controller-container:
+    name: Controller Container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build controller image
+        run: make container IMAGE=certistack-controller:ci
+
+      - name: Start a run under the published restrictions
+        run: bash scripts/controller-container-smoke.sh certistack-controller:ci
+
+      - name: Build the release image around a prebuilt executable
+        run: |
+          make build-linux
+          make container-release IMAGE=certistack-controller:ci-release
+          bash scripts/check-image-binary.sh certistack-controller:ci-release bin/certistack-linux-amd64
+
+      - name: Start a run from the release image
+        run: bash scripts/controller-container-smoke.sh certistack-controller:ci-release
+
+  windows-portability:
+    name: Windows Portability
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run Windows Tests
+        run: go test ./...
+
+      - name: Run Windows Vet
+        run: go vet ./...
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      # Ubuntu runners mark the system interpreter externally managed
+      # (PEP 668), so the pinned toolchain goes into a throwaway venv.
+      - name: Install pinned MkDocs toolchain
+        run: |
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -r requirements-docs.txt
+
+      - name: Build documentation (strict)
+        run: make docs PYTHON=.venv/bin/python

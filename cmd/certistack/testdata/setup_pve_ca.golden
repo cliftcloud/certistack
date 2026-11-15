@@ -1,0 +1,13 @@
+Fetched /etc/pve/pve-root-ca.pem from pve-node-01.example.com over the pinned SSH connection.
+
+Certificate authority to trust:
+  Subject:      CN=Proxmox Virtual Environment,OU=0c7e3d1a-5b2f-4e6a-9d84-2f1b6c0a9e37,O=PVE Cluster Manager CA
+  SHA-256:      10:62:34:F8:6B:90:B0:1A:15:FE:4D:0E:B2:C2:CA:CA:81:D3:62:17:02:2B:D6:9B:4D:5F:3E:9A:8B:E3:E2:E5
+  Valid until:  2035-10-01
+
+Wrote <dir>/pve-root-ca.pem (mode 0644).
+
+Add this line to <dir>/controller.env:
+  CERTISTACK_PVE_CA_SOURCE=<dir>/pve-root-ca.pem
+
+Then run: certistack check --env-file <dir>/controller.env

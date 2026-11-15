@@ -1,0 +1,51 @@
+#!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# Run a controller job from the dedicated management appliance. This wrapper
+# deliberately has no --privileged mode, no host-device passthrough, and no
+# Docker/Podman socket mount.
+set -eu
+
+# The controller image was pulled into root's Podman store when the template
+# was built, and the secrets belong to UID 65532 in a mode-0700 directory, so
+# only root can start it. Any other caller would get Podman's own rootless
+# store, which has no such image and, under --pull=never, cannot fetch one.
+if [ "$(id -u)" != 0 ]; then
+  echo "certistack-controller must run as root: use sudo certistack-controller ..." >&2
+  exit 1
+fi
+
+image_file=/etc/certistack/controller-image
+if [ ! -r "$image_file" ]; then
+  echo "missing controller image reference: $image_file" >&2
+  exit 1
+fi
+image=$(cat "$image_file")
+
+# The controller loads its credentials and defaults from an environment file
+# only when told to (--env-file: allowlisted, parsed literally, never
+# shell-sourced), and this container starts with an empty environment.
+# Every command that takes the file is therefore given the one mounted below;
+# an --env-file of your own, placed after the command name, replaces it.
+secret_env=/run/certistack-secrets/controller.env
+case "${1:-}" in
+  run|plan|doctor|init|validate|check)
+    subcommand=$1
+    shift
+    set -- "$subcommand" --env-file "$secret_env" "$@"
+    ;;
+esac
+
+exec /usr/bin/podman run --rm --pull=never \
+  --name "certistack-controller-job-$$" \
+  --user 65532:65532 \
+  --read-only \
+  --cap-drop=all \
+  --security-opt no-new-privileges:true \
+  --tmpfs /tmp/certistack:uid=65532,gid=65532,mode=0700 \
+  --env TMPDIR=/tmp/certistack \
+  --env XDG_CONFIG_HOME=/var/lib/certistack/.config \
+  --volume /var/lib/certistack:/var/lib/certistack:rw \
+  --volume /etc/certistack/secrets:/run/certistack-secrets:ro \
+  "$image" "$@"

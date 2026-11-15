@@ -1,0 +1,151 @@
+{
+  "admission": {
+    "defer_retry_interval_sec": 0,
+    "max_defer_retries": 0,
+    "max_host_iowait_percent": 0,
+    "max_host_ram_percent": 0,
+    "recovery_reservation_mib": 0,
+    "recovery_reservation_tier": 0,
+    "recovery_reservation_vms": 0
+  },
+  "all_passed": true,
+  "build_date": "2026-10-01T00:00:00Z",
+  "engine_version": "v0.0.0-fixture",
+  "environment": "Zürich ✓ (synthetic)",
+  "frameworks": [
+    "SYNTHETIC-1"
+  ],
+  "git_commit": "0000000",
+  "node_fqdn": "synthetic-node",
+  "phase_timings": {
+    "admission_check_sec": 1.25,
+    "cow_guest_network_recovery_sec": 0,
+    "overlay_creation_sec": 0,
+    "pbs_mapping_sec": 12.5,
+    "probes_execution_sec": 5.5,
+    "qmp_running_wait_sec": 0,
+    "sdn_provisioning_sec": 0,
+    "startup_grace_period_sec": 0,
+    "teardown_sec": 3.25,
+    "total_rto_sec": 183.5,
+    "vm_registration_sec": 0,
+    "vm_start_sec": 20
+  },
+  "plan_digest_format": "worker-plan-yaml-v1",
+  "plan_id": "synthetic-plan-002",
+  "plan_name": "Synthetic verify-page plan",
+  "public_key": "977c8efee66ec7b6a16a400690cbd90d1af89c70e1b36699bcbfca9f04176c6e",
+  "report_id": "5ee0c0de-0000-4000-8000-0000000f1ac7",
+  "report_schema_version": "1.7",
+  "resolved_plan_sha256": "a0b4eb3fffcd393381cc65ba643136ff96c23646f385f2198b55f8e03a21b029",
+  "retention_days": 30,
+  "rto_seconds": 183.5,
+  "rto_target_seconds": 300,
+  "signature": "e4e3d5a4f21c65f475f70ccb4ac8b39efce9459271f2d90098dcec9737b5b0ba0abe139f9d360fd43605e4e3ed1e8574345ef49fa2396cb4f59c683a4ba35a0e",
+  "signer_fingerprint": "SHA256:ee96f3701ec90bf115afa4febeba39b188d92960982bf790efd13ea0604009c9",
+  "teardown_evidence": {
+    "all_cleaned": true,
+    "loop_devices_unmapped": [],
+    "orphan_sweep_clean": true,
+    "overlay_files_removed": [],
+    "sdn_cluster_reloaded": true,
+    "sdn_vnet_removed": "synthetic-vnet",
+    "sdn_zone_removed": "synthetic-zone",
+    "verified_at": "2026-10-02T12:03:10Z",
+    "vm_stopped_and_destroyed": true
+  },
+  "timestamp": "2026-10-02T12:00:00Z",
+  "validated_plan_sha256": "a0b4eb3fffcd393381cc65ba643136ff96c23646f385f2198b55f8e03a21b029",
+  "validation_mode": "full_integrity",
+  "vm_records": [
+    {
+      "all_passed": true,
+      "boot_duration": 0,
+      "boot_duration_seconds": 41.5,
+      "name": "synthetic-vm",
+      "probe_results": [
+        {
+          "description": "Synthetic service port",
+          "duration": 120000000,
+          "origin": "worker",
+          "passed": true,
+          "target": "port 8080",
+          "type": "tcp"
+        },
+        {
+          "description": "Synthetic health endpoint",
+          "duration": 80000000,
+          "origin": "worker",
+          "passed": true,
+          "target": "/healthz",
+          "type": "http"
+        }
+      ],
+      "source_vmid": 101,
+      "verification_status": "verified",
+      "vmid": 9001
+    }
+  ],
+  "x_canonicalization_probe": {
+    "nested": [
+      {
+        "x": [
+          {
+            "a": null,
+            "b": true
+          }
+        ],
+        "y": 1
+      },
+      [],
+      {},
+      null,
+      true,
+      false,
+      0
+    ],
+    "numbers": [
+      1.0,
+      1.50,
+      0.000001,
+      1e-7,
+      1E+2,
+      -0.0,
+      9007199254740991,
+      -9007199254740991,
+      9007199254740991.0,
+      4.5e15,
+      123456789.123456789,
+      5e-324,
+      0.1,
+      100e-2,
+      0,
+      -1.5E-3
+    ],
+    "strings": [
+      "Zürich ✓",
+      "astral 😀 and ～",
+      "tab\there",
+      "quote \" and back\\slash and / slash",
+      "nul\u0000 and \u001f and del",
+      "line\u2028separator",
+      "\u003ctag\u003e \u0026 more",
+      ""
+    ],
+    "unsorted_keys": {
+      "": 9,
+      "10": 10,
+      "2": 11,
+      "C": 3,
+      "Y": 6,
+      "a": 2,
+      "a\u0000": 13,
+      "aa": 12,
+      "b": 1,
+      "z": 5,
+      "é": 4,
+      "～": 7,
+      "😀": 8
+    }
+  }
+}

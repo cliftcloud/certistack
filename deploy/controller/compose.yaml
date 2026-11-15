@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+# This is a controller job image, not a privileged node-side workload.
+# Create ./secrets/controller.env and ./secrets/known_hosts from the examples
+# in this directory; neither file is committed.
+services:
+  controller:
+    image: ${CERTISTACK_CONTROLLER_IMAGE:?set a digest-pinned controller image reference}
+    # A digest names its bytes, so an image already on this host needs no
+    # registry: a run uses it offline, and the local build of the README
+    # (certistack-controller:dev) is used as built. `docker compose run --pull
+    # always` fetches it again on purpose.
+    pull_policy: missing
+    # There is no env_file here on purpose. Compose parses an env_file with its
+    # own rules (it interpolates $VAR and ${VAR}, processes escapes in quoted
+    # values and strips an inline comment), so a credential could reach the
+    # container as a different string than the file holds. The controller reads
+    # ./secrets/controller.env itself, literally: pass
+    # --env-file /run/certistack-secrets/controller.env to the command.
+    environment:
+      # The root filesystem is read-only; the controller's private staging
+      # directory (worker binary and secret environment) lives on this tmpfs.
+      TMPDIR: /tmp/certistack
+      # The user has no home directory here. This is where the per-user
+      # configuration lives, in the state mount below, which is the only
+      # writable path: the usage statistics keep their install id and the time
+      # of the last report in .config/certistack/telemetry.json, so that
+      # CERTISTACK_TELEMETRY=1 reports once a day and not after every run.
+      # Nothing is written there unless the statistics are turned on.
+      XDG_CONFIG_HOME: /var/lib/certistack/.config
+    user: "65532:65532"
+    read_only: true
+    tmpfs:
+      - /tmp/certistack:uid=65532,gid=65532,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./state:/var/lib/certistack
+      - ./secrets:/run/certistack-secrets:ro
+      - ./plans:/plans:ro
+    entrypoint: ["/sbin/tini", "--", "/usr/local/bin/certistack"]

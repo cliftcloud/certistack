@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/cliftcloud/certistack/blob/main/SECURITY.md
+    about: Report privately by e-mail as described in SECURITY.md. Never open a public issue for a vulnerability.
+  - name: Questions and discussion
+    url: https://github.com/cliftcloud/certistack/discussions
+    about: Ask how-to questions, share lab results, and discuss ideas before opening an issue.
+  - name: Commercial licensing and Enterprise Edition
+    url: https://certistack.dev/#licensing
+    about: Questions about the Enterprise Edition and commercial licensing go to sales@certistack.dev.
