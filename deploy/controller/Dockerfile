@@ -35,7 +35,7 @@ COPY bin/certistack-linux-amd64 /out/certistack
 
 FROM ${BINARY_SOURCE} AS binary
 
-FROM alpine:3.21@sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507 AS runtime
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS runtime
 # The source label links the published package to its repository on GitHub.
 LABEL org.opencontainers.image.source="https://github.com/cliftcloud/certistack" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
