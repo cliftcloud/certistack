@@ -1,0 +1,33 @@
+CertiStack Community Edition
+Copyright (C) 2024-2026 Clift Cloud LLC
+
+This product is licensed under the GNU Affero General Public License,
+version 3 or (at your option) any later version (AGPL-3.0-or-later). See
+the LICENSE file for the full license text.
+
+Trademark notice
+-----------------
+"CertiStack" and the CertiStack logo are trademarks of Clift Cloud LLC.
+The AGPL grants rights to the source code; it does not grant
+any right to use the "CertiStack" name, the CertiStack logo, or any
+other Clift Cloud LLC trademark or branding.
+
+You may state, truthfully, that your distribution is "based on
+CertiStack" or "forked from CertiStack" for identification purposes.
+You may not use the "CertiStack" name or logo in a way that suggests
+your distribution, service, or organization is officially endorsed by,
+affiliated with, or produced by Clift Cloud LLC without separate,
+written permission. This includes, without limitation, naming a
+modified or hosted version of this software "CertiStack" or a
+confusingly similar name, and using the CertiStack logo in your own
+product branding, marketing, or service offering.
+
+Contact licensing@certistack.dev for trademark permissions or commercial
+licensing terms.
+
+Third-party software
+---------------------
+The compiled program includes third-party Go modules under their own
+licenses (BSD-3-Clause, MIT and Apache-2.0). Their copyright notices and
+license texts are in THIRD-PARTY-NOTICES.md, which must accompany a
+distribution of the program.

@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# A Windows domain restored in dependency order: a domain controller first,
+# then a SQL Server and a file server together. Copy this file, change the
+# values marked CHANGE, and run `certistack validate` on the copy.
+#
+# Windows guests cannot have their network adapted offline, so each VM sets
+# `network_recovery.mode: preserve`: the guest keeps its own address on the
+# isolated VNet. Set `network.ip_range` to the subnet the guests use in
+# production and each probe's `target_ip` to that guest's own address. The
+# rule: `ip_range` must be a network in which the PVE node that runs the test
+# has no address and no route (`ip -4 route` on the node shows them), because
+# the node routes the whole range into the sandbox while a run lasts. A guest
+# that keeps its production address therefore needs a node with no leg in that
+# subnet; where every node has one, `plan` refuses the range and the guest has
+# to be re-addressed. The 192.0.2.0/24 addresses here are documentation
+# placeholders. The guest also keeps the backup's net0 MAC address and NIC
+# model; a plan is refused when two of its VMs' backups carry the same MAC (VMs
+# cloned from each other do).
+#
+# A cold Windows boot from a backup is slow and its guest agent can take
+# minutes to answer, so the probe budgets are generous. See the troubleshooting
+# guide (Issue 27) before shortening them.
+version: "v1"
+plan_id: "windows-domain"
+name: "Windows domain recovery check"
+use_backup_config: true
+
+compliance:
+  # CHANGE: the frameworks the report maps its evidence to (DORA, SOC2, HIPAA,
+  # ISO27001, CIS_V8; a label, not a certification), or NONE if you have no
+  # standard to name; NONE stands alone. At least one is required.
+  frameworks: ["DORA-Article-12"]
+  retention_days: 365
+
+admission_control:
+  max_host_ram_percent: 85.0
+  max_host_iowait_percent: 12.0
+  defer_retry_interval_sec: 30
+  max_defer_retries: 10
+
+network:
+  mode: "simple"
+  zone_id: "csSbWin1"
+  vnet_id: "csVnWin1"
+  # CHANGE: the subnet the guests use in production.
+  ip_range: "192.0.2.0/24"
+  # A free address in ip_range that no guest uses.
+  probe_ip: "192.0.2.250"
+
+storage:
+  # CHANGE: file-based PVE storage with "images" content. A UEFI guest needs
+  # one, and Windows VMs are often UEFI.
+  overlay_storage: "certistack-scratch"
+
+tiers:
+  - level: 1
+    name: "Domain controller"
+    startup_grace_period_sec: 60
+    vms:
+      - vmid: 9201
+        # CHANGE: the protected domain controller.
+        source_vmid: 301
+        name: "recovery-check-dc01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        network_recovery:
+          mode: "preserve"
+        probes:
+          - type: "ldap"
+            target_ip: "192.0.2.10"
+            port: 389
+            # Reads the Root DSE only; AD refuses anonymous directory searches.
+            naming_context: "DC=example,DC=com"
+            timeout_sec: 300
+            description: "Domain controller serves example.com"
+          - type: "dns"
+            target_ip: "192.0.2.10"
+            port: 53
+            domain: "_ldap._tcp.dc._msdcs.example.com"
+            record_type: "srv"
+            timeout_sec: 300
+            description: "DC locator records are served"
+          - type: "qga"
+            command: "sc query NTDS"
+            require_qga: true
+            timeout_sec: 300
+            description: "Active Directory Domain Services is running"
+
+  - level: 2
+    name: "Services"
+    startup_grace_period_sec: 60
+    vms:
+      - vmid: 9202
+        source_vmid: 302
+        name: "recovery-check-sql01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        network_recovery:
+          mode: "preserve"
+        probes:
+          - type: "mssql"
+            target_ip: "192.0.2.20"
+            port: 1433
+            timeout_sec: 300
+            description: "SQL Server answers its protocol"
+          - type: "qga"
+            command: "sc query MSSQLSERVER"
+            require_qga: true
+            timeout_sec: 300
+            description: "SQL Server service is running"
+
+      - vmid: 9203
+        source_vmid: 303
+        name: "recovery-check-fs01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        network_recovery:
+          mode: "preserve"
+        probes:
+          - type: "smb"
+            target_ip: "192.0.2.21"
+            port: 445
+            timeout_sec: 300
+            description: "File server answers SMB"

@@ -1,0 +1,14 @@
+CertiStack check: is this controller ready for certistack plan?
+The layers run in order and it stops at the first that fails. Layers 4 to 6 and 8 use a temporary worker on the node, removed afterwards.
+
+  ✓ 1. Environment file  <dir>/controller.env, mode 0600, the 5 required variables are set
+  ✓ 2. SSH files         identity <dir>/id_ed25519; <dir>/known_hosts has an entry for [pve-node-01.example.com]:2222
+  ✓ 3. SSH connection    ssh to root@pve-node-01.example.com:2222 works without a prompt, with strict host-key checking; the node reports x86_64
+  ✓ 4. Node tools        found on the node: qemu-img, proxmox-backup-client, guestfish, ip, nft
+  ✓ 5. PVE API           the node reaches the PVE API and PVE accepts the token (Proxmox VE 9.0.3)
+  ✓ 6. PBS               the PBS credential lists the repository: 2 VMs have a complete backup
+  ✓ 7. Plan              the plan file exists
+  ✓ 8. Sandbox network   network.ip_range 192.0.2.0/24 holds neither the PVE API nor the PBS server, and overlaps none of the node's routes or addresses
+
+✓ Every layer passed.
+Now run: certistack plan <dir>/my-first-plan.yaml --env-file <dir>/controller.env

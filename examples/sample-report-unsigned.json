@@ -1,0 +1,152 @@
+{
+  "report_schema_version": "1.7",
+  "report_id": "d3f589f5-c499-4181-a804-29da944b7fa1",
+  "run_id": "run-6e1de311-cc50-4dd2-b263-79a1c78a557d",
+  "timestamp": "2026-10-05T14:02:57Z",
+  "plan_id": "recovery-pve-demo-01",
+  "plan_name": "Recovery check of 1 VM(s) on pve-demo-01",
+  "plan_sha256": "a1e99521b091cc111675cd38b30567b19212aa6f682a9de87bee3e4417ae5e67",
+  "validated_plan_sha256": "cc91ba0731b59bf51182609511598be8e2771c0fbc7d3d4c10d1945ac3651434",
+  "resolved_plan_sha256": "614001f5cc1331b52b73f82f70322649275a8bb23781d261c80c414016d92b87",
+  "plan_digest_format": "worker-plan-yaml-v1",
+  "pbs_fingerprint": "6d:cf:53:22:78:8a:e5:47:74:fc:95:44:94:8b:c4:d8:dc:a8:65:5b:1f:97:04:87:e2:f8:dd:85:0c:69:5f:6f",
+  "pbs_namespace": "walkthrough",
+  "validation_mode": "full_integrity",
+  "node_fqdn": "pve-demo-01",
+  "engine_version": "v0.1.0",
+  "git_commit": "640f0c92e656",
+  "build_date": "2026-10-04T11:46:58Z",
+  "pve_version": "9.2.2",
+  "pbs_version": "4.2.0",
+  "pbs_client_version": "4.2.0",
+  "version_support": "tested",
+  "worker_sha256": "b04ab5ac118b2d0b210ff340b23f1a2d160a374d79acdd3287f5f7f86fdb8366",
+  "frameworks": [
+    "SOC2"
+  ],
+  "retention_days": 90,
+  "vm_records": [
+    {
+      "vmid": 9100,
+      "source_vmid": 100,
+      "name": "cs-rocky-web",
+      "boot_duration": 3657424213,
+      "boot_duration_seconds": 3.657424213,
+      "source_snapshot": "vm/100/2026-10-05T13:32:03Z",
+      "source_crypt_mode": "none",
+      "source_consistency": "quiesced",
+      "source_consistency_detail": "the guest agent froze the file systems for the snapshot",
+      "source_drive": "drive-scsi0",
+      "source_manifest_reference": "drive-scsi0.img.fidx",
+      "source_image_digest": "7f59c0196f93550731835832470b516a6f0662f6b7b90d3e42666c359db62be5",
+      "source_disks": [
+        {
+          "slot": "scsi0",
+          "archive": "drive-scsi0",
+          "manifest_reference": "drive-scsi0.img.fidx",
+          "integrity_status": "verified",
+          "image_digest": "7f59c0196f93550731835832470b516a6f0662f6b7b90d3e42666c359db62be5"
+        }
+      ],
+      "pbs_verify_status": "full mapped image read (12884901888 bytes; the size the snapshot's manifest records); SHA-256 7f59c0196f93550731835832470b516a6f0662f6b7b90d3e42666c359db62be5",
+      "network_recovery_strategy": "ifcfg",
+      "network_recovery_address": "192.0.2.10",
+      "network_recovery_seconds": 213.698976461,
+      "network_recovery_files": [
+        "/etc/sysconfig/network-scripts/ifcfg-eth0",
+        "/etc/systemd/network/00-certistack-recovery.link"
+      ],
+      "probe_results": [
+        {
+          "type": "http",
+          "target": "http://192.0.2.10:80/",
+          "description": "nginx answers 200 on the sandbox address",
+          "origin": "worker_host",
+          "source_interface": "csVnet1",
+          "source_address": "192.0.2.1",
+          "timeout_sec": 300,
+          "attempts": 1,
+          "passed": true,
+          "duration": 33118674869,
+          "detail": "HTTP 200 OK (200 OK) in 33.118674869s"
+        }
+      ],
+      "verification_status": "verified",
+      "restored_hardware": {
+        "from_backup_config": true,
+        "cores": 1,
+        "sockets": 1,
+        "memory_mb": 1024,
+        "cpu": "host",
+        "cpu_weight": 50,
+        "machine": "q35",
+        "scsihw": "virtio-scsi-single",
+        "ostype": "l26",
+        "nic_model": "virtio",
+        "mac": "BC:24:11:9C:94:8B",
+        "running_machine": "pc-q35-11.0+pve0",
+        "smbios_uuid": "5cfc3bf7-a47d-40de-a306-76c9b139f911",
+        "empty_cdroms": [
+          "scsi1"
+        ],
+        "boot_disk": "scsi0",
+        "boot_order": [
+          "scsi0"
+        ]
+      },
+      "all_passed": true
+    }
+  ],
+  "phase_timings": {
+    "admission_check_sec": 0.501762837,
+    "sdn_provisioning_sec": 4.4360046539999995,
+    "pbs_mapping_sec": 0.219084759,
+    "overlay_creation_sec": 0.118788744,
+    "cow_guest_network_recovery_sec": 213.698976461,
+    "vm_registration_sec": 1.138575331,
+    "vm_start_sec": 3.075476924,
+    "qmp_running_wait_sec": 0.50507549,
+    "integrity_verification_sec": 84.315576099,
+    "startup_grace_period_sec": 0,
+    "probes_execution_sec": 33.119525027,
+    "teardown_sec": 10.292224012,
+    "total_rto_sec": 342.945584747
+  },
+  "teardown_evidence": {
+    "vm_stopped_and_destroyed": true,
+    "overlay_files_removed": [
+      "certistack-delta-vm9100-scsi0-1791208629162945811-0.qcow2"
+    ],
+    "loop_devices_unmapped": [
+      "/dev/loop0"
+    ],
+    "sdn_provisioning": "ephemeral",
+    "sdn_vnet_removed": "csVnet1",
+    "sdn_zone_removed": "csZone1",
+    "sdn_cluster_reloaded": true,
+    "orphan_sweep_clean": true,
+    "all_cleaned": true,
+    "journal_recovery_verified": true,
+    "verified_at": "2026-10-05T14:02:59Z"
+  },
+  "rto_seconds": 342.945584747,
+  "admission": {
+    "max_host_ram_percent": 85,
+    "max_host_iowait_percent": 12,
+    "defer_retry_interval_sec": 30,
+    "max_defer_retries": 10,
+    "recovery_reservation_mib": 1280,
+    "recovery_reservation_vms": 1,
+    "recovery_reservation_tier": 1,
+    "evaluation": {
+      "checks": 1,
+      "decision": "granted",
+      "host_total_mib": 32094.3828125,
+      "host_available_mib": 28672.98828125,
+      "host_ram_percent": 10.660257185776036,
+      "host_iowait_percent": 0,
+      "projected_ram_percent": 14.648652253935596
+    }
+  },
+  "all_passed": true
+}

@@ -1,0 +1,34 @@
+CertiStack report 49b8b0fe-1a7d-4dab-bb52-57bd89e9421b
+
+Signature:     VALID, by a trusted signer (Fixture signer)
+               signer node ctl-fixture
+               key 0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0
+               fingerprint SHA256:790901b82a89fe505b5f98e2b7bf28e3a74f9a40f1a561c9d353f85f61cc36a2
+               trust source keyring:<dir>/trusted-signers.json
+               signature timestamp: none
+Acceptance:    REJECTED as pass evidence (internal consistency only, not bound to your plan, node or build: add verify-report --expect-* to bind it)
+               - the report does not record a pass: "admission control guardrail triggered: max admission retries exceeded"
+               - the report records no VM, so no recovery was validated
+Outcome:       FAIL
+Reason:        admission control guardrail triggered: max admission retries exceeded
+
+Plan:          recovery-pve-node-01 "Recovery check of 1 VM(s) on pve-node-01"
+Node:          pve-node-01
+When:          2026-10-05T14:18:53Z (run-49b8b0fe-1a7d-4dab-bb52-57bd89e9421b)
+Engine:        v0.1.0, commit 0123456789ab, built 2026-10-04T11:46:58Z
+Proxmox:       PVE 9.2.2, PBS 4.2.0, proxmox-backup-client 4.2.0 (tested)
+Validation:    full_integrity: every mapped disk image was read back and checksummed
+Frameworks:    SOC2 (labels, not a certification; retention 90 days)
+Schema:        1.7
+
+RTO:           0.62 s (0.62 s); no objective set
+Admission:     limits RAM 85.0%, I/O wait 12.0%; reserved 1280 MiB for 1 VM(s); denied_ram
+
+VMs (0):
+  none: the report records no VM, so no recovery was validated.
+
+Teardown:
+  cleanup verified (at 2026-10-05T14:18:55Z)
+  sandbox VM destroyed: no; 0 overlay disk(s) removed; 0 loop device(s) unmapped
+  sandbox network: none was created
+  every resource the run owned confirmed removed: yes; confirmed from the node's journal: yes

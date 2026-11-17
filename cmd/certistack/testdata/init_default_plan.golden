@@ -1,0 +1,103 @@
+# Written by `certistack init` on 2026-10-05 09:30 UTC from node pve1 and its PBS backups.
+# A run restores the newest backup of each VM below into an isolated
+# sandbox, checks each guest with the probes listed under it (from the
+# worker over the sandbox network, or through the guest agent), writes a JSON
+# report (unsigned in the Community Edition), and removes the sandbox. Backups
+# and source VMs are only read.
+# A VM counts as verified only when a probe that asserts something in the
+# guest passed. The plan is valid as it stands. Change each probe marked
+# CHANGE to the service its VM exists for, then:
+#   certistack plan <this file>   shows what a run would do, and changes nothing
+#   certistack run <this file>
+version: "v1"
+plan_id: "recovery-pve1"
+name: "Recovery check of 3 VM(s) on pve1"
+# Each sandbox VM takes its disks, firmware and hardware from its backup.
+use_backup_config: true
+
+compliance:
+  # The standards the report is labelled with: DORA, SOC2, HIPAA, ISO27001,
+  # CIS_V8 (a label, not a certification). NONE names none and stands alone;
+  # replace it to name one or more. It is valid as it stands.
+  frameworks: [NONE]
+  # Your choice: the days you keep each report (1 to 36500; 2555 is seven years).
+  # 90 is valid as it stands.
+  retention_days: 90
+
+admission_control:
+  # A run waits, and retries, while the node is busier than this.
+  max_host_ram_percent: 85.0
+  max_host_iowait_percent: 12.0
+  defer_retry_interval_sec: 30
+  max_defer_retries: 10
+
+network:
+  # An SDN zone and VNet the run creates and removes: no gateway, no
+  # uplink, so the sandbox cannot reach any other network. Both IDs were
+  # free when this was written.
+  mode: "simple"
+  zone_id: "csZone1"
+  vnet_id: "csVnet1"
+  ip_range: "192.0.2.0/24"
+  probe_ip: "192.0.2.1"
+
+storage:
+  # The sandbox's disk writes go to overlays on this storage (400 GiB free).
+  overlay_storage: "local"
+
+tiers:
+  - level: 1
+    name: "Recovery check"
+    # Tiers start in order. Put what the others need (DNS, directory,
+    # databases) in an earlier tier, and each tier's dependants after it.
+    vms:
+      # VM 100 (web-rocky): Linux, backed up 2026-10-05 02:00 UTC, 20 GiB of disks.
+      - vmid: 9100
+        source_vmid: 100
+        name: "cs-web-rocky"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        probes:
+          # The run gives the guest this address on the sandbox VNet.
+          # CHANGE: check the service this VM is for: http, dns, ldap,
+          # mssql, smb, or qga "systemctl is-active <unit>".
+          - type: "tcp"
+            target_ip: "192.0.2.10"
+            port: 22
+            timeout_sec: 300
+            description: "SSH answers on the sandbox address"
+      # VM 101 (web-debian): Linux, backed up 2026-10-05 02:00 UTC, 20 GiB of disks.
+      - vmid: 9101
+        source_vmid: 101
+        name: "cs-web-debian"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        probes:
+          # The run gives the guest this address on the sandbox VNet.
+          # CHANGE: check the service this VM is for: http, dns, ldap,
+          # mssql, smb, or qga "systemctl is-active <unit>".
+          - type: "tcp"
+            target_ip: "192.0.2.11"
+            port: 22
+            timeout_sec: 300
+            description: "SSH answers on the sandbox address"
+      # VM 102 (dc-01): Windows 11/2022/2025 (ostype win11), backed up 2026-10-05 02:00 UTC, 20 GiB of disks.
+      - vmid: 9102
+        source_vmid: 102
+        name: "cs-dc-01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        # The guest keeps its own network settings in the sandbox.
+        network_recovery:
+          mode: "preserve"
+        probes:
+          # The guest agent runs sc.exe: Windows started its services.
+          # CHANGE: add the service this VM is for, e.g. "sc query W3SVC".
+          - type: "qga"
+            command: "sc query EventLog"
+            require_qga: true
+            timeout_sec: 600
+            description: "Windows Event Log service is running"

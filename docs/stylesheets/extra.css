@@ -1,0 +1,190 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Copyright (C) 2024-2026 Clift Cloud LLC */
+/*
+ * Docs theme: the colours, fonts and calm layout of certistack.dev on top of MkDocs Material.
+ * Tokens follow website/styles.css (--bg, --primary #38bdf8, --accent #10b981, text colours).
+ * Served under the site's CSP (style-src 'self'), so no web fonts: the same system font stacks.
+ */
+
+:root {
+  --cs-bg: #07090e;
+  --cs-bg-subtle: #0d121f;
+  --cs-bg-raised: #111827;
+  --cs-border: rgba(255, 255, 255, 0.08);
+  --cs-primary: #38bdf8;
+  --cs-primary-hover: #7dd3fc;
+  --cs-accent: #10b981;
+  --cs-text: #e2e8f0;
+  --cs-text-strong: #f8fafc;
+  --cs-text-muted: #94a3b8;
+  --md-text-font-family: 'Aptos', 'Segoe UI', 'Inter', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --md-code-font-family: 'Cascadia Code', Consolas, 'SFMono-Regular', Menlo, Monaco, 'DejaVu Sans Mono', monospace;
+}
+
+/* Material reads these two variables for every text and code element. */
+body, input { font-family: var(--md-text-font-family); }
+code, kbd, pre { font-family: var(--md-code-font-family); }
+
+/* ---- Dark scheme (default): the site's palette ---- */
+[data-md-color-scheme="slate"] {
+  --md-hue: 222;
+  --md-default-bg-color: var(--cs-bg);
+  --md-default-fg-color: var(--cs-text);
+  --md-default-fg-color--light: var(--cs-text-muted);
+  --md-default-fg-color--lighter: rgba(148, 163, 184, 0.55);
+  --md-default-fg-color--lightest: var(--cs-border);
+  --md-primary-fg-color: var(--cs-bg);
+  --md-primary-fg-color--light: var(--cs-bg-subtle);
+  --md-primary-fg-color--dark: var(--cs-bg);
+  --md-primary-bg-color: var(--cs-text-strong);
+  --md-primary-bg-color--light: var(--cs-text-muted);
+  --md-accent-fg-color: var(--cs-primary-hover);
+  --md-typeset-color: var(--cs-text);
+  --md-typeset-a-color: var(--cs-primary);
+  --md-code-bg-color: var(--cs-bg-subtle);
+  --md-code-fg-color: #dbe4f0;
+  --md-typeset-table-color: var(--cs-border);
+  --md-admonition-bg-color: var(--cs-bg-subtle);
+  --md-footer-bg-color: var(--cs-bg);
+  --md-footer-bg-color--dark: var(--cs-bg);
+}
+
+/* ---- Light scheme: same brand, light page ---- */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: var(--cs-bg);
+  --md-primary-fg-color--light: var(--cs-bg-subtle);
+  --md-primary-fg-color--dark: var(--cs-bg);
+  --md-primary-bg-color: var(--cs-text-strong);
+  --md-primary-bg-color--light: var(--cs-text-muted);
+  --md-accent-fg-color: #0284c7;
+  --md-typeset-a-color: #0369a1;
+  --md-code-bg-color: #f1f5f9;
+  --md-footer-bg-color: var(--cs-bg);
+  --md-footer-bg-color--dark: var(--cs-bg);
+}
+
+/* ---- Header and tabs: one dark bar with a hairline, like the site ---- */
+.md-header {
+  border-bottom: 1px solid var(--cs-border);
+  box-shadow: none;
+}
+.md-header[data-md-state="shadow"], .md-header--shadow { box-shadow: none; }
+.md-tabs {
+  background-color: var(--cs-bg);
+  border-bottom: 1px solid var(--cs-border);
+}
+.md-tabs__link { font-size: 0.72rem; opacity: 0.75; }
+.md-tabs__link--active, .md-tabs__link:hover { opacity: 1; color: var(--cs-primary); }
+.md-header__topic:first-child { font-weight: 700; letter-spacing: -0.01em; }
+.md-search__form { border-radius: 6px; }
+
+/* ---- Reading width and rhythm ---- */
+.md-grid { max-width: 72rem; }
+.md-content__inner { max-width: 42rem; }
+@media screen and (min-width: 76.25em) { .md-content__inner { margin-left: 1.6rem; margin-right: 1.6rem; } }
+.md-typeset { font-size: 0.8rem; line-height: 1.7; }
+.md-typeset p, .md-typeset ul, .md-typeset ol { margin-block: 0.7em; }
+.md-typeset li { margin-bottom: 0.25em; }
+.md-typeset li > p { margin-block: 0.3em; }
+
+/* Headings: strong and clear, not Material's thin grey h1 */
+.md-typeset h1 {
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--md-default-fg-color);
+  margin-bottom: 0.8em;
+}
+[data-md-color-scheme="slate"] .md-typeset h1 { color: var(--cs-text-strong); }
+.md-typeset h2 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 2.2em;
+  padding-top: 1.2em;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+.md-typeset h1 + h2, .md-typeset h1 + p + h2 { border-top: 0; padding-top: 0; }
+.md-typeset h3 { font-weight: 650; margin-top: 1.8em; }
+.md-typeset h4 { font-weight: 650; }
+.md-typeset .headerlink { opacity: 0; }
+.md-typeset :is(h2, h3, h4):hover .headerlink { opacity: 0.6; }
+
+/* The first paragraph of a page reads as its summary */
+.md-typeset h1 + p {
+  font-size: 0.92rem;
+  color: var(--md-default-fg-color--light);
+}
+
+/* ---- Inline code: quiet chip; code blocks: framed panel ---- */
+.md-typeset code {
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+  font-size: 0.82em;
+  word-break: normal;
+}
+.md-typeset pre > code {
+  padding: 0.9em 1.1em;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.md-typeset .highlight, .md-typeset pre {
+  border-radius: 8px;
+}
+.md-typeset .highlight pre, .md-typeset > pre {
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* ---- Tables: compact, hairline rows, readable on a phone ---- */
+.md-typeset table:not([class]) {
+  font-size: 0.74rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  box-shadow: none;
+}
+.md-typeset table:not([class]) th {
+  background-color: var(--md-code-bg-color);
+  font-weight: 650;
+  min-width: 0;
+  white-space: nowrap;
+}
+.md-typeset table:not([class]) th, .md-typeset table:not([class]) td {
+  padding: 0.55em 0.9em;
+  vertical-align: top;
+}
+.md-typeset table:not([class]) td code { white-space: nowrap; }
+.md-typeset table:not([class]) tr:hover { background-color: transparent; box-shadow: none; }
+
+/* ---- Admonitions and collapsed details: subtle cards ---- */
+.md-typeset .admonition, .md-typeset details {
+  font-size: 0.78rem;
+  border-width: 1px;
+  border-radius: 8px;
+  box-shadow: none;
+  background-color: var(--md-admonition-bg-color, transparent);
+}
+.md-typeset details > summary { font-weight: 600; }
+
+/* ---- Sidebars: lighter, so the page is the focus ---- */
+.md-nav { font-size: 0.72rem; }
+.md-nav__title { font-weight: 700; }
+.md-nav__link { margin-top: 0.45em; }
+.md-nav--secondary .md-nav__link { color: var(--md-default-fg-color--light); }
+.md-nav__link--active, .md-nav__link:hover { color: var(--cs-primary) !important; }
+.md-sidebar--secondary .md-nav__title { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.62rem; }
+
+/* ---- Footer ---- */
+.md-footer-meta { border-top: 1px solid var(--cs-border); }
+
+/* Collapsed "note" blocks are optional detail: quiet, like a "more" toggle */
+.md-typeset details.note {
+  border-color: var(--md-default-fg-color--lightest);
+  background-color: transparent;
+}
+.md-typeset details.note > summary {
+  background-color: transparent;
+  color: var(--md-default-fg-color--light);
+  font-weight: 600;
+}
+.md-typeset details.note > summary::before {
+  background-color: var(--md-default-fg-color--lighter);
+}
+.md-typeset details.note[open] > summary { color: var(--md-default-fg-color); }

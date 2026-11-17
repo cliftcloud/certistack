@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+# One weekly pull request per ecosystem, grouping its updates.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      go-modules:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: "/deploy/controller"
+    schedule:
+      interval: weekly
+    groups:
+      controller-image:
+        patterns: ["*"]
+
+  - package-ecosystem: terraform
+    directory: "/terraform"
+    schedule:
+      interval: weekly
+    groups:
+      terraform:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      docs-toolchain:
+        patterns: ["*"]

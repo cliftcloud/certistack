@@ -1,0 +1,10 @@
+go test fuzz v1
+byte('$')
+uint16(105)
+byte('\x00')
+string("\v")
+float64(795)
+uint16(91)
+byte('M')
+string("0")
+float64(-41)

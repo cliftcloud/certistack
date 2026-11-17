@@ -1,0 +1,2655 @@
+{
+  "$defs": {
+    "AdmissionControl": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_settle_sec": {
+          "description": "How long a started VM counts as booting (default 180). Only with `max_concurrent_boots`.",
+          "maximum": 3600,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "defer_retry_interval_sec": {
+          "description": "Wait between admission checks. In seconds, up to seven days.",
+          "maximum": 604800,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_concurrent_boots": {
+          "description": "How many sandbox VMs may boot at once on the node. 0 is unlimited.",
+          "maximum": 64,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_defer_retries": {
+          "description": "Checks to repeat before the run is marked throttled and fails.",
+          "maximum": 10000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_host_io_wait_percent": {
+          "deprecated": true,
+          "description": "An older spelling of `max_host_iowait_percent`.",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_host_iowait_percent": {
+          "description": "The most CPU I/O wait that still admits the run.",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_host_ram_percent": {
+          "description": "The most host memory in use, with the recovery's reservation, that still admits the run.",
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Compliance": {
+      "additionalProperties": false,
+      "properties": {
+        "frameworks": {
+          "description": "The framework labels the report prints. A label is not a certification, and the report is not mapped to a framework's controls.",
+          "items": {
+            "enum": [
+              "CIS_V8",
+              "DORA",
+              "DORA-Article-12",
+              "HIPAA",
+              "HIPAA-164.308-A7",
+              "ISO27001",
+              "ISO27001-A.12.3",
+              "ISO27001-A12.3",
+              "ISO27001-A8.13",
+              "NONE",
+              "SOC2",
+              "SOC2-Type2-CC7.4"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "retention_days": {
+          "description": "Days each report is kept (2555 is seven years). Recorded in the report; CertiStack deletes nothing.",
+          "maximum": 36500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "rto_target_seconds": {
+          "description": "Recovery time objective in seconds. A run slower than this fails. Leave the key out to set none.",
+          "exclusiveMinimum": 0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "sign_key_path": {
+          "description": "Used by the Enterprise Edition: the controller-local Ed25519 private key that signs the report. The Community Edition accepts the field so that plans stay portable between the editions, ignores it, and writes its reports unsigned. Never sent to the node. Optional.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "frameworks",
+        "retention_days"
+      ],
+      "type": "object"
+    },
+    "HardwareOverrides": {
+      "additionalProperties": false,
+      "properties": {
+        "balloon_mb": {
+          "description": "Balloon target in MiB; not above `memory_mb`.",
+          "maximum": 4194304,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cores": {
+          "description": "Cores per socket.",
+          "maximum": 256,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "cpu_weight": {
+          "description": "Relative CPU weight (PVE cpuunits).",
+          "maximum": 262144,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "memory_mb": {
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "minimum": 16
+            }
+          ],
+          "description": "Memory in MiB: 16 or more. 0 inherits.",
+          "maximum": 4194304,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "sockets": {
+          "description": "CPU sockets.",
+          "maximum": 16,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Network": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "ip_range": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "ip_range"
+          ]
+        },
+        {
+          "properties": {
+            "subnet_cidr": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "subnet_cidr"
+          ]
+        }
+      ],
+      "properties": {
+        "gateway": {
+          "deprecated": true,
+          "description": "A sandbox never has a gateway. Not implemented: the plan is refused if this is set.",
+          "maxLength": 0,
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "ip_range": {
+          "description": "IPv4 CIDR of the isolated subnet. No address of the PVE node or the PBS server may lie in it.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "ipam": {
+          "deprecated": true,
+          "description": "Not implemented: the plan is refused if this is set.",
+          "maxLength": 0,
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "lifecycle": {
+          "default": "ephemeral",
+          "description": "`ephemeral` (default): CertiStack creates and removes the zone and VNet. `preprovisioned`: a platform-owned sandbox, validated and kept. Any letter case.",
+          "examples": [
+            "ephemeral",
+            "preprovisioned"
+          ],
+          "pattern": "^\\s*(?:[eE][pP][hH][eE][mM][eE][rR][aA][lL]|[pP][rR][eE][pP][rR][oO][vV][iI][sS][iI][oO][nN][eE][dD])?\\s*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "`simple` for single-node bridges, `vxlan` for multi-node clusters.",
+          "enum": [
+            "simple",
+            "vxlan"
+          ],
+          "type": "string"
+        },
+        "mtu": {
+          "deprecated": true,
+          "description": "Not implemented: the plan is refused if this is set.",
+          "enum": [
+            0,
+            null
+          ],
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "peers": {
+          "description": "Comma-separated IP addresses of the VXLAN peers; only for `vxlan`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "probe_ip": {
+          "description": "Address inside `ip_range` the worker probes from; not the network or broadcast address.",
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "subnet_cidr": {
+          "deprecated": true,
+          "description": "An older spelling of `ip_range`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "tag": {
+          "description": "VXLAN VNI, required for `vxlan` (1 to 16777215) and not allowed for `simple`.",
+          "maximum": 16777215,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "vnet_id": {
+          "description": "PVE SDN VNet ID: a letter, then letters and digits, up to eight characters.",
+          "maxLength": 8,
+          "pattern": "^[A-Za-z][A-Za-z0-9]*[A-Za-z0-9]$",
+          "type": "string"
+        },
+        "zone_id": {
+          "description": "PVE SDN zone ID: a letter, then letters and digits, up to eight characters.",
+          "maxLength": 8,
+          "pattern": "^[A-Za-z][A-Za-z0-9]*[A-Za-z0-9]$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "zone_id",
+        "vnet_id",
+        "probe_ip"
+      ],
+      "type": "object"
+    },
+    "NetworkRecovery": {
+      "additionalProperties": false,
+      "properties": {
+        "attach_all_nics": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "y",
+                "Y",
+                "yes",
+                "Yes",
+                "YES",
+                "on",
+                "On",
+                "ON",
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Also attach the source's net1 and up to the isolated network."
+        },
+        "capture_diagnostics": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "y",
+                "Y",
+                "yes",
+                "Yes",
+                "YES",
+                "on",
+                "On",
+                "ON",
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Record guest-side diagnostics when a wire probe fails."
+        },
+        "interface_name": {
+          "description": "Linux interface name for a legacy name-bound profile: 1 to 15 characters from letters, digits, '_', '-' and '.'; not \"lo\", \".\" or \"..\".",
+          "maxLength": 15,
+          "not": {
+            "enum": [
+              "lo",
+              ".",
+              ".."
+            ]
+          },
+          "pattern": "^[A-Za-z0-9_.-]*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mode": {
+          "default": "auto",
+          "description": "How the guest's network is prepared on its disposable overlay. `preserve` leaves the guest's own configuration. Any letter case.",
+          "examples": [
+            "auto",
+            "preserve",
+            "ifcfg",
+            "networkmanager",
+            "netplan",
+            "systemd-networkd",
+            "ifupdown"
+          ],
+          "pattern": "^\\s*(?:[aA][uU][tT][oO]|[pP][rR][eE][sS][eE][rR][vV][eE]|[iI][fF][cC][fF][gG]|[nN][eE][tT][wW][oO][rR][kK][mM][aA][nN][aA][gG][eE][rR]|[nN][eE][tT][pP][lL][aA][nN]|[sS][yY][sS][tT][eE][mM][dD]-[nN][eE][tT][wW][oO][rR][kK][dD]|[iI][fF][uU][pP][dD][oO][wW][nN])?\\s*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sandbox_ip": {
+          "description": "The guest's address on the sandbox network: a usable IPv4 address in `network.ip_range`, unique per plan. Not with `preserve`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Probe": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "tcp",
+                  "tcp_handshake"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "target_ip",
+              "port"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "http",
+                  "http_get"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "minimum": 200,
+                "not": {
+                  "type": "null"
+                }
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "expected_status"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "dns"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "target_ip",
+              "port"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "ldap"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "target_ip",
+              "port"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "mssql"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "target_ip": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "target_ip",
+              "port"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "smb"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            },
+            "required": [
+              "target_ip",
+              "port"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "qga",
+                  "qga_ping"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "qmp",
+                  "qmp_status"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "screendump"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "base_dn": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "command": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "domain": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_output": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "expected_status": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "naming_context": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "path": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "port": {
+                "enum": [
+                  0,
+                  null
+                ]
+              },
+              "record_type": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "require_qga": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "server_name": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "target_ip": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "tls": {
+                "enum": [
+                  false,
+                  null,
+                  "n",
+                  "N",
+                  "no",
+                  "No",
+                  "NO",
+                  "off",
+                  "Off",
+                  "OFF"
+                ]
+              },
+              "transport": {
+                "enum": [
+                  "",
+                  null
+                ]
+              },
+              "url": {
+                "enum": [
+                  "",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "qga"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "command": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "base_dn": {
+          "description": "`auto`, or the distinguished name an ldap probe searches.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "command": {
+          "description": "The guest-agent command: `hostname`, `guest-get-host-name`, `ping`, `guest-ping`, `systemctl is-active <service>` or `sc query <service>`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "description": {
+          "description": "What the probe asserts, recorded in the report. Defaults to `<type> verification probe`.",
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "domain": {
+          "description": "The name a dns probe resolves, or the SRV record it looks up.",
+          "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "expected_output": {
+          "description": "Text the command's output must contain. Not for `ping`.",
+          "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "expected_status": {
+          "description": "The HTTP status the answer must have, 200 to 599.",
+          "maximum": 599,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "insecure_skip_verify": {
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "enum": [
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "deprecated": true,
+          "description": "A certificate-check bypass is never permitted. Not implemented: the plan is refused if this is set."
+        },
+        "naming_context": {
+          "description": "A distinguished name the directory's Root DSE must advertise. Not with `base_dn`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "The HTTP request target sent exactly as written; for a dns probe, the domain when `domain` is left out.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "port": {
+          "description": "TCP or UDP port, 1 to 65535.",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "record_type": {
+          "default": "a",
+          "description": "The DNS record a dns probe asserts: an A or AAAA answer, or an SRV record (needs `domain`). Any letter case.",
+          "examples": [
+            "a",
+            "srv"
+          ],
+          "pattern": "^(?:[aA]|[sS][rR][vV])?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "require_qga": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "y",
+                "Y",
+                "yes",
+                "Yes",
+                "YES",
+                "on",
+                "On",
+                "ON",
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A guest agent that does not answer fails the probe instead of skipping it."
+        },
+        "retries": {
+          "description": "Extra executions within the timeout. 0 polls until the timeout.",
+          "maximum": 10,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "server_name": {
+          "description": "The TLS server name (SNI) the certificate must carry. On an http probe it is also the Host header (a virtual host); on an mssql probe it makes the probe verify a TDS 8.0 strict handshake against the node's trust store.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "target_ip": {
+          "description": "Literal IP address inside `network.ip_range` the probe connects to; it belongs to exactly one VM.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "timeout_sec": {
+          "default": 10,
+          "description": "The probe's total readiness budget (default 10). In seconds, up to seven days.",
+          "maximum": 604800,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tls": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "y",
+                "Y",
+                "yes",
+                "Yes",
+                "YES",
+                "on",
+                "On",
+                "ON",
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Use HTTPS."
+        },
+        "tls_skip_verify": {
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "enum": [
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "deprecated": true,
+          "description": "A certificate-check bypass is never permitted. Not implemented: the plan is refused if this is set."
+        },
+        "transport": {
+          "default": "udp",
+          "description": "How a dns probe asks.",
+          "enum": [
+            "",
+            "udp",
+            "tcp",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "What the probe checks. Wire probes (tcp, http, dns, ldap, mssql, smb) run from the worker over the sandbox network; `qga` runs inside the guest; `qmp` and `screendump` only show that the VM runs.",
+          "enum": [
+            "tcp",
+            "http",
+            "dns",
+            "ldap",
+            "mssql",
+            "smb",
+            "qga",
+            "qmp",
+            "screendump",
+            "http_get",
+            "qga_ping",
+            "qmp_status",
+            "tcp_handshake"
+          ],
+          "type": "string"
+        },
+        "url": {
+          "description": "`http(s)://host[:port]/path`, expanded into `target_ip`, `port`, `path` and `tls`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "SourceDrive": {
+      "additionalProperties": false,
+      "properties": {
+        "archive": {
+          "description": "The PBS archive file name, for example `drive-scsi0`, without path separators.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "type": "string"
+        },
+        "slot": {
+          "description": "ide0 to ide3, sata0 to sata5, scsi0 to scsi30 or virtio0 to virtio15.",
+          "pattern": "^(ide[0-3]|sata[0-5]|scsi([0-9]|[12][0-9]|30)|virtio([0-9]|1[0-5]))$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slot",
+        "archive"
+      ],
+      "type": "object"
+    },
+    "SourcePBS": {
+      "additionalProperties": false,
+      "properties": {
+        "drive": {
+          "deprecated": true,
+          "description": "A single backed-up archive, in the slot it names or scsi0. Use `drives`.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "drives": {
+          "description": "Every backed-up disk to restore, by PVE slot. Not needed with `use_backup_config`.",
+          "items": {
+            "$ref": "#/$defs/SourceDrive"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "namespace": {
+          "description": "PBS namespace; defaults to `storage.pbs_namespace`.",
+          "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "snapshot": {
+          "description": "`latest`, `vm/<vmid>/latest` or `vm/<vmid>/<RFC 3339 time>`.",
+          "pattern": "^(latest|vm/[1-9][0-9]*/.+)$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "storage_id": {
+          "description": "`pbs`: the run's one configured PBS endpoint.",
+          "examples": [
+            "pbs"
+          ],
+          "pattern": "^\\s*(?:pbs)?\\s*$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Storage": {
+      "additionalProperties": false,
+      "properties": {
+        "max_copy_gib": {
+          "description": "The most copy-before-boot may write in one run, all VMs together. 0 is no cap.",
+          "maximum": 1048576,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "overlay_storage": {
+          "description": "PVE storage ID of a file-based storage with `images` content that holds the disposable qcow2 overlays. Required on stock Proxmox VE.",
+          "pattern": "^(?:[a-z][a-z0-9_.-]*[a-z0-9])?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pbs_fingerprint": {
+          "description": "PBS certificate fingerprint. Prefer PBS_FINGERPRINT in the protected environment file.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "pbs_namespace": {
+          "description": "Default PBS namespace for every VM's `source_pbs.namespace`.",
+          "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "pbs_repository": {
+          "description": "PBS repository. Prefer PBS_REPOSITORY in the protected environment file: a plan is kept as evidence.",
+          "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "scratch_dir": {
+          "description": "Node-local private work directory. Not a shared temporary directory such as /tmp.",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "Tier": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "level": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "level"
+          ]
+        },
+        {
+          "properties": {
+            "tier": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "tier"
+          ]
+        }
+      ],
+      "properties": {
+        "boot_timeout_sec": {
+          "description": "Longest wait for PVE to start a VM and QMP to answer (default 60). In seconds, up to seven days.",
+          "maximum": 604800,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "level": {
+          "description": "Start order: tiers run in ascending level. Unique across the plan.",
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "Defaults to `Tier <level>`.",
+          "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "soak_time_sec": {
+          "description": "Hold the tier this long after its probes pass, repeating each VM's service probes every 30 seconds. In seconds, up to seven days.",
+          "maximum": 604800,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "startup_grace_period_sec": {
+          "description": "Wait after the tier's VMs start before probing. In seconds, up to seven days.",
+          "maximum": 604800,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tier": {
+          "deprecated": true,
+          "description": "An older spelling of `level`.",
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "vms": {
+          "description": "The tier's VMs.",
+          "items": {
+            "$ref": "#/$defs/VM"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "vms"
+      ],
+      "type": "object"
+    },
+    "VM": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "vmid": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "vmid"
+          ]
+        },
+        {
+          "properties": {
+            "target_vmid": {
+              "not": {
+                "type": "null"
+              }
+            }
+          },
+          "required": [
+            "target_vmid"
+          ]
+        }
+      ],
+      "properties": {
+        "bios": {
+          "description": "Explicit PVE BIOS; overrides the inherited one.",
+          "enum": [
+            "",
+            "seabios",
+            "ovmf",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "copy_before_boot": {
+          "default": "auto",
+          "description": "Whether the integrity scan also copies the VM's disks next to its overlays so the sandbox boots from local copies.",
+          "enum": [
+            "",
+            "auto",
+            "always",
+            "never",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hardware_overrides": {
+          "$ref": "#/$defs/HardwareOverrides",
+          "description": "Virtual hardware to use instead of the backup's. 0 or a missing key inherits."
+        },
+        "mac": {
+          "description": "Six-octet MAC for the isolated NIC, with colons, hyphens or in dotted groups of four digits. Not all zeros and not a multicast or broadcast address (the first octet is even). Normally inherited from the backup.",
+          "not": {
+            "enum": [
+              "00:00:00:00:00:00",
+              "00-00-00-00-00-00",
+              "0000.0000.0000"
+            ]
+          },
+          "pattern": "^(?:[0-9A-Fa-f][02468ACEace](?::[0-9A-Fa-f]{2}){5}|[0-9A-Fa-f][02468ACEace](?:-[0-9A-Fa-f]{2}){5}|[0-9A-Fa-f][02468ACEace][0-9A-Fa-f]{2}(?:\\.[0-9A-Fa-f]{4}){2})?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "machine": {
+          "description": "Explicit PVE machine type, such as `q35`, `pc-i440fx-9.2` or `pc-q35-9.2+pve1`, with options such as `,viommu=virtio`; overrides the inherited one.",
+          "pattern": "^(?:(?:type=)?(?:pc|pc(?:-i440fx)?-[0-9]+(?:\\.[0-9]+)+(?:\\+pve[0-9]+)?(?:\\.pxe)?|q35|pc-q35-[0-9]+(?:\\.[0-9]+)+(?:\\+pve[0-9]+)?(?:\\.pxe)?|virt(?:-[0-9]+(?:\\.[0-9]+)+)?(?:\\+pve[0-9]+)?)(?:,.*)?|[A-Za-z][A-Za-z0-9-]*=.*)?$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The sandbox VM's name, recorded in the report: a DNS name of at most 63 characters (letters, digits, `-` and `.`, starting and ending with a letter or digit), as Proxmox VE requires.",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9]([A-Za-z0-9.-]{0,61}[A-Za-z0-9])?$",
+          "type": "string"
+        },
+        "network_recovery": {
+          "$ref": "#/$defs/NetworkRecovery",
+          "description": "How the guest is given an address on the isolated network, on a disposable copy of its disks."
+        },
+        "nic_model": {
+          "description": "PVE network model for the isolated NIC.",
+          "enum": [
+            "",
+            "virtio",
+            "e1000",
+            "e1000e",
+            "igb",
+            "ne2k_pci",
+            "ne2k_isa",
+            "pcnet",
+            "rtl8139",
+            "vmxnet3",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ostype": {
+          "description": "Explicit PVE OS type; overrides the inherited one.",
+          "enum": [
+            "",
+            "other",
+            "wxp",
+            "w2k",
+            "w2k3",
+            "w2k8",
+            "wvista",
+            "win7",
+            "win8",
+            "win10",
+            "win11",
+            "l24",
+            "l26",
+            "solaris",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "probes": {
+          "description": "The checks that decide whether the restored VM works. At least one must assert something in the guest: a wire probe, or a `qga` probe with `require_qga: true`.",
+          "items": {
+            "$ref": "#/$defs/Probe"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "require_quiesced_backup": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "y",
+                "Y",
+                "yes",
+                "Yes",
+                "YES",
+                "on",
+                "On",
+                "ON",
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fail the VM before anything is restored unless its backup was quiesced or taken powered off."
+        },
+        "require_signed_backup": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "y",
+                "Y",
+                "yes",
+                "Yes",
+                "YES",
+                "on",
+                "On",
+                "ON",
+                "n",
+                "N",
+                "no",
+                "No",
+                "NO",
+                "off",
+                "Off",
+                "OFF"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fail the VM before anything is created unless its backup manifest is signed and CERTISTACK_PBS_KEYFILE verified it."
+        },
+        "scsihw": {
+          "description": "Explicit PVE SCSI controller; overrides the inherited one.",
+          "enum": [
+            "",
+            "lsi",
+            "lsi53c810",
+            "virtio-scsi-pci",
+            "virtio-scsi-single",
+            "megasas",
+            "pvscsi",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_pbs": {
+          "$ref": "#/$defs/SourcePBS",
+          "description": "Which backup to restore. Required unless `storage.pbs_repository` or `source_vmid` supplies it."
+        },
+        "source_vmid": {
+          "description": "The protected VM whose backup is restored. Required when `source_pbs.snapshot` is `latest`.",
+          "maximum": 999999999,
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "target_vmid": {
+          "deprecated": true,
+          "description": "An older spelling of `vmid`.",
+          "maximum": 999999999,
+          "minimum": 100,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "vmid": {
+          "description": "The temporary sandbox VM's ID. It must not exist on the node, and differs from `source_vmid`.",
+          "maximum": 999999999,
+          "minimum": 100,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "probes"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "admission_control": {
+              "properties": {
+                "max_host_ram_percent": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_host_ram_percent"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission_control"
+          ]
+        },
+        {
+          "properties": {
+            "admission": {
+              "properties": {
+                "max_host_ram_percent": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_host_ram_percent"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "admission_control": {
+              "properties": {
+                "max_host_iowait_percent": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_host_iowait_percent"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission_control"
+          ]
+        },
+        {
+          "properties": {
+            "admission_control": {
+              "properties": {
+                "max_host_io_wait_percent": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_host_io_wait_percent"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission_control"
+          ]
+        },
+        {
+          "properties": {
+            "admission": {
+              "properties": {
+                "max_host_iowait_percent": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_host_iowait_percent"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission"
+          ]
+        },
+        {
+          "properties": {
+            "admission": {
+              "properties": {
+                "max_host_io_wait_percent": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_host_io_wait_percent"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "admission_control": {
+              "properties": {
+                "defer_retry_interval_sec": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "defer_retry_interval_sec"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission_control"
+          ]
+        },
+        {
+          "properties": {
+            "admission": {
+              "properties": {
+                "defer_retry_interval_sec": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "defer_retry_interval_sec"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "admission_control": {
+              "properties": {
+                "max_defer_retries": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_defer_retries"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission_control"
+          ]
+        },
+        {
+          "properties": {
+            "admission": {
+              "properties": {
+                "max_defer_retries": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              },
+              "required": [
+                "max_defer_retries"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "admission"
+          ]
+        }
+      ]
+    }
+  ],
+  "anyOf": [
+    {
+      "properties": {
+        "admission_control": {
+          "not": {
+            "type": "null"
+          }
+        }
+      },
+      "required": [
+        "admission_control"
+      ]
+    },
+    {
+      "properties": {
+        "admission": {
+          "not": {
+            "type": "null"
+          }
+        }
+      },
+      "required": [
+        "admission"
+      ]
+    }
+  ],
+  "description": "A CertiStack disaster recovery validation plan (version v1). Generated by `certistack schema`; `certistack validate` is the authority.",
+  "properties": {
+    "admission": {
+      "$ref": "#/$defs/AdmissionControl",
+      "deprecated": true,
+      "description": "An older spelling of `admission_control`."
+    },
+    "admission_control": {
+      "$ref": "#/$defs/AdmissionControl",
+      "description": "How busy the node may be before a run starts. Give this block (or its older name, `admission`), with `max_host_ram_percent`, `max_host_iowait_percent`, `defer_retry_interval_sec` and `max_defer_retries`."
+    },
+    "compliance": {
+      "$ref": "#/$defs/Compliance",
+      "description": "What the report records about the standards it maps to (and, for the Enterprise Edition, which key signs it)."
+    },
+    "environment": {
+      "description": "Free-text label recorded in the report.",
+      "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ]
+    },
+    "name": {
+      "description": "A human-readable name, recorded in the report. Not empty.",
+      "minLength": 1,
+      "pattern": "^[^\\u0000-\\u0008\\u000a-\\u001f\\u0009\\u007f-\\u009f\\u061c\\u200e\\u200f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069]*$",
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ]
+    },
+    "network": {
+      "$ref": "#/$defs/Network",
+      "description": "The isolated sandbox network the restored VMs run on."
+    },
+    "plan_id": {
+      "description": "Names the plan in the report and in the report's file path.",
+      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+      "type": "string"
+    },
+    "storage": {
+      "$ref": "#/$defs/Storage",
+      "description": "Overlay storage and optional PBS defaults. Prefer the protected environment file for PBS settings."
+    },
+    "tiers": {
+      "description": "The VMs to restore and check, in start order.",
+      "items": {
+        "$ref": "#/$defs/Tier"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "use_backup_config": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "enum": [
+            "y",
+            "Y",
+            "yes",
+            "Yes",
+            "YES",
+            "on",
+            "On",
+            "ON",
+            "n",
+            "N",
+            "no",
+            "No",
+            "NO",
+            "off",
+            "Off",
+            "OFF"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Inherit the disk layout and the safe compute and firmware settings from each resolved snapshot."
+    },
+    "version": {
+      "description": "The plan format. `certistack/v1` is an accepted alias of `v1`.",
+      "enum": [
+        "v1",
+        "certistack/v1"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "plan_id",
+    "name",
+    "compliance",
+    "network",
+    "tiers"
+  ],
+  "title": "CertiStack plan",
+  "type": "object"
+}

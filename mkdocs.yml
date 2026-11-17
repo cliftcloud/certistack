@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# Documentation site for the Community Edition. Build locally with
+#   python3 -m pip install -r requirements-docs.txt && make docs
+site_name: CertiStack Docs
+site_description: Disaster Recovery Validation for Proxmox VE & PBS
+site_author: Clift Cloud LLC
+site_url: https://certistack.dev/docs/
+repo_name: cliftcloud/certistack
+repo_url: https://github.com/cliftcloud/certistack
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+copyright: Copyright &copy; 2024-2026 Clift Cloud LLC. Documentation is licensed under AGPL-3.0-or-later with the source.
+
+theme:
+  name: material
+  language: en
+  font: false
+  logo: assets/icon.png
+  favicon: assets/icon.png
+  palette:
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  generator: false
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      # Paths are relative to where mkdocs runs (the repository root), so a page
+      # can include a shipped example or CHANGELOG.md; a missing file fails the build.
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+  - def_list
+
+# docs/README.md is the folder's landing page on GitHub; the site has index.md.
+exclude_docs: |
+  README.md
+
+nav:
+  - Overview: index.md
+  - Quickstart: quickstart.md
+  - Plans: plan-reference.md
+  - Commands and settings: configuration.md
+  - Reports: reports.md
+  - Troubleshooting: troubleshooting.md
+  - Your node: manual-setup.md
+  - Tested and supported: compatibility.md
+  - Editions: editions.md
+  - Usage statistics: telemetry.md
+  - Changelog: changelog.md

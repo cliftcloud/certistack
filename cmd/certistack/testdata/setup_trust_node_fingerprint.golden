@@ -1,0 +1,12 @@
+Host key offered by pve-node-01.example.com on port 2222 (ssh-ed25519):
+  SHA256:z/fSv0Z0RZS+Lccbc6ZoOWwt/fbj1VFJGSBKQbo4icE
+
+Compare it with the key the node reports about itself. On the node, run:
+  ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+
+This line will be written to <dir>/known_hosts:
+  [pve-node-01.example.com]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOpKbGPinFIKvvVQexMuxfmVR3auvr57kkIe6mkURtIs
+
+The fingerprint matches the one you gave: trusting this key without a prompt.
+Wrote 1 line to <dir>/known_hosts.
+With this file ssh accepts only this key for [pve-node-01.example.com]:2222. Next: set CERTISTACK_SSH_KNOWN_HOSTS to it, authorize your public key on the node, and run certistack check.

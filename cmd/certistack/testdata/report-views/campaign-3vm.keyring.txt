@@ -1,0 +1,63 @@
+CertiStack report 5c1a2e30-0b7d-4a43-9d5e-3f0c1b2a4d66
+
+Signature:     VALID, by a trusted signer (Fixture signer)
+               signer node ctl-fixture
+               key 0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0
+               fingerprint SHA256:790901b82a89fe505b5f98e2b7bf28e3a74f9a40f1a561c9d353f85f61cc36a2
+               trust source keyring:<dir>/trusted-signers.json
+               signature timestamp: none
+Acceptance:    ACCEPTED as pass evidence (internal consistency only, not bound to your plan, node or build: add verify-report --expect-* to bind it)
+Outcome:       PASS
+
+Plan:          acme-erp-full-stack-dr "ACME ERP Full Stack Disaster Recovery Test"
+Node:          node-a
+When:          2026-09-29T12:00:00Z
+Engine:        v0.1.0-campaign-fixture, commit 0123456789ab, built 2026-09-29T00:00:00Z
+Validation:    full_integrity: every mapped disk image was read back and checksummed
+Frameworks:    DORA-Article-12, SOC2-Type2-CC7.4 (labels, not a certification; retention 2555 days)
+Schema:        1.7
+
+RTO:           0.00 s (0.00 s); no objective set
+Admission:     limits RAM 85.0%, I/O wait 12.0%; reserved 17152 MiB for 3 VM(s); granted
+
+VMs (3):
+
+  VM 9001 "cs-test-dc01"  PASS
+    Restored from:     source VM 100, snapshot vm/100/2026-09-27T03:12:59Z
+    Network recovery:  none recorded (no network profile was written into the guest's overlay)
+    Integrity:         scsi0 verified, sha256 0000000000000000000000000000000000000000000000000000000073637369
+    Probes (3):
+      PASS tcp 192.0.2.10:389  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: LDAP TCP handshake on domain controller
+      PASS tcp 192.0.2.10:53  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: DNS TCP listener on domain controller
+      PASS qga systemctl is-active samba-ad-dc  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: Verify Samba AD DC service is active via guest agent
+
+  VM 9002 "cs-test-db01"  PASS
+    Restored from:     source VM 200, snapshot vm/200/2026-09-27T03:12:59Z
+    Network recovery:  none recorded (no network profile was written into the guest's overlay)
+    Integrity:         scsi0 verified, sha256 0000000000000000000000000000000000000000000000000000000073637369
+    Probes (2):
+      PASS tcp 192.0.2.20:5432  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: PostgreSQL TCP handshake
+      PASS qga systemctl is-active postgresql@16-main  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: Verify PostgreSQL service is active via guest agent
+
+  VM 9003 "cs-test-app01"  PASS
+    Restored from:     source VM 300, snapshot vm/300/2026-09-27T03:12:59Z
+    Network recovery:  none recorded (no network profile was written into the guest's overlay)
+    Integrity:         scsi0 verified, sha256 0000000000000000000000000000000000000000000000000000000073637369
+    Probes (3):
+      PASS http https://192.0.2.30:443/health  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: HTTPS health endpoint returns 200 OK
+      PASS http http://192.0.2.30:8080/api/v1/status  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: Internal API status endpoint
+      PASS qga systemctl is-active nginx  (origin not recorded, 0.00 s, 1 attempt)
+           asserts: Verify Nginx service is active via guest agent
+
+Teardown:
+  cleanup verified (at 2026-09-29T12:00:01Z)
+  sandbox VM destroyed: yes; 0 overlay disk(s) removed; 0 loop device(s) unmapped
+  sandbox network: kept (platform-owned): zone csSb01, VNet csVn01, validated and not modified
+  every resource the run owned confirmed removed: yes; confirmed from the node's journal: yes

@@ -1,0 +1,14 @@
+CertiStack check: is this controller ready for certistack plan?
+The layers run in order and it stops at the first that fails. Layers 4 to 6 use a temporary worker on the node, removed afterwards.
+
+  ✓ 1. Environment file  <dir>/controller.env, mode 0600, the 5 required variables are set
+  ✓ 2. SSH files         identity <dir>/id_ed25519; <dir>/known_hosts has an entry for [pve-node-01.example.com]:2222
+  ✓ 3. SSH connection    ssh to root@pve-node-01.example.com:2222 works without a prompt, with strict host-key checking; the node reports x86_64
+  ✓ 4. Node tools        found on the node: qemu-img, proxmox-backup-client, guestfish, ip, nft
+  ✗ 5. PVE API           the node does not trust the certificate authority that signed the PVE API certificate (x509: certificate signed by unknown authority)
+       Fix: A stock Proxmox VE node signs its API certificate with the cluster's own CA, which no trust store holds. Fetch it over your pinned SSH access:
+            certistack setup pve-ca --env-file <dir>/controller.env
+            and add the CERTISTACK_PVE_CA_SOURCE line it prints to <dir>/controller.env.
+  - 6. PBS               not checked: an earlier layer failed
+
+✗ Not ready: fix layer 5 (PVE API) above, then run certistack check again.

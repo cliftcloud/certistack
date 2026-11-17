@@ -1,0 +1,10 @@
+go test fuzz v1
+byte('\x15')
+uint16(78)
+byte('\b')
+string("\n\n")
+float64(174)
+uint16(0)
+byte('\r')
+string("0")
+float64(-92)

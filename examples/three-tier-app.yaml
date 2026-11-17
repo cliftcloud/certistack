@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2024-2026 Clift Cloud LLC
+#
+# A three-tier Linux application restored in dependency order: database, then
+# application server, then web front end. A tier starts only after every VM and
+# probe in the tier before it passed. Copy this file, change the values marked
+# CHANGE, and run `certistack validate` on the copy.
+#
+# Addresses use the RFC 5737 documentation range 192.0.2.0/24, which nearly
+# every node leaves unused. The range must not overlap any network the PVE
+# node uses (`ip -4 route` on the node lists them): while a run lasts the node
+# routes the whole range into the sandbox, so a range the node also has an
+# address or route in would take that real traffic into it. Each guest
+# receives the address its probes target through COW-only network recovery.
+version: "v1"
+plan_id: "three-tier-app"
+name: "Three-tier application recovery check"
+use_backup_config: true
+
+compliance:
+  # CHANGE: the frameworks the report maps its evidence to (DORA, SOC2, HIPAA,
+  # ISO27001, CIS_V8; a label, not a certification), or NONE if you have no
+  # standard to name; NONE stands alone. At least one is required.
+  frameworks: ["DORA-Article-12"]
+  retention_days: 365
+  # Optional recovery-time objective. rto_target_seconds fails the run when the
+  # whole recovery, including the full integrity scan of every disk (about
+  # 100 MB/s on older CPUs, see Tested and supported), takes longer. Set it from a
+  # measured run.
+  rto_target_seconds: 3600
+
+admission_control:
+  max_host_ram_percent: 85.0
+  max_host_iowait_percent: 12.0
+  defer_retry_interval_sec: 30
+  max_defer_retries: 10
+
+network:
+  mode: "simple"
+  zone_id: "csSbApp1"
+  vnet_id: "csVnApp1"
+  ip_range: "192.0.2.0/24"
+  probe_ip: "192.0.2.1"
+
+storage:
+  # CHANGE: file-based PVE storage with "images" content for the COW overlays.
+  overlay_storage: "certistack-scratch"
+
+tiers:
+  - level: 1
+    name: "Database"
+    startup_grace_period_sec: 30
+    vms:
+      # vmid is the temporary sandbox VM; it must not already exist on the node.
+      - vmid: 9101
+        # CHANGE: the protected VM whose latest PBS backup is being tested.
+        source_vmid: 201
+        name: "recovery-check-db01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        # Uncomment to fail the VM unless its backup was taken with the guest
+        # agent freezing the file systems (or while powered off).
+        # require_quiesced_backup: true
+        probes:
+          - type: "tcp"
+            target_ip: "192.0.2.21"
+            port: 5432
+            timeout_sec: 120
+            description: "PostgreSQL accepts connections"
+          - type: "qga"
+            # CHANGE: the unit of the database cluster itself. On Debian and
+            # Ubuntu the bare "postgresql" unit is active with no database
+            # running, so name the cluster's (`pg_lsclusters` lists its
+            # version and name). On the RHEL family the unit is "postgresql".
+            command: "systemctl is-active postgresql@16-main"
+            expected_output: "active"
+            timeout_sec: 60
+            description: "PostgreSQL cluster unit is active inside the guest"
+
+  - level: 2
+    name: "Application"
+    startup_grace_period_sec: 30
+    vms:
+      - vmid: 9102
+        source_vmid: 202
+        name: "recovery-check-app01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        probes:
+          - type: "http"
+            target_ip: "192.0.2.22"
+            port: 8080
+            path: "/healthz"
+            expected_status: 200
+            timeout_sec: 120
+            description: "Application health endpoint returns 200"
+
+  - level: 3
+    name: "Web"
+    startup_grace_period_sec: 30
+    vms:
+      - vmid: 9103
+        source_vmid: 203
+        name: "recovery-check-web01"
+        source_pbs:
+          storage_id: "pbs"
+          snapshot: "latest"
+        probes:
+          - type: "http"
+            target_ip: "192.0.2.23"
+            port: 443
+            path: "/"
+            tls: true
+            # The certificate chain and this name are always verified; the
+            # recovered certificate must chain to a CA the node trusts.
+            server_name: "www.example.com"
+            expected_status: 200
+            timeout_sec: 120
+            description: "Site answers over verified HTTPS"

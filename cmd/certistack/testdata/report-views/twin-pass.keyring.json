@@ -1,0 +1,189 @@
+{
+  "view_version": 1,
+  "signature": {
+    "status": "valid",
+    "note": "signature verified against a signer of the keyring: these contents are exactly what was signed",
+    "trust_source": "keyring:<dir>/trusted-signers.json",
+    "signer_name": "Fixture signer",
+    "signer_node": "ctl-fixture",
+    "signer_key": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0",
+    "signer_fingerprint": "SHA256:790901b82a89fe505b5f98e2b7bf28e3a74f9a40f1a561c9d353f85f61cc36a2",
+    "signature_timestamp": {
+      "status": "none",
+      "evidence": false
+    }
+  },
+  "acceptance": {
+    "verdict": "accepted",
+    "expected_outcome": "pass",
+    "bindings": [],
+    "note": "internal consistency only, not bound to your plan, node or build: add verify-report --expect-* to bind it",
+    "authenticated": true
+  },
+  "report": {
+    "report_id": "d3f589f5-c499-4181-a804-29da944b7fa1",
+    "run_id": "run-d3f589f5-c499-4181-a804-29da944b7fa1",
+    "schema_version": "1.7",
+    "timestamp": "2026-10-05T14:02:57Z",
+    "plan_id": "recovery-pve-node-01",
+    "plan_name": "Recovery check of 1 VM(s) on pve-node-01",
+    "node": "pve-node-01",
+    "outcome": "pass",
+    "validation_mode": "full_integrity",
+    "test_mode": false,
+    "validation_mode_supported": true,
+    "engine": {
+      "version": "v0.1.0",
+      "commit": "0123456789ab",
+      "build_date": "2026-10-04T11:46:58Z",
+      "worker_sha256": "b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0"
+    },
+    "proxmox": {
+      "pve_version": "9.2.2",
+      "pbs_version": "4.2.0",
+      "pbs_client_version": "4.2.0",
+      "version_support": "tested"
+    },
+    "frameworks": [
+      "SOC2"
+    ],
+    "retention_days": 90,
+    "pbs_namespace": "nightly",
+    "rto": {
+      "seconds": 342.945584747
+    },
+    "phases": [
+      {
+        "key": "admission_check_sec",
+        "label": "Host admission",
+        "seconds": 0.501762837
+      },
+      {
+        "key": "sdn_provisioning_sec",
+        "label": "SDN sandbox setup",
+        "seconds": 4.436
+      },
+      {
+        "key": "pbs_mapping_sec",
+        "label": "PBS image mapping",
+        "seconds": 0.219084759
+      },
+      {
+        "key": "overlay_creation_sec",
+        "label": "Overlay creation",
+        "seconds": 0.118788744
+      },
+      {
+        "key": "cow_guest_network_recovery_sec",
+        "label": "Guest network preparation",
+        "seconds": 213.698976461
+      },
+      {
+        "key": "integrity_verification_sec",
+        "label": "Image integrity scan",
+        "seconds": 84.315576099
+      },
+      {
+        "key": "vm_registration_sec",
+        "label": "VM registration",
+        "seconds": 1.138575331
+      },
+      {
+        "key": "vm_start_sec",
+        "label": "VM start and boot",
+        "seconds": 3.075476924
+      },
+      {
+        "key": "qmp_running_wait_sec",
+        "label": "QMP running wait",
+        "seconds": 0.50507549
+      },
+      {
+        "key": "startup_grace_period_sec",
+        "label": "Startup grace",
+        "seconds": 0
+      },
+      {
+        "key": "probes_execution_sec",
+        "label": "Probes",
+        "seconds": 33.119525027
+      },
+      {
+        "key": "soak_time_sec",
+        "label": "Tier soak",
+        "seconds": 0
+      },
+      {
+        "key": "teardown_sec",
+        "label": "Teardown (after the RTO)",
+        "seconds": 10.292224012
+      },
+      {
+        "key": "total_rto_sec",
+        "label": "Total",
+        "seconds": 342.945584747
+      }
+    ],
+    "vms": [
+      {
+        "vmid": 9100,
+        "source_vmid": 100,
+        "name": "cs-rocky-web",
+        "outcome": "pass",
+        "verification_status": "verified",
+        "source_snapshot": "vm/100/2026-10-05T13:32:03Z",
+        "source_crypt_mode": "none",
+        "source_consistency": "quiesced",
+        "source_consistency_detail": "the guest agent froze the file systems for the snapshot",
+        "boot_seconds": 3.657424213,
+        "network_recovery": {
+          "strategy": "ifcfg",
+          "address": "192.0.2.10",
+          "seconds": 213.698976461
+        },
+        "disks": [
+          {
+            "slot": "scsi0",
+            "archive": "drive-scsi0",
+            "integrity_status": "verified",
+            "image_digest": "7f59c0196f93550731835832470b516a6f0662f6b7b90d3e42666c359db62be5",
+            "manifest_reference": "drive-scsi0.img.fidx"
+          }
+        ],
+        "pbs_verify_status": "full mapped image read (12884901888 bytes; the size the snapshot's manifest records); SHA-256 7f59c0196f93550731835832470b516a6f0662f6b7b90d3e42666c359db62be5",
+        "hardware": "1 socket(s) x 1 core(s), 1024 MiB, cpu host, boot disk scsi0, hardware from the backup's configuration",
+        "probes": [
+          {
+            "index": 1,
+            "type": "http",
+            "target": "http://192.0.2.10:80/",
+            "description": "nginx answers 200 on the sandbox address",
+            "result": "pass",
+            "origin": "worker_host",
+            "duration_seconds": 33.118674869,
+            "attempts": 1,
+            "timeout_sec": 300,
+            "detail": "HTTP 200 OK (200 OK) in 33.118674869s"
+          }
+        ]
+      }
+    ],
+    "teardown": {
+      "vm_stopped_and_destroyed": true,
+      "overlays_removed": 1,
+      "loop_devices_unmapped": 1,
+      "sdn": "removed: zone csZone1, VNet csVnet1",
+      "owned_resources_clean": true,
+      "all_cleaned": true,
+      "journal_recovery_verified": true,
+      "verified_at": "2026-10-05T14:02:59Z"
+    },
+    "admission": {
+      "max_host_ram_percent": 85,
+      "max_host_iowait_percent": 12,
+      "recovery_reservation_mib": 1280,
+      "recovery_reservation_vms": 1,
+      "decision": "granted"
+    }
+  }
+}
