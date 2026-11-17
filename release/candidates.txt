@@ -16,3 +16,4 @@
 # built") describes the whole path.
 #
 # Blank lines and lines starting with # are ignored.
+v0.1.1 78394b9d92d2d68cde7ff3756be0bb5188e3c571 a0ba6e263820353f3b3b04969ce7d8ff1e2cc2ab44398566f491c7f896704183
