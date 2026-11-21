@@ -54,6 +54,10 @@ You answer, in this order:
 6. **Root's password on the PBS**, to run one script there. Or answer `n`: setup writes the script for you to paste
    into the PBS web shell, then asks for the token secret it printed (the string after `"value":`).
 
+Setup also asks before each change it makes: installing packages (it lists what apt will install and upgrade), adding
+the overlay storage, creating the PVE role, user and token, and running the PBS script. Enter accepts each. When you pick the
+node's PBS storage, setup takes the PBS's TLS fingerprint from it, so it trusts the PBS the node already trusts.
+
 For an encrypted PBS storage, setup offers to copy its key (default no); a passphrase goes in `controller.env` as
 `PBS_ENCRYPTION_PASSWORD`.
 

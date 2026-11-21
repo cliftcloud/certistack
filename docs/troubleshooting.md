@@ -2,8 +2,8 @@
 
 ## Start here
 
-1. On the controller, `certistack check --env-file /secure/certistack/controller.env my-first-plan.yaml` stops at the
-   first failing layer and prints the fix.
+1. On the controller, `certistack check my-first-plan.yaml` stops at the first failing layer and prints the fix. It
+   checks the environment file setup recorded; `--env-file FILE` checks another.
 2. For a failed run, `certistack report show` (the newest report) names the VM, the probe and the reason.
 3. On the node, the worker logs to `journalctl -u certistack-worker-<run id>`, and a run the node recovered itself to
    `/var/lib/certistack/logs/<run>.log`.
@@ -36,7 +36,7 @@
 | `Permission denied (publickey,...)` | The `CERTISTACK_SSH_USER` account must exist and hold the key. |
 | `sudo: a password is required` | Connect as `root`, or add a [sudoers rule](manual-setup.md#the-sudoers-rule-for-a-non-root-account). |
 | `Could not resolve hostname`, `Connection timed out` | Check `CERTISTACK_SSH_HOST`, `CERTISTACK_SSH_PORT` and firewalls. |
-| `x509: certificate signed by unknown authority` | Run `certistack setup pve-ca --env-file <file>`, and add the line it prints. |
+| `x509: certificate signed by unknown authority` | Run `certistack setup pve-ca`, and add the line it prints. |
 | `PBS's TLS certificate`, `list PBS snapshots` | Check `PBS_FINGERPRINT`, `PBS_PASSWORD`, `PBS_NAMESPACE` and the `DatastoreReader` grant. |
 | `No such storage` | Run setup, which adds one. |
 

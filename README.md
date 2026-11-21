@@ -48,7 +48,7 @@ Teardown:
   sandbox network: removed: zone csZone1, VNet csVnet1
 ```
 
-<sub>An excerpt of a real report from a pre-release test run on the author's demo node. The whole report, its key and how
+<sub>An excerpt of a real report from a pre-release test run on a demo node. The whole report, its key and how
 to check it are on the [verify page](https://certistack.dev/verify/).</sub>
 
 ## How it works
@@ -107,16 +107,21 @@ first, or [install by hand](https://certistack.dev/docs/quickstart/#install-by-h
 
 ## How it was tested
 
-All on the author's own infrastructure, a 14-node Proxmox VE 9.2 test cluster and standalone hosts:
+CertiStack is used by the Clift Cloud team and its clients to restore-test their Proxmox backups. Before this release it
+was tested on a 14-node Proxmox VE lab and standalone hosts:
 
-- **24 of 24 restore tests on the exact v0.1.1 binary**: Active Directory forests, Windows Server 2022, SQL Server, SMB,
-  Ubuntu 22.04, 16 VMs started in dependency order, a batch of UEFI VMs, encrypted backups, PVE 8.4 and PBS 3.x, and a run
+- **More than 10,000 VM restore tests** in over 4,800 runs, from September to November 2026: 471 different VMs, up to
+  100 in one run, on 20 Proxmox VE hosts (PVE 9.2 and 8.4, PBS 4.x and 3.x), with over 15,000 service checks.
+- **Windows:** Server 2012, 2016, 2019, 2022 and 2025, Active Directory domain controllers, SQL Server, IIS, SMB file
+  servers, Windows 10 and 11.
+- **Linux and more:** Rocky Linux, Ubuntu, Debian, Oracle Linux, AlmaLinux, CentOS, RHEL, Amazon Linux, Fedora and
+  others, running PostgreSQL, MariaDB, Redis, nginx, DNS and LDAP; FreeBSD; MikroTik RouterOS, pfSense and OPNsense.
+- **The release binary itself** passed the full release set: Active Directory forests, Windows Server 2022, SQL Server,
+  SMB, Ubuntu, 16 VMs started in dependency order, a UEFI fleet, encrypted backups, PVE 8.4 with PBS 3.x, and a run
   killed halfway and finished by `recover`.
-- **Over 7,000 automated tests** on the release commit, and **more than 3.6 million fuzzed inputs** to its parsers.
-- **Chaos testing**: hostile inputs, fake Proxmox servers that lie, and deliberately impossible backups. 44 flaws found,
-  all fixed before release, each with a test.
-- **622 restore-test cases** on a pre-release build, 617 passed, including a 96-VM fleet restored in one run and a PBS
-  outage in the middle of a run.
+- **Over 7,000 automated tests** on the release commit, **more than 3.6 million fuzzed inputs** to its parsers, and
+  **chaos testing**: hostile inputs, fake Proxmox servers that lie, and deliberately impossible backups (44 flaws found,
+  all fixed before release, each with a test).
 
 [What was tested, on which build, and what was not](https://certistack.dev/docs/compatibility/#what-was-tested). It is a first release: start
 on a standalone node or one you can afford to disturb (on a cluster, each run reloads the SDN network on every node).

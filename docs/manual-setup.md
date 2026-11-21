@@ -9,7 +9,7 @@ Your backups and source VMs are never changed. Setup asks before each change.
 | Where | What | Why |
 | --- | --- | --- |
 | Node | The controller's SSH key in `/root/.ssh/authorized_keys` | The controller runs a short-lived worker as root. On a cluster the file is shared, so the key is root on every node: use a dedicated controller. |
-| Node | `libguestfs-tools`, `nftables` and their dependencies (about 110 packages, 1.6 GiB on a stock PVE 9.2) | Preparing the guest's network offline; network probes |
+| Node | `libguestfs-tools` and, if missing, `nftables` (stock PVE 9 has it), with about 110 dependencies (1.6 GiB on a stock PVE 9.2). apt may also upgrade a few installed packages they need, such as `util-linux` and `mount`: setup lists them and asks first | Preparing the guest's network offline; network probes |
 | Node | A directory storage `certistack-scratch` | The sandbox VM's overlays |
 | PVE | Role `CertiStackRole`, user `certistack-svc@pve`, token `certistack-svc@pve!automation` | Creating and removing the sandbox VM and network. The token could do this to any VM or zone: keep `controller.env` private. |
 | PBS | User `certistack-ro@pbs` and its token, with `DatastoreReader` | Reading the whole datastore, or only the namespace you give setup |
@@ -414,7 +414,11 @@ sudo rm -f /usr/local/bin/certistack /usr/local/bin/certistack.prev
 
 ### What stays
 
-- Your reports and plans; the node's `libguestfs-tools` and `nftables` (remove them only if nothing else uses them).
+- Your reports and plans.
+- On the node: `libguestfs-tools` and its dependencies (`apt remove libguestfs-tools && apt autoremove`, if nothing else
+  uses them). Leave `nftables`: PVE's firewall uses it.
+- On the node: PVE's SDN files in `/etc/pve/sdn` (empty once the zones are gone) and its IPAM state, which keeps an empty
+  entry for each zone name a run used (`csZone1`, `csZone2` …). They are PVE's own bookkeeping and harmless.
 - Delete when you like: `release-signing-key.gpg`, `release-signing-key.gpg~` and `~/certistack-download`; scripts
   `setup rbac` printed; `telemetry.json.lock`; the PBS host key in `~/.ssh/known_hosts`; secrets in your shell history.
 - After a setup by hand: the node's `certistack` account (`userdel -r certistack`) and `/etc/sudoers.d/certistack`, and
