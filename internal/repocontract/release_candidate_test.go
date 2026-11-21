@@ -85,13 +85,16 @@ func TestReleaseWorkflowStartsOnlyOnStableTags(t *testing.T) {
 // hosted runner may fail to resolve it after the approval gate; the release
 // workflow's softprops/action-gh-release pin was such an object
 // (5113cdc, the v3 tag; its commit is efb3536, which is also v3.0.3). The
-// known tag objects are refused here, and a pin is checked against the remote
+// known tag objects are refused here, the release action's pin must be
+// labelled with a full version, and a pin is checked against the remote
 // with `git ls-remote <repository> <sha>`, which lists a commit, not a tag
 // object, only under a branch or a peeled (^{}) tag.
 func TestWorkflowActionPinsAreCommitsNotTagObjects(t *testing.T) {
 	tagObjects := map[string]string{
 		"5113cdc90fd4d541c801c55356214017bf5ae34b": "softprops/action-gh-release v3 (commit efb35369e0ad2afab669f228072c1b0d510eae64)",
+		"28ab305d0ffa26d60ec4bd614126329e26c7a0ec": "softprops/action-gh-release v3.0.4 (commit 8a0cd651e5b2365bd640854a3fa5dfc70e4875f3)",
 	}
+	fullVersion := regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+\b`)
 	workflows := []string{"ci.yml", "cla.yml", "release.yml"}
 	sawRelease := false
 	for _, name := range workflows {
@@ -105,8 +108,8 @@ func TestWorkflowActionPinsAreCommitsNotTagObjects(t *testing.T) {
 			}
 			if use[1] == "softprops/action-gh-release" {
 				sawRelease = true
-				if use[2] != "efb35369e0ad2afab669f228072c1b0d510eae64" || !strings.HasPrefix(use[3], "v3.0.3") {
-					t.Errorf("softprops/action-gh-release is pinned to %s (%s), want the commit efb35369e0ad2afab669f228072c1b0d510eae64 labelled v3.0.3", use[2], use[3])
+				if !fullVersion.MatchString(use[3]) {
+					t.Errorf("softprops/action-gh-release is pinned to %s labelled %q, want a commit labelled with its full version (vX.Y.Z), not a moving major tag", use[2], use[3])
 				}
 			}
 		}
