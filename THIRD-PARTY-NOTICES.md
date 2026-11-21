@@ -12,11 +12,11 @@ This file is generated from `go.mod` by `scripts/gen-third-party-notices.py`; a 
 | Module | Version | License |
 |---|---|---|
 | `github.com/google/uuid` | v1.6.0 | BSD-3-Clause |
-| `github.com/gowebpki/jcs` | v1.0.1 | Apache-2.0 |
+| `github.com/gowebpki/jcs` | v1.0.2 | Apache-2.0 |
 | `github.com/inconshreveable/mousetrap` | v1.1.0 | Apache-2.0 |
-| `github.com/klauspost/compress` | v1.20.2 | BSD-3-Clause AND Apache-2.0 AND MIT |
-| `github.com/spf13/cobra` | v1.8.1 | Apache-2.0 |
-| `github.com/spf13/pflag` | v1.0.5 | BSD-3-Clause |
+| `github.com/klauspost/compress` | v1.20.4 | BSD-3-Clause AND Apache-2.0 AND MIT |
+| `github.com/spf13/cobra` | v1.10.2 | Apache-2.0 |
+| `github.com/spf13/pflag` | v1.0.9 | BSD-3-Clause |
 | `golang.org/x/crypto` | v0.59.0 | BSD-3-Clause |
 | `golang.org/x/sys` | v0.50.0 | BSD-3-Clause |
 | `gopkg.in/yaml.v3` | v3.0.1 | MIT AND Apache-2.0 |
@@ -58,7 +58,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 
-## github.com/gowebpki/jcs v1.0.1
+## github.com/gowebpki/jcs v1.0.2
 
 License: Apache-2.0
 
@@ -480,7 +480,7 @@ License: Apache-2.0
 ```
 
 
-## github.com/klauspost/compress v1.20.2
+## github.com/klauspost/compress v1.20.4
 
 License: BSD-3-Clause AND Apache-2.0 AND MIT
 
@@ -794,7 +794,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ```
 
 
-## github.com/spf13/cobra v1.8.1
+## github.com/spf13/cobra v1.10.2
 
 License: Apache-2.0
 
@@ -978,7 +978,7 @@ License: Apache-2.0
 ```
 
 
-## github.com/spf13/pflag v1.0.5
+## github.com/spf13/pflag v1.0.9
 
 License: BSD-3-Clause
 
