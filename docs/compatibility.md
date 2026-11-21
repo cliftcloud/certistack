@@ -21,20 +21,19 @@ records `version_support`.
 
 ## What was tested
 
-On the author's own infrastructure: a 14-node PVE 9.2 cluster and standalone hosts, with about 20 other VMs running on
-the test nodes.
+On a 14-node PVE 9.2 cluster and standalone hosts, with about 20 other VMs running on the test nodes.
 
 | What | How much | Build |
 | --- | --- | --- |
+| Restore tests | More than 10,000 VM restore tests in over 4,800 runs: 471 different VMs, up to 100 in one run, on 20 PVE hosts (PVE 9.2 and 8.4, PBS 4.x and 3.x), with over 15,000 service checks; among them a 96-VM fleet restored in one run and a PBS outage in the middle of a run | Development and pre-release builds, September to November 2026 |
 | Automated tests | Over 7,000 tests and subtests in 43 packages, none failing | The v0.1.1 release commit |
 | Fuzzing | 11 fuzz targets: the plan, environment-file and report readers, 17 parsers of PBS client output, and the DNS, LDAP, SQL Server and SMB reply parsers; more than 3.6 million generated inputs | Builds of 15 November |
 | Chaos testing | Hostile inputs, fake Proxmox peers that lie, and impossible backups: 44 flaws found, each fixed with a test that failed before the fix. In the lab, 14 impossible backups and 9 fault drills: each was refused before anything was made, or failed cleanly and left its node clean. No false pass anywhere | Builds of 15 November |
-| Restore-test campaign | 622 planned cases, 617 passed, including a 96-VM fleet restored in one run (about 17 hours) and a PBS outage in the middle of a run | A pre-release build |
-| The broad set | 24 restore tests, all passed (below) | The exact v0.1.1 binary; before it, builds of 8 and 16 November |
+| The release set | Every case passed (below) | The exact v0.1.1 binary; before it, builds of 8 and 16 November |
 | The release | Built twice, byte for byte the same; the release workflow replayed with 17 failure scenarios; the installer's 16 checks | The v0.1.1 release commit |
 
-**The broad set on the exact v0.1.1 binary: 24 restore tests, all passed.** Each ended with its cleanup verified and its
-node left as it found it.
+**The release set on the exact v0.1.1 binary: every case passed.** Each ended with its cleanup verified and its node left
+as it found it.
 
 | Area | What ran |
 | --- | --- |
@@ -45,13 +44,22 @@ node left as it found it.
 | Backups and networks | Encrypted backups, all-NIC and preserved network backends |
 | Nodes and failure | Runs on four other cluster nodes, and a run killed midway and then finished by `recover` |
 
+Guests restored and verified across the restore tests:
+
+| Area | Guests |
+| --- | --- |
+| Windows | Server 2012, 2016, 2019, 2022 and 2025; Active Directory domain controllers; SQL Server; IIS; SMB file servers; Windows 10 and 11 |
+| Linux | Rocky Linux 8 and 9, Ubuntu 22.04, 24.04 and 26.04, Debian 12, Oracle Linux 7 to 9, AlmaLinux, CentOS, RHEL, Amazon Linux, Fedora |
+| Services | PostgreSQL, MariaDB, Redis, nginx and HTTPS, DNS, LDAP |
+| Other | FreeBSD, MikroTik RouterOS, pfSense, OPNsense; UEFI with TPM state; encrypted backups |
+
 `certistack setup` ran end to end on new installs of PVE 9.2 with PBS 4.2 and PVE 8.4 with PBS 3.4. **Not tested:**
 mini PCs and other small consumer hardware, the smallest single-node home setups, ARM, and the controller VM template
 (Packer), which has not yet been built against a live PVE.
 
 ## How long a run takes
 
-In the author's lab, 392 passing single-VM runs took 12 minutes at the median, 21 at the 90th percentile. A 12 GiB
+In the test lab, 392 passing single-VM runs took 12 minutes at the median, 21 at the 90th percentile. A 12 GiB
 Rocky 9 VM took 6 minutes 20 seconds on a small nested node. Most of it goes to:
 
 - **Guest network preparation:** about 2 minutes per VM on bare metal, several on a nested node. `preserve` skips it.

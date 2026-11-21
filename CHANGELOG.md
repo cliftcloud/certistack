@@ -13,10 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 First public release, under the GNU Affero General Public License v3.0 or later. Documentation:
 <https://certistack.dev/docs/>.
 
-Tested on the author's own infrastructure: on the exact v0.1.1 binary, 24 restore tests ran and all passed, among them
-Active Directory forests, Windows Server 2022, SQL Server, SMB, Ubuntu 22.04, 16 VMs started in dependency order, a
-batch of UEFI VMs, encrypted backups, PVE 8.4 and PBS 3.x, and a recovery after a killed run
-([what was tested](https://certistack.dev/docs/compatibility/#what-was-tested)).
+Tested with more than 10,000 VM restore tests of 471 different VMs, Windows and Linux, on a 14-node Proxmox VE lab and
+standalone hosts. The exact v0.1.1 binary passed the full release set: Active Directory forests, Windows Server 2022, SQL
+Server, SMB, Ubuntu, 16 VMs started in dependency order, a batch of UEFI VMs, encrypted backups, PVE 8.4 and PBS 3.x, and
+a recovery after a killed run ([what was tested](https://certistack.dev/docs/compatibility/#what-was-tested)).
 
 ### What it does
 
