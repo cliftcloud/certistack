@@ -5,6 +5,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/cliftcloud/certistack/internal/support"
@@ -75,10 +76,47 @@ func (r *versionRecord) stamp(report *attest.Report) {
 	if r == nil || !r.read {
 		return
 	}
-	report.PVEVersion = r.status.PVE.Raw
-	report.PBSVersion = r.status.PBS.Raw
-	report.PBSClientVersion = r.status.Client.Raw
-	report.VersionSupport = r.status.Verdict()
+	StampVersions(report, r.status)
+}
+
+// StampVersions records the versions status names, and what the release makes
+// of them, in report: "unsupported" only in the report of a run refused for
+// them, which created nothing.
+func StampVersions(report *attest.Report, status support.Status) {
+	report.PVEVersion = status.PVE.Raw
+	report.PBSVersion = status.PBS.Raw
+	report.PBSClientVersion = status.Client.Raw
+	report.VersionSupport = status.Verdict()
+}
+
+// versionsReadError is the error of a run that stopped before it had a report,
+// after it read the node's versions: the caller that writes the evidence of
+// the refusal records them (StampReadVersions).
+type versionsReadError struct {
+	err    error
+	status support.Status
+}
+
+func (e *versionsReadError) Error() string { return e.err.Error() }
+func (e *versionsReadError) Unwrap() error { return e.err }
+
+// withVersions is err carrying the versions r read, or err when it read none.
+func (r *versionRecord) withVersions(err error) error {
+	if err == nil || r == nil || !r.read {
+		return err
+	}
+	return &versionsReadError{err: err, status: r.status}
+}
+
+// StampReadVersions records in report the versions a run read before it
+// failed with err and returned no report, and reports whether it read any.
+func StampReadVersions(report *attest.Report, err error) bool {
+	var read *versionsReadError
+	if !errors.As(err, &read) {
+		return false
+	}
+	StampVersions(report, read.status)
+	return true
 }
 
 // addToPlan shows the version check first among a plan's checks, and says in

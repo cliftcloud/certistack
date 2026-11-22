@@ -2,13 +2,13 @@
 # Copyright (C) 2024-2026 Clift Cloud LLC
 
 terraform {
-  # 1.7 is the first release whose `terraform test` supports the mocked
-  # provider the module's offline tests (tests/) use.
-  required_version = ">= 1.7.0"
+  # 1.8 is the first release whose `moved` blocks can change a resource's
+  # type (moved.tf); OpenTofu can from 1.10.
+  required_version = ">= 1.8.0"
   required_providers {
     proxmox = {
       source  = "bpg/proxmox"
-      version = "~> 0.66.0"
+      version = "~> 0.122.0"
     }
   }
 }
@@ -54,9 +54,9 @@ resource "proxmox_virtual_environment_user" "certistack_user" {
   comment = "Autonomous DR validation service account for CertiStack"
 
   # The provider reads a user's ACL entries back into this resource's `acl`
-  # blocks. The entries are managed by proxmox_virtual_environment_acl.certistack_user
-  # below; without ignore_changes every apply after the first would see them
-  # as unwanted and remove them from PVE, leaving the privilege-separated token
+  # blocks. The entries are managed by proxmox_acl.certistack_user below;
+  # without ignore_changes every apply after the first would see them as
+  # unwanted and remove them from PVE, leaving the privilege-separated token
   # (which holds only what its user also holds) with nothing, and
   # `terraform plan` would never be clean.
   lifecycle {
@@ -72,7 +72,7 @@ resource "proxmox_virtual_environment_user" "certistack_user" {
 }
 
 # 3. API token
-resource "proxmox_virtual_environment_user_token" "certistack_token" {
+resource "proxmox_user_token" "certistack_token" {
   user_id               = proxmox_virtual_environment_user.certistack_user.user_id
   token_name            = "automation"
   comment               = "CertiStack autonomous validation execution token"
@@ -97,7 +97,7 @@ resource "proxmox_virtual_environment_user_token" "certistack_token" {
 #   /storage/<overlay_storage>  the overlays and firmware copies.
 #   /nodes/<node> this path only: the node's status and QEMU versions.
 locals {
-  certistack_token_id = "${proxmox_virtual_environment_user.certistack_user.user_id}!${proxmox_virtual_environment_user_token.certistack_token.token_name}"
+  certistack_token_id = "${proxmox_virtual_environment_user.certistack_user.user_id}!${proxmox_user_token.certistack_token.token_name}"
 
   sdn_acl_paths = length(var.sandbox_sdn_zones) == 0 ? tomap({
     "/sdn"       = false
@@ -111,7 +111,7 @@ locals {
   })
 }
 
-resource "proxmox_virtual_environment_acl" "certistack_user" {
+resource "proxmox_acl" "certistack_user" {
   for_each = local.acl_paths
 
   user_id   = proxmox_virtual_environment_user.certistack_user.user_id
@@ -120,7 +120,7 @@ resource "proxmox_virtual_environment_acl" "certistack_user" {
   propagate = each.value
 }
 
-resource "proxmox_virtual_environment_acl" "certistack_token" {
+resource "proxmox_acl" "certistack_token" {
   for_each = local.acl_paths
 
   token_id  = local.certistack_token_id

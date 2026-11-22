@@ -90,12 +90,16 @@ func TestProseRestatementsOfTheTestedPairsStillMatchTheTable(t *testing.T) {
 		}
 		tested[pair{fmt.Sprintf("%d.%s", p.PVEMajor, minor), p.PBSMajor}] = true
 	}
-	want := map[pair]bool{{"9.x", 3}: true, {"9.x", 4}: true, {"8.4", 3}: true, {"8.4", 4}: true}
+	want := map[pair]bool{{"9.x", 3}: true, {"9.x", 4}: true}
+	for minor := 1; minor <= 4; minor++ {
+		want[pair{fmt.Sprintf("8.%d", minor), 3}] = true
+		want[pair{fmt.Sprintf("8.%d", minor), 4}] = true
+	}
 	same := len(tested) == len(want)
 	for p := range want {
 		same = same && tested[p]
 	}
 	if !same {
-		t.Fatalf("the code's tested pairs are now %v, not the four the quickstart's sentence says (PVE 9.x and 8.4, each with PBS 3.x or 4.x). Edit docs/quickstart.md, then update this test", tested)
+		t.Fatalf("the code's tested pairs are now %v, not the ones the quickstart's sentence says (PVE 9.x and 8.1 to 8.4, each with PBS 3.x or 4.x). Edit docs/quickstart.md, then update this test", tested)
 	}
 }

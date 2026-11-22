@@ -11,9 +11,10 @@ import (
 	"testing"
 )
 
-// The CLA check exempts no one by name. The only exemption is a
-// pull request opened by Dependabot's account, by its immutable ID.
-func TestCLAExemptsOnlyDependabotByAccountID(t *testing.T) {
+// The CLA check exempts no one by name. The only exemptions are pull
+// requests opened by Dependabot's account or the maintainer account, each
+// by its immutable ID.
+func TestCLAExemptsOnlyDependabotAndTheMaintainerByAccountID(t *testing.T) {
 	job := readWorkflow(t, "cla.yml").Jobs["CLAAssistant"]
 	actionIndex := -1
 	for i, step := range job.Steps {
@@ -33,13 +34,16 @@ func TestCLAExemptsOnlyDependabotByAccountID(t *testing.T) {
 	}
 	condition := strings.Join(strings.Fields(job.If), " ")
 	for _, want := range []string{
-		"github.event.pull_request.user.id != 49699333",
-		"github.event.issue.user.id != 49699333",
+		"github.event.pull_request.user.id != 49699333 && github.event.pull_request.user.id != 46729202)",
+		"github.event.issue.user.id != 49699333 && github.event.issue.user.id != 46729202 &&",
 		"github.event.issue.pull_request",
 	} {
 		if !strings.Contains(condition, want) {
 			t.Errorf("job condition lacks %q: %s", want, condition)
 		}
+	}
+	if n := strings.Count(condition, "user.id"); n != 4 {
+		t.Errorf("job condition tests user.id %d times, want 4 (two accounts, two events): %s", n, condition)
 	}
 	for _, name := range []string{"login", "[bot]", "*"} {
 		if strings.Contains(condition, name) {

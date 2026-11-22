@@ -67,7 +67,7 @@ func (e *environmentShapeError) layerDetail(envPath string) (detail, fix string)
 	if count == 1 {
 		lines = "line"
 	}
-	return b.String(), fmt.Sprintf("Correct the %s above in %s. What each variable looks like is in docs/configuration.md#variables.", lines, envPath)
+	return b.String(), fmt.Sprintf("Correct the %s above in %s. What each variable looks like is at https://certistack.dev/docs/configuration/#variables.", lines, envPath)
 }
 
 // shapeResult is what a rule makes of a value: the problem with it, or the

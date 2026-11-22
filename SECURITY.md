@@ -100,7 +100,7 @@ does steps 1 to 3 with the fingerprint pinned, and installs nothing unless they 
 
    ```bash
    sudo install -d -m 0700 -o "$USER" /secure/certistack
-   git clone --depth 1 --branch v0.1.1 https://github.com/cliftcloud/certistack.git
+   git clone --depth 1 --branch v0.1.2 https://github.com/cliftcloud/certistack.git
    gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --import certistack/release/release-public-key.asc
    gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --fingerprint
    gpgv --keyring /secure/certistack/release-signing-key.gpg \
@@ -127,7 +127,7 @@ is your build, not the release.
 
 ### How releases are built
 
-A GitHub Actions workflow builds a release from a commit on the default branch, for a stable tag such as `v0.1.1` only.
+A GitHub Actions workflow builds a release from a commit on the default branch, for a stable tag such as `v0.1.2` only.
 A candidate tag (`vMAJOR.MINOR.PATCH-rcN`) starts nothing.
 
 - **Registry.** `release/candidates.txt` lists, for each release, the tag, the full commit and the SHA-256 of

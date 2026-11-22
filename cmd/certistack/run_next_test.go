@@ -18,7 +18,7 @@ import (
 
 const (
 	nextReport     = "/var/lib/certistack/reports/recovery-pve-demo-01/0f3a9c1e.json"
-	nextTroubleOne = "Next: docs/troubleshooting.md lists the usual causes of a failed run and their fixes"
+	nextTroubleOne = "Next: https://certistack.dev/docs/troubleshooting/ lists the usual causes of a failed run and their fixes"
 )
 
 // savedReport is the report of a run that got as far as its probes: one VM,

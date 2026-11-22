@@ -19,6 +19,9 @@ type VersionReport struct {
 	PBSClient string `json:"pbs_client"`
 	Support   string `json:"support"`
 	Reason    string `json:"reason"`
+	// Status is the classification itself, for the report of a run the
+	// preflight refused.
+	Status support.Status `json:"-"`
 }
 
 // versionCheck is the check line and the JSON member for status: passed when
@@ -39,6 +42,7 @@ func versionCheck(status support.Status) (CheckItem, *VersionReport) {
 		PBSClient: status.Client.String(),
 		Support:   status.Verdict(),
 		Reason:    status.Reason,
+		Status:    status,
 	}
 }
 

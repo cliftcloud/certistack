@@ -31,8 +31,10 @@ func setupCmd() *cobra.Command {
 		Short: "Connect this controller to a Proxmox VE node and its PBS: asks, then does the first-run steps",
 		Long: `certistack setup connects this controller to one Proxmox VE node and its
 Proxmox Backup Server, and ends with certistack check. It asks for the node's
-address, shows the node's SSH host key for you to confirm, reads the node, and
-then, after your yes to each, does the first-run steps:
+address, shows the node's SSH host key for you to confirm, reads the node
+(and stops there, before the steps below, on a node a run cannot use: PVE 8.0,
+a proxmox-backup-client older than 3, or no SDN API), and then, after your yes
+to each, does the first-run steps:
 
   - installs libguestfs-tools and nftables on the node when they are missing,
     after showing what apt-get would install, upgrade and remove;
@@ -84,7 +86,7 @@ root namespace, which lets the PBS user read every namespace of the datastore). 
 	f.IntVar(&opts.PBSPort, "pbs-port", 0, "the PBS API port, with --pbs-host (default 8007, or the earlier controller.env's)")
 	f.StringVar(&opts.PBSDatastore, "pbs-datastore", "", "the PBS datastore, with --pbs-host")
 	f.StringVar(&opts.PBSNamespace, "pbs-namespace", "", "the PBS namespace the PBS user is granted (default: the PBS storage's, else the earlier controller.env's for the same PBS and datastore, else setup asks); / is the root namespace, which lets it read every namespace of the datastore")
-	f.StringVar(&opts.PBSFingerprint, "pbs-fingerprint", "", "the PBS certificate's SHA-256 fingerprint, when setup cannot read it from the node's PBS storage or over ssh from the PBS")
+	f.StringVar(&opts.PBSFingerprint, "pbs-fingerprint", "", "the PBS certificate's SHA-256 fingerprint (PBS dashboard, Show Fingerprint); refused if the node's PBS storage or the PBS reports another. Without it, setup asks you to confirm the one it reads")
 	f.StringVar(&opts.PBSSSH, "pbs-ssh", "", "how to reach the PBS as root over your own ssh (default root@<PBS host>)")
 	f.BoolVar(&opts.PBSManual, "pbs-manual", false, "do not ssh to the PBS: print its part to paste into the PBS web shell, then paste the secret")
 	cmd.AddCommand(setupTrustNodeCmd(), setupPVECACmd(), setupRBACCmd())

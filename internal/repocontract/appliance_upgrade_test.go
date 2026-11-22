@@ -6,6 +6,7 @@ package repocontract
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -244,6 +245,50 @@ func TestApplianceLifecycleIsDocumentedWhereItApplies(t *testing.T) {
 	for _, want := range []string{"replacement, not in-place patching", "rebuild", "build-manifest", "/etc/certistack/secrets", "Keep the old VM", "Do not run `apt upgrade`", "Automatic-Reboot"} {
 		if !strings.Contains(patch, want) {
 			t.Errorf("the OS patching section does not say %q", want)
+		}
+	}
+}
+
+// The patch copies controller.env and the controller's key, which is root on
+// the node, through the workstation. The archive is created under umask 077
+// (the redirection inside the subshell, so the umask covers it) and shredded,
+// not merely unlinked.
+func TestAppliancePatchKeepsTheStateArchivePrivate(t *testing.T) {
+	readme := applianceReadme(t)
+	start := strings.Index(readme, "\n## Patch the appliance's operating system\n")
+	if start < 0 {
+		t.Fatal("the appliance guide has no Patch the appliance's operating system section")
+	}
+	patch := readme[start:]
+	if end := strings.Index(patch[1:], "\n## "); end >= 0 {
+		patch = patch[:end+1]
+	}
+	if !regexp.MustCompile(`\(umask 077; ssh [^\n]*'sudo tar -C / -cpf - [^\n]*' > appliance-state\.tar\)`).MatchString(patch) {
+		t.Error("the state archive is not written under umask 077")
+	}
+	if !strings.Contains(patch, "shred -u appliance-state.tar") || strings.Contains(patch, "rm -f appliance-state.tar") {
+		t.Error("the state archive is not shredded after the copy")
+	}
+}
+
+// Removing the appliance also takes back what the build left on the build
+// machine: the node's CA copy, Packer's plugin, and the tools it installed.
+func TestApplianceRemovalCoversTheBuildMachine(t *testing.T) {
+	readme := applianceReadme(t)
+	start := strings.Index(readme, "\n## Remove the appliance\n")
+	if start < 0 {
+		t.Fatal("the appliance guide has no Remove the appliance section")
+	}
+	removal := flat(readme[start:])
+	for _, want := range []string{
+		"On the build machine",
+		"`rm -f /secure/certistack/pve-root-ca.pem`",
+		"the release checkout",
+		"`rm -rf ~/.config/packer`",
+		"uninstall Packer and skopeo",
+	} {
+		if !strings.Contains(removal, want) {
+			t.Errorf("the removal section does not say %q", want)
 		}
 	}
 }

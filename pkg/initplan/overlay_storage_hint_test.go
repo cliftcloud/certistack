@@ -35,7 +35,7 @@ func TestComposeNoteForMissingOverlayStorageNamesThePageAndTheCommand(t *testing
 	if strings.Contains(note, "test-plan") {
 		t.Errorf("the note names a page that does not exist: %s", note)
 	}
-	if !strings.Contains(note, "see storage.overlay_storage on the Plans page (docs/plan-reference.md)") {
+	if !strings.Contains(note, "see storage.overlay_storage at https://certistack.dev/docs/plan-reference/#storage") {
 		t.Errorf("the note does not point at the Plans page: %s", note)
 	}
 	if !strings.HasSuffix(note, wantCreateOverlayStorageHint) {

@@ -20,7 +20,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/cliftcloud/certistack/internal/nodecheck"
 	"github.com/cliftcloud/certistack/internal/nodesetup"
+	"github.com/cliftcloud/certistack/internal/support"
 	"github.com/cliftcloud/certistack/internal/sysutil"
 	"github.com/cliftcloud/certistack/pkg/controller"
 	"github.com/cliftcloud/certistack/pkg/pve"
@@ -904,10 +906,14 @@ func wizardNodeFacts(u *wizardUI, w *setupWizardContext, opts setupWizardOptions
 		}
 	}
 	u.say("Node %s: %s, %s.", facts.Name, facts.PVEVersion, kind)
+	if err := refuseUnusableNode(u, facts); err != nil {
+		return err
+	}
+	u.say("%s", usableNodeLine(facts))
 	if facts.Cluster {
 		// Said once, here: what a run costs the cluster is not a choice setup
 		// asks about, but it is what a newcomer on a cluster node meets first.
-		u.say("Every run applies SDN twice, and PVE reloads the network on %s each time. network.lifecycle: preprovisioned in the plan avoids it (docs/plan-reference.md#use-a-pre-provisioned-sandbox).", every)
+		u.say("Every run applies SDN twice, and PVE reloads the network on %s each time. network.lifecycle: preprovisioned in the plan avoids it (https://certistack.dev/docs/plan-reference/#use-a-pre-provisioned-sandbox).", every)
 	}
 	if !facts.KVM {
 		u.say("Warning: the node has no /dev/kvm. A run refuses such a node; on a nested node, turn on nested virtualization first.")
@@ -918,6 +924,63 @@ func wizardNodeFacts(u *wizardUI, w *setupWizardContext, opts setupWizardOptions
 	return nil
 }
 
+// refuseUnusableNode stops setup, before its first change, on a node that
+// check would fail for its versions or its lack of the SDN API, with check's
+// reason and fix for each (nodecheck.Refusals, nodeLayerFix): what plan and
+// run refuse is never set up first and refused at the end.
+func refuseUnusableNode(u *wizardUI, facts nodesetup.NodeFacts) error {
+	refusals := nodecheck.Refusals(facts.ClientVersion, facts.PVERelease(), facts.SDNMissing())
+	if len(refusals) == 0 {
+		return nil
+	}
+	shown := map[string]bool{}
+	for _, layer := range refusals {
+		u.say("✗ %s", layer.Detail)
+		lead := "  Fix: "
+		for _, line := range strings.Split(nodeLayerFix(layer, "", ""), "\n") {
+			if !shown[line] {
+				shown[line] = true
+				u.say("%s%s", lead, line)
+			}
+			lead = "       "
+		}
+	}
+	return errors.New("a run cannot use this node, so setup stopped before it installed or created anything on the node or the PBS: apply the fix above, then run certistack setup again")
+}
+
+// usableNodeLine says what refuseUnusableNode found on a node it let through:
+// the PVE release, the client version and the SDN API. What setup could not
+// read refuses nothing (the closing check judges it), and the line says so.
+func usableNodeLine(facts nodesetup.NodeFacts) string {
+	var read, unread []string
+	if release := facts.PVERelease(); release != "" {
+		read = append(read, "Proxmox VE "+release)
+	} else {
+		unread = append(unread, "the Proxmox VE release")
+	}
+	if facts.ClientVersion != "" {
+		read = append(read, "proxmox-backup-client "+facts.ClientVersion)
+	} else {
+		unread = append(unread, "the proxmox-backup-client version")
+	}
+	if facts.SDNRead {
+		read = append(read, "SDN available")
+	} else {
+		unread = append(unread, "the SDN zones")
+	}
+	if len(unread) == 0 {
+		return "✓ This node can run CertiStack: " + strings.Join(read, ", ") + "."
+	}
+	left := unread[len(unread)-1]
+	if len(unread) > 1 {
+		left = strings.Join(unread[:len(unread)-1], ", ") + " or " + left
+	}
+	if len(read) == 0 {
+		return "Setup could not read " + left + "; the check at the end judges them."
+	}
+	return "Nothing setup read refuses this node (" + strings.Join(read, ", ") + "); it could not read " + left + ", which the check at the end judges."
+}
+
 // wizardPackages installs libguestfs-tools and nftables when they are missing.
 // It refreshes the node's package lists first (after a yes: it changes apt's
 // lists), so that the preview it shows, what would be installed, upgraded and
@@ -926,7 +989,13 @@ func wizardPackages(u *wizardUI, w *setupWizardContext, opts setupWizardOptions)
 	u.heading("Packages on the node")
 	missing := w.facts.MissingPackages()
 	if len(missing) == 0 {
-		u.say("The node has every tool a run needs (qemu-img, proxmox-backup-client, ip, guestfish, nft).")
+		// A client version this release refuses never gets here:
+		// refuseUnusableNode stopped setup at the step before.
+		client := "proxmox-backup-client"
+		if version := support.ParseVersion(w.facts.ClientVersion); version.Known() {
+			client += " " + version.Raw
+		}
+		u.say("The node has every tool a run needs (qemu-img, %s, ip, guestfish, nft).", client)
 		return nil
 	}
 	if !w.facts.Tools["apt-get"] {
@@ -1253,12 +1322,35 @@ func wizardPVEAccess(u *wizardUI, w *setupWizardContext, opts setupWizardOptions
 	return nil
 }
 
-// wizardPBS chooses the PBS, creates the read-only user and token there, and
-// learns the certificate's fingerprint.
+// wizardPBS chooses the PBS, settles the certificate's fingerprint, and
+// creates the read-only user and token there. The fingerprint is settled
+// before anything changes on the PBS: one setup takes itself (from the node's
+// PBS storage, an earlier controller.env, or the PBS over ssh) is shown with
+// where it came from, and used only after the operator's yes that the PBS
+// dashboard shows it; a --pbs-fingerprint that differs from one of those is
+// refused.
 func wizardPBS(u *wizardUI, w *setupWizardContext, opts setupWizardOptions) error {
 	u.heading("The Proxmox Backup Server")
 	if err := choosePBS(u, w, opts); err != nil {
 		return err
+	}
+	given := ""
+	if opts.PBSFingerprint != "" {
+		var err error
+		if given, err = nodesetup.NormalizeFingerprint(opts.PBSFingerprint); err != nil {
+			return fmt.Errorf("--pbs-fingerprint: %w", err)
+		}
+		if err := matchGivenFingerprint(given, w.pbs.Fingerprint); err != nil {
+			return err
+		}
+	} else if w.pbs.Fingerprint != "" {
+		source, storageID := "from the earlier environment file "+w.envPath, ""
+		if w.pbs.ID != "" {
+			source, storageID = "from the node's storage "+w.pbs.ID, w.pbs.ID
+		}
+		if err := confirmPBSFingerprint(u, w.pbs.Fingerprint, source, storageID); err != nil {
+			return err
+		}
 	}
 	scope := "the datastore " + w.pbs.Datastore
 	if w.pbs.Namespace != "" {
@@ -1290,30 +1382,42 @@ func wizardPBS(u *wizardUI, w *setupWizardContext, opts setupWizardOptions) erro
 			secret, leave = prevSecret, same
 		}
 	}
-	if !leave {
-		done := false
-		if !opts.PBSManual {
-			if secret, done, err = pbsOverSSH(u, w, opts, script, secret); err != nil {
-				return err
-			}
+	target, overSSH := pbsSSHTarget(w, opts), false
+	if !leave && !opts.PBSManual {
+		u.say("Setup runs this on the PBS as root over your own SSH (%s), with your keys and known_hosts;", target)
+		u.say("ssh may ask for root's password there and to confirm the PBS host key. The controller's key is not used there.")
+		if w.pbs.Fingerprint == "" {
+			u.say("It first reads the PBS certificate's fingerprint, changing nothing, so ssh may ask for the password twice.")
 		}
-		if !done {
-			if secret, err = pbsByHand(u, w, secret); err != nil {
-				return err
-			}
+		if overSSH, err = u.confirm("Run it over ssh now? (No: paste it into the PBS web shell instead)", true); err != nil {
+			return err
 		}
 	}
-	if opts.PBSFingerprint != "" {
-		given, err := nodesetup.NormalizeFingerprint(opts.PBSFingerprint)
+	if overSSH && w.pbs.Fingerprint == "" {
+		// Read on its own, before the PBS part runs: the PBS is changed only
+		// with a fingerprint the operator confirmed or gave.
+		read, ok, err := readPBSFingerprint(u, w, target)
 		if err != nil {
-			return fmt.Errorf("--pbs-fingerprint: %w", err)
+			return err
 		}
-		// One that the node's PBS storage or the PBS itself reports must match.
-		if w.pbs.Fingerprint != "" {
-			if known, err := nodesetup.NormalizeFingerprint(w.pbs.Fingerprint); err == nil && known != given {
-				return fmt.Errorf("--pbs-fingerprint %s is not the fingerprint the PBS storage or the PBS reports (%s)", given, known)
+		switch {
+		case !ok:
+			overSSH = false
+		case read != "" && given != "":
+			if err := matchGivenFingerprint(given, read); err != nil {
+				return err
 			}
+		case read != "":
+			if err := confirmPBSFingerprint(u, read, "read from the PBS over ssh (proxmox-backup-manager cert info)", ""); err != nil {
+				return err
+			}
+			w.pbs.Fingerprint = read
 		}
+	}
+	if !leave && !overSSH && u.yes {
+		return errors.New("the PBS part needs ssh to the PBS when setup runs unattended (--pbs-ssh root@HOST)")
+	}
+	if given != "" {
 		w.pbs.Fingerprint = given
 	}
 	for w.pbs.Fingerprint == "" {
@@ -1330,6 +1434,19 @@ func wizardPBS(u *wizardUI, w *setupWizardContext, opts setupWizardOptions) erro
 	fingerprint, err := nodesetup.NormalizeFingerprint(w.pbs.Fingerprint)
 	if err != nil {
 		return err
+	}
+	if !leave {
+		done := false
+		if overSSH {
+			if secret, done, err = pbsOverSSH(u, w, target, script, secret); err != nil {
+				return err
+			}
+		}
+		if !done {
+			if secret, err = pbsByHand(u, w, secret); err != nil {
+				return err
+			}
+		}
 	}
 	w.env.PBSRepository = repository
 	w.env.PBSPassword = secret
@@ -1552,37 +1669,88 @@ func namespaceNote(ns string) string {
 	return ", namespace " + ns
 }
 
-// pbsFingerprintScript prints the PBS certificate's fingerprint as one JSON
-// object on the capture descriptor, after the access part.
-const pbsFingerprintScript = `
+// pbsFingerprintReadScript prints the PBS certificate's fingerprint as one
+// JSON object, the only output on stdout, and changes nothing.
+const pbsFingerprintReadScript = `exec 3>&1 1>&2
 fp=$(proxmox-backup-manager cert info 2>/dev/null | sed -n 's/^Fingerprint (sha256): *//p' | head -n 1)
 printf '{"fingerprint":"%s"}\n' "$fp" >&3
 `
 
-// pbsOverSSH runs the PBS part over the operator's own ssh to the PBS. have is
-// a secret setup holds for the token already ("" when none). It returns the
-// secret and done; done is false when the operator chose the manual way or the
-// ssh failed, and then the secret is the one to give pbsByHand (have, or the
-// secret of a token this run created before the part failed).
-func pbsOverSSH(u *wizardUI, w *setupWizardContext, opts setupWizardOptions, script, have string) (string, bool, error) {
-	target := opts.PBSSSH
-	if target == "" {
-		target = "root@" + w.pbs.Server
+// pbsSSHTarget is the ssh destination of the PBS: --pbs-ssh, else root on the
+// PBS host.
+func pbsSSHTarget(w *setupWizardContext, opts setupWizardOptions) string {
+	if opts.PBSSSH != "" {
+		return opts.PBSSSH
 	}
-	u.say("Setup runs this on the PBS as root over your own SSH (%s), with your keys and known_hosts;", target)
-	u.say("ssh may ask for root's password there and to confirm the PBS host key. The controller's key is not used there.")
-	ok, err := u.confirm("Run it over ssh now? (No: paste it into the PBS web shell instead)", true)
-	if err != nil || !ok {
-		return have, false, err
+	return "root@" + w.pbs.Server
+}
+
+// readPBSFingerprint reads the PBS certificate's fingerprint over the
+// operator's ssh to the PBS. ok is false when the ssh failed, which is said;
+// the fingerprint is "" when the PBS printed none.
+func readPBSFingerprint(u *wizardUI, w *setupWizardContext, target string) (string, bool, error) {
+	output, err := u.deps.pbsScript(u.ctx, target, w.pbsSSHPort, pbsFingerprintReadScript, u.out)
+	if err != nil {
+		if u.ctx.Err() != nil {
+			return "", false, u.ctx.Err()
+		}
+		u.say("The PBS certificate's fingerprint could not be read over ssh (%v); nothing was changed on the PBS.", err)
+		return "", false, nil
 	}
+	return captureField(output, "fingerprint"), true, nil
+}
+
+// matchGivenFingerprint refuses a --pbs-fingerprint (given, normalized) that
+// differs from the one the node's PBS storage or the PBS reports (known; ""
+// when neither does). An earlier controller.env's is not compared: a renewed
+// certificate has a new fingerprint, and the flag gives it.
+func matchGivenFingerprint(given, known string) error {
+	if known == "" {
+		return nil
+	}
+	if normalized, err := nodesetup.NormalizeFingerprint(known); err == nil && normalized != given {
+		return fmt.Errorf("--pbs-fingerprint %s is not the fingerprint the PBS storage or the PBS reports (%s); setup changed nothing on the PBS", given, normalized)
+	}
+	return nil
+}
+
+// confirmPBSFingerprint shows a fingerprint setup took itself, and where from,
+// and asks whether the PBS dashboard shows the same. A no stops setup before
+// it changes anything on the PBS or writes controller.env; --yes takes it, and
+// says so. storageID names the node's PBS storage the fingerprint came from
+// ("" when it came from elsewhere).
+func confirmPBSFingerprint(u *wizardUI, fingerprint, source, storageID string) error {
+	normalized, err := nodesetup.NormalizeFingerprint(fingerprint)
+	if err != nil {
+		return fmt.Errorf("the PBS certificate fingerprint %s: %w", source, err)
+	}
+	u.say("PBS certificate fingerprint, %s:\n  %s", source, normalized)
+	if u.yes {
+		u.say("--yes accepts it without asking: compare it with the PBS dashboard (Dashboard > Show Fingerprint), or give --pbs-fingerprint to have setup compare it.")
+		return nil
+	}
+	ok, err := u.confirm("Does the PBS dashboard (Dashboard > Show Fingerprint) show this fingerprint?", true)
+	if err != nil || ok {
+		return err
+	}
+	stop := "the fingerprint was not confirmed, so setup stopped before it changed anything on the PBS or wrote controller.env: find out why it differs, then run certistack setup again with --pbs-fingerprint and the fingerprint the dashboard shows"
+	if storageID != "" {
+		return errors.New(stop + "; setup refuses one that the storage " + storageID + " contradicts, so if the PBS certificate was renewed, correct the storage's fingerprint first (Datacenter > Storage > " + storageID + ")")
+	}
+	return errors.New(stop + "; setup refuses one that the node's PBS storage or the PBS reports otherwise")
+}
+
+// pbsOverSSH runs the PBS part over the operator's own ssh to the PBS (target).
+// have is a secret setup holds for the token already ("" when none). It
+// returns the secret and done; done is false when the ssh failed, and then the
+// secret is the one to give pbsByHand (have, or the secret of a token this run
+// created before the part failed).
+func pbsOverSSH(u *wizardUI, w *setupWizardContext, target, script, have string) (string, bool, error) {
 	repository := w.pbs.Repository(nodesetup.PBSTokenID)
 	for attempt := 0; attempt < 2; attempt++ {
 		// The output comes back even when the part failed after it made the
 		// token: the secret is kept first.
-		output, runErr := u.deps.pbsScript(u.ctx, target, w.pbsSSHPort, script+pbsFingerprintScript, u.out)
-		if fp := captureField(output, "fingerprint"); fp != "" && w.pbs.Fingerprint == "" {
-			w.pbs.Fingerprint = fp
-		}
+		output, runErr := u.deps.pbsScript(u.ctx, target, w.pbsSSHPort, script, u.out)
 		created, err := nodesetup.ParseTokenSecret(tokenObjects(output))
 		if err == nil {
 			if kerr := w.keepPartial(nodesetup.EnvVar{Name: "PBS_REPOSITORY", Value: repository}, nodesetup.EnvVar{Name: "PBS_PASSWORD", Value: created}); kerr != nil {
@@ -1715,11 +1883,11 @@ func pbsByHand(u *wizardUI, w *setupWizardContext, have string) (string, error) 
 }
 
 // tokenObjects keeps the JSON objects of a capture output that are not the
-// fingerprint or the wider-grant line, for ParseTokenSecret.
+// wider-grant line, for ParseTokenSecret.
 func tokenObjects(output []byte) []byte {
 	var kept []string
 	for _, line := range strings.Split(string(output), "\n") {
-		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, `{"fingerprint":`) || strings.HasPrefix(trimmed, `{"wider_grant":`) {
+		if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, `{"wider_grant":`) {
 			continue
 		}
 		kept = append(kept, line)

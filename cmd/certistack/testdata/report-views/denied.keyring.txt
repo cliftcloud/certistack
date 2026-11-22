@@ -9,6 +9,7 @@ Signature:     VALID, by a trusted signer (Fixture signer)
 Acceptance:    REJECTED as pass evidence (internal consistency only, not bound to your plan, node or build: add verify-report --expect-* to bind it)
                - the report does not record a pass: "admission control guardrail triggered: max admission retries exceeded"
                - the report records no VM, so no recovery was validated
+               As a capacity refusal: certistack verify-report --keyring <trusted-signers> --expect-outcome denied <report.json>
 Outcome:       FAIL
 Reason:        admission control guardrail triggered: max admission retries exceeded
 
@@ -17,18 +18,18 @@ Node:          pve-node-01
 When:          2026-10-05T14:18:53Z (run-49b8b0fe-1a7d-4dab-bb52-57bd89e9421b)
 Engine:        v0.1.0, commit 0123456789ab, built 2026-10-04T11:46:58Z
 Proxmox:       PVE 9.2.2, PBS 4.2.0, proxmox-backup-client 4.2.0 (tested)
-Validation:    full_integrity: every mapped disk image was read back and checksummed
+Validation:    full_integrity, but no disk image was read: the run stopped before any restore
 Frameworks:    SOC2 (labels, not a certification; retention 90 days)
 Schema:        1.7
 
-RTO:           0.62 s (0.62 s); no objective set
-Admission:     limits RAM 85.0%, I/O wait 12.0%; reserved 1280 MiB for 1 VM(s); denied_ram
+RTO:           none: no VM was restored
+Admission:     limits RAM 85.0%, I/O wait 12.0%; needs 1280 MiB for 1 VM(s), not reserved; denied_ram
 
 VMs (0):
   none: the report records no VM, so no recovery was validated.
 
 Teardown:
   cleanup verified (at 2026-10-05T14:18:55Z)
-  sandbox VM destroyed: no; 0 overlay disk(s) removed; 0 loop device(s) unmapped
+  sandbox VM: none was created; 0 overlay disk(s) removed; 0 loop device(s) unmapped
   sandbox network: none was created
   every resource the run owned confirmed removed: yes; confirmed from the node's journal: yes

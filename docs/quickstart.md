@@ -5,7 +5,7 @@ From nothing to your first restore-test report on one standalone Proxmox VE node
 
 ## Before you start
 
-- **A Proxmox VE node** ([9.x or 8.4](compatibility.md#supported-versions)), standalone for a first run, that you can
+- **A Proxmox VE node** ([9.x, or 8.1 to 8.4](compatibility.md#supported-versions)), standalone for a first run, that you can
   SSH to as root.
 - **A PBS** (3.x or 4.x) the node can reach, with a recent backup of a **small Linux VM** (under about 20 GiB, `sshd`
   on port 22).
@@ -50,12 +50,32 @@ You answer, in this order:
 4. **Where the PBS is**: host name (as the node reaches it), datastore and namespace, or pick the node's PBS storage
    from the list. With no namespace the PBS user can read the whole datastore, so setup asks `Continue?` (default
    no): answer `y` if your backups are in the root namespace.
-5. **The PBS's host key**, which `ssh` asks you to confirm. Check it the same way, in the PBS web UI's shell.
-6. **Root's password on the PBS**, to run one script there. Or answer `n`: setup writes the script for you to paste
-   into the PBS web shell, then asks for the token secret it printed (the string after `"value":`).
+5. **The PBS's TLS fingerprint**, before setup changes anything on the PBS. Setup shows the one it took from the
+   node's PBS storage or an earlier `controller.env` and asks
+   `Does the PBS dashboard (Dashboard > Show Fingerprint) show this fingerprint? [Y/n]`. If it does not, answer `n`:
+   setup stops before it changes anything on the PBS. What it already did on the node (the controller's key, the
+   overlay storage, the PVE role, user and token) and `controller.env.partial` stay, and a rerun reuses them. Find out
+   why (another PBS, a renewed certificate), then run setup again with `--pbs-fingerprint` and the dashboard's value;
+   setup refuses a value the node's PBS storage contradicts, so correct the storage first. To give up instead,
+   [remove CertiStack](manual-setup.md#remove-certistack).
+   With no fingerprint to show, setup reads it from the PBS over `ssh` and asks after items 6 and 7, or asks you to
+   type it.
+6. **The PBS's host key**, which `ssh` asks you to confirm. Check it the same way, in the PBS web UI's shell.
+7. **Root's password on the PBS**, to run one script there, and once before it when setup reads the fingerprint over
+   `ssh`. Or answer `n`: setup writes the script for you to paste into the PBS web shell, then asks for the token
+   secret it printed (the string after `"value":`).
+
+Setup also asks before each change it makes: installing packages (it lists what apt will install, upgrade and
+remove), adding the overlay storage, creating the PVE role, user and token, and running the PBS script. Enter accepts
+each, except a removal (default No): on PVE 8, apt replaces `fuse` with `fuse3`, which is
+[safe](manual-setup.md#1-prepare-the-node), so answer `y`.
 
 For an encrypted PBS storage, setup offers to copy its key (default no); a passphrase goes in `controller.env` as
 `PBS_ENCRYPTION_PASSWORD`.
+
+A node a run cannot use (PVE 8.0, a `proxmox-backup-client` older than 3, or no SDN API) is refused when setup reads
+it, before any change: apply the fix it prints and run setup again. A usable node gets one line, such as
+`✓ This node can run CertiStack: Proxmox VE 9.2.2, proxmox-backup-client 4.2.0, SDN available.`
 
 Setup is done when its check ends with `✓ Every layer passed.` Otherwise apply the fix it prints and run
 `certistack check` again. The commands below use the `controller.env` setup wrote; `--env-file` chooses another.
@@ -73,6 +93,8 @@ Write a plan for a small one, here VM 102:
 ```bash
 certistack init --vm 102 -o my-first-plan.yaml
 ```
+
+`init -o` refuses to overwrite an existing plan file: use another name or `--force`.
 
 `init` estimates the run's time and RAM (the VM's memory plus 256 MiB). The plan needs no edit: its probe checks that SSH answers on port 22. `init` also asks once about
 [usage statistics](telemetry.md); Enter keeps them off.
@@ -126,10 +148,10 @@ On the controller (a minimal Debian or Ubuntu needs `sudo apt install gnupg git 
 ```bash
 mkdir -p ~/certistack-download && cd ~/certistack-download
 for f in certistack-linux-amd64 CONTAINER-IMAGE.txt SHA256SUMS-bin.txt SHA256SUMS-bin.txt.asc; do
-  curl -fLO "https://github.com/cliftcloud/certistack/releases/download/v0.1.1/$f"
+  curl -fLO "https://github.com/cliftcloud/certistack/releases/download/v0.1.2/$f"
 done
 sudo install -d -m 0700 -o "$USER" /secure/certistack /var/lib/certistack/reports
-git clone --depth 1 --branch v0.1.1 https://github.com/cliftcloud/certistack.git
+git clone --depth 1 --branch v0.1.2 https://github.com/cliftcloud/certistack.git
 gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg \
   --import certistack/release/release-public-key.asc
 gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --fingerprint
@@ -166,7 +188,7 @@ Either way, use your directory for `/secure/certistack` in every command.
 ## Upgrade
 
 Finish or recover every run first. Run the installer again; it keeps the current binary as
-`/usr/local/bin/certistack.prev` (to pick a release, put `CERTISTACK_VERSION=v0.1.1` before `bash`). Then run
+`/usr/local/bin/certistack.prev` (to pick a release, put `CERTISTACK_VERSION=v0.1.2` before `bash`). Then run
 `certistack check` and one plan. To roll back:
 `sudo install -m 0755 /usr/local/bin/certistack.prev /usr/local/bin/certistack`.
 
@@ -177,4 +199,6 @@ Finish or recover every run first. Run the installer again; it keeps the current
 - A cluster node: read [What it changes](manual-setup.md#what-it-changes) first, or use a
   [pre-provisioned sandbox](plan-reference.md#use-a-pre-provisioned-sandbox).
 - Several sites: one setup directory per site. The last setup is the default; pass `--env-file` for the others.
+- [A second PBS for the same node](manual-setup.md#a-second-pbs-for-the-same-node): a second environment file, not a
+  second setup.
 - [Troubleshooting](troubleshooting.md), [Remove CertiStack](manual-setup.md#remove-certistack).

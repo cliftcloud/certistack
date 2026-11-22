@@ -171,7 +171,7 @@ func TestVersionRefusesArguments(t *testing.T) {
 // are, and keeps refusing. A value pasted without its name is still never
 // quoted.
 func TestAnEnvironmentLineWithAnotherProgramsNameSaysItIsNotASetting(t *testing.T) {
-	const rest = " is not a CertiStack setting; an environment file holds only the settings in docs/configuration.md (it is read literally, not as a shell script)"
+	const rest = " is not a CertiStack setting; an environment file holds only the settings listed at https://certistack.dev/docs/configuration/#variables (it is read literally, not as a shell script)"
 	for line, name := range map[string]string{
 		"PATH=/usr/local/bin:/usr/bin": "PATH",
 		"HOME=/root":                   "HOME",

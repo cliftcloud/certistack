@@ -255,10 +255,10 @@ func run(ctx context.Context, plan *config.Plan, opts Options) (*attest.Report, 
 	opts.versions = versions
 	pveClient, pbsClient, err := prepareRunFn(ctx, plan, opts, opts.ScratchDir)
 	if err != nil {
-		return nil, err
+		return nil, versions.withVersions(err)
 	}
 	if err := checkResolvedPlan(plan, opts); err != nil {
-		return nil, err
+		return nil, versions.withVersions(err)
 	}
 	// An untested pair goes on, with one warning here and the versions in the
 	// report; an unsupported one was refused by prepareRun.
@@ -1034,6 +1034,12 @@ func envOr(name, fallback string) string {
 	return fallback
 }
 
+// ReportPBSIdentity is the PBS fingerprint and namespace a report of plan
+// records, as a run's report does: the environment's, else the plan's.
+func ReportPBSIdentity(plan *config.Plan) (fingerprint, namespace string) {
+	return effectiveReportPBSIdentity(plan)
+}
+
 func effectiveReportPBSIdentity(plan *config.Plan) (string, string) {
 	fingerprint := envOr("PBS_FINGERPRINT", plan.Storage.PBSFingerprint)
 	if fingerprint == "" {
@@ -1164,7 +1170,23 @@ func Discover(ctx context.Context, req initplan.Request, scratchDir string) (*in
 			return nil, fmt.Errorf("prepare scratch directory %s: %w", scratchDir, err)
 		}
 	}
-	return initplanDiscover(ctx, pbsClient, discoveryCluster{Client: pveClient, sdn: sdn.NewManager(pveClient)}, req, scratchDir)
+	d, err := initplanDiscover(ctx, pbsClient, discoveryCluster{Client: pveClient, sdn: sdn.NewManager(pveClient)}, req, scratchDir)
+	return d, namePVECall(err)
+}
+
+// namePVECall puts the PVE API request that failed in front of a PVE error, so
+// that init's error says which call PVE refused. An error that names it already
+// (a missing SDN API) is left as it is.
+func namePVECall(err error) error {
+	var apiErr *pve.APIError
+	if err == nil || !errors.As(err, &apiErr) {
+		return err
+	}
+	call := apiErr.Call()
+	if call == "" || strings.Contains(err.Error(), call) {
+		return err
+	}
+	return fmt.Errorf("%s: %w", call, err)
 }
 
 // discoveryCluster is PVE as init reads it.

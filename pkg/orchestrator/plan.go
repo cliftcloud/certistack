@@ -430,7 +430,7 @@ func (o *Orchestrator) planNetwork(ctx context.Context, p *RunPlan) {
 		// apply makes each node of a cluster reload its network. A standalone
 		// node reloads only itself, and a pre-provisioned sandbox is never applied.
 		if nodes, ok := o.clusterNodes(ctx); ok && nodes > 1 && !p.stopped {
-			note := fmt.Sprintf("This node is in a cluster of %d nodes: every run applies SDN twice, at its start and at its end, and PVE reloads the network on all %d nodes each time. network.lifecycle: preprovisioned avoids it (docs/plan-reference.md, \"Use a pre-provisioned sandbox\").", nodes, nodes)
+			note := fmt.Sprintf("This node is in a cluster of %d nodes: every run applies SDN twice, at its start and at its end, and PVE reloads the network on all %d nodes each time. network.lifecycle: preprovisioned avoids it (https://certistack.dev/docs/plan-reference/#use-a-pre-provisioned-sandbox).", nodes, nodes)
 			reload.Status, reload.Detail = StatusWarning, reload.Detail+"; "+note
 			p.warn("%s", note)
 		}

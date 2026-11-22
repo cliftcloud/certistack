@@ -8,7 +8,7 @@ output "pve_token_id" {
 
 output "pve_token_secret" {
   description = "CertiStack Proxmox VE API token secret: the value for PVE_TOKEN_SECRET. The provider's own value is the whole USER@REALM!TOKENID=SECRET string (a controller given that gets HTTP 401), so the token ID and '=' are taken off."
-  value       = trimprefix(proxmox_virtual_environment_user_token.certistack_token.value, "${local.certistack_token_id}=")
+  value       = trimprefix(proxmox_user_token.certistack_token.value, "${local.certistack_token_id}=")
   sensitive   = true
 }
 

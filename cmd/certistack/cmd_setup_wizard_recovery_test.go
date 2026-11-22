@@ -175,7 +175,7 @@ func TestTheWizardAsksBeforeAnInstallThatRemovesPackages(t *testing.T) {
 	f3, dir3 := newWizardWorld(t)
 	f3.authorized = true
 	f3.aptRemoves = []string{"proxmox-ve"}
-	if out, err := runWizard(t, f3, dir3, setupWizardOptions{NodeHost: "pve1.example.com"}, "", "", "yes", "", "y", "", "", "", "pbs.example.com", "datastore1", "", "y", ""); err != nil || !strings.Contains(strings.Join(f3.changes, "|"), "apt install") {
+	if out, err := runWizard(t, f3, dir3, setupWizardOptions{NodeHost: "pve1.example.com"}, "", "", "yes", "", "y", "", "", "", "pbs.example.com", "datastore1", "", "y", "", ""); err != nil || !strings.Contains(strings.Join(f3.changes, "|"), "apt install") {
 		t.Fatalf("a yes to the removal: %v, changes %q\n%s", err, f3.changes, out)
 	}
 }

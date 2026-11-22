@@ -11,7 +11,8 @@
 #   2. writes /etc/certistack/build-manifest: the packages, OS release, image
 #      and Packer version the template was built from;
 #   3. resets the clone-specific identity: cloud-init state, seed and logs,
-#      and the machine ID, so every clone gets its own;
+#      the machine ID, the SSH host keys and the journals (journald writes to
+#      /run from then on), so every clone gets its own;
 #   4. removes the build SSH key from every authorized_keys file, and refuses a
 #      template with a symbolic link in the SSH paths it searches;
 #   5. asserts each of those results and exits non-zero if any is not true.
@@ -87,20 +88,33 @@ rm -f "$packages"
 mv "$manifest.new" "$manifest"
 chmod 0644 "$manifest"
 
-# 3. Clone identity. A cloud-init that knows --machine-id sets the machine ID
-# to "uninitialized", which systemd replaces on the clone's first boot. An
-# older one lacks the option; emptying the file is the same instruction to
-# systemd, and step 5 checks the result either way.
+# 3. Clone identity. An empty or "uninitialized" /etc/machine-id tells systemd
+# to make a new ID at the clone's first boot. A missing file does not: with /etc
+# still read-only that early, systemd stops ("Missing /etc/machine-id and /etc
+# is mounted read-only") and the clone comes up without a network. cloud-init's
+# --machine-id writes "uninitialized" in some releases and deletes the file in
+# others (Debian 12's), and older releases lack the option, so the script
+# leaves an empty file wherever none remains. Step 5 checks the result.
 if cloud-init clean --help 2>&1 | grep -q -- '--machine-id'; then
     cloud-init clean --logs --seed --machine-id || fail 'cloud-init clean failed'
 else
     cloud-init clean --logs --seed || fail 'cloud-init clean failed'
     : >"$root/etc/machine-id"
 fi
+if [ ! -e "$root/etc/machine-id" ]; then : >"$root/etc/machine-id"; fi
 # A copy of the ID that is not a link to the first would outlive the reset.
 if [ -f "$root/var/lib/dbus/machine-id" ] && [ ! -L "$root/var/lib/dbus/machine-id" ]; then
     rm -f "$root/var/lib/dbus/machine-id"
 fi
+# The build VM's SSH host keys and its journals (and the source's, under their
+# machine IDs). cloud-init writes new host keys at each clone's first boot.
+# The build's own SSH connection is already established and is not affected.
+# journald replaces a journal file deleted under it at once, and would write
+# the build VM's shutdown into the template: --relinquish-var (systemd 243
+# and later) moves it to /run, a tmpfs that ends with the VM.
+rm -f "$root"/etc/ssh/ssh_host_*
+journalctl --relinquish-var || fail 'journalctl --relinquish-var failed, so journald would keep writing to /var/log/journal'
+rm -rf "$root"/var/log/journal/*
 
 # Every non-directory under $1 that can hold authorized keys: a file named
 # authorized_keys*, and a file inside a directory of that name (sshd's
@@ -159,8 +173,10 @@ for dir in "$root/root/.ssh" "$root/home" "$root/etc/ssh"; do
     [ -z "$left" ] || fail "the build key is still authorized in: $left"
 done
 
-# 5b. The machine ID is empty, "uninitialized" or absent, here and in D-Bus's
-# copy, so systemd makes a new one on each clone's first boot.
+# 5b. /etc/machine-id exists and is empty or "uninitialized", and D-Bus's copy,
+# if there is one, says the same, so systemd makes a new ID on each clone's
+# first boot.
+[ -f "$root/etc/machine-id" ] || fail "$root/etc/machine-id is missing, and a clone would boot without a network"
 for id_file in "$root/etc/machine-id" "$root/var/lib/dbus/machine-id"; do
     if [ -e "$id_file" ]; then
         content=$(cat "$id_file")
@@ -182,7 +198,17 @@ for log in "$root/var/log/cloud-init.log" "$root/var/log/cloud-init-output.log";
     if [ -e "$log" ] || [ -L "$log" ]; then fail "$log remains"; fi
 done
 
-# 5d. What the template will carry is what was checked above.
+# 5d. No SSH host key and no journal file of the build remain.
+for key in "$root"/etc/ssh/ssh_host_*; do
+    if [ -e "$key" ] || [ -L "$key" ]; then fail "the SSH host key $key remains"; fi
+done
+if [ -d "$root/var/log/journal" ]; then
+    left=$(find "$root/var/log/journal" -mindepth 1 ! -type d) ||
+        fail 'could not search /var/log/journal'
+    [ -z "$left" ] || fail "journal files remain: $(printf '%s\n' "$left" | head -n 5 | tr '\n' ' ')"
+fi
+
+# 5e. What the template will carry is what was checked above.
 [ "$(cat "$root/etc/certistack/controller-image")" = "$image" ] ||
     fail 'the recorded controller image is not the one that was checked'
 [ -s "$manifest" ] || fail 'the build manifest is empty'

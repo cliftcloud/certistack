@@ -136,7 +136,7 @@ CERTISTACK_TELEMETRY=1 opts in without storing an answer, for CI and
 containers. It keeps the install id and the time of the last report in
 telemetry.json, so it too reports at most once a day and counts the install
 once; where that file cannot be written it sends nothing, and a run says
-so in one warning. See docs/telemetry.md.`,
+so in one warning. See https://certistack.dev/docs/telemetry/.`,
 		Args: cobra.NoArgs,
 	}
 	cmd.AddCommand(telemetryStatusCmd(), telemetryShowCmd(), telemetryEnableCmd(), telemetryDisableCmd(), telemetryResetCmd())
@@ -184,7 +184,7 @@ func telemetryStatusCmd() *cobra.Command {
 			if snap.Decision.KeptByEnvironment {
 				fmt.Fprintf(out, "install id: %s (kept by %s=1)\n", snap.State.InstallID, telemetry.VarTelemetry)
 			}
-			fmt.Fprintln(out, "what is sent: certistack telemetry show; details: docs/telemetry.md")
+			fmt.Fprintln(out, "what is sent: certistack telemetry show; details: https://certistack.dev/docs/telemetry/")
 			return out.deliver(nil)
 		},
 	}
@@ -312,5 +312,5 @@ func writeForgotten(w io.Writer, installID string) {
 	if installID == "" {
 		return
 	}
-	fmt.Fprintf(w, "Forgotten here: install id %s. To have a record the server already holds deleted, send that id to privacy@certistack.dev (see docs/telemetry.md).\n", installID)
+	fmt.Fprintf(w, "Forgotten here: install id %s. To have a record the server already holds deleted, send that id to privacy@certistack.dev (see https://certistack.dev/docs/telemetry/).\n", installID)
 }

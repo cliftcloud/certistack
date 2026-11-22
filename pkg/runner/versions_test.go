@@ -128,7 +128,7 @@ func TestPrepareRunGoesOnWithAnUntestedPair(t *testing.T) {
 	for _, tc := range []struct {
 		name, pve, client, verdict string
 	}{
-		{"PVE 8 with PBS 3", "8.3.5", pbs3, "untested"},
+		{"a newer PVE major with PBS 3", "10.0.1", pbs3, "untested"},
 		{"PVE 9 with PBS 3", "9.1.1", pbs3, "untested"},
 		{"tested", "9.1.1", pbs4, "tested"},
 		{"no server line", "9.1.1", "client version: 4.2.5\n", "unknown"},
@@ -236,7 +236,7 @@ func TestRunRecordsTheProxmoxVersionsInItsReport(t *testing.T) {
 		warns             bool
 	}{
 		{"tested", "9.1.1", pbs4, "tested", false},
-		{"untested", "8.3.5", pbs3, "untested", true},
+		{"untested", "10.0.1", pbs3, "untested", true},
 		{"unknown", "9.1.1", "client version: 4.2.5\n", "unknown", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestPlanRunShowsAndRefusesByTheSameVersions(t *testing.T) {
 		status            string
 		warns             bool
 	}{
-		{"untested", "8.3.5", pbs3, orchestrator.StatusWarning, true},
+		{"untested", "10.0.1", pbs3, orchestrator.StatusWarning, true},
 		{"tested", "9.1.1", pbs4, orchestrator.StatusOK, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -337,7 +337,7 @@ func TestPlanRunShowsAndRefusesByTheSameVersions(t *testing.T) {
 			if warned != tc.warns {
 				t.Errorf("warnings = %v, want a release-evidence warning: %v", plan.Warnings, tc.warns)
 			}
-			if tc.warns && strings.Count(strings.Join(plan.Warnings, "\n"), "PVE 8.3.5, PBS 3.4.0") != 1 {
+			if tc.warns && strings.Count(strings.Join(plan.Warnings, "\n"), "PVE 10.0.1, PBS 3.4.0") != 1 {
 				t.Errorf("the plan does not warn of the untested pair exactly once: %v", plan.Warnings)
 			}
 		})

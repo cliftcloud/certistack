@@ -87,10 +87,15 @@ func headingsOf(t *testing.T, file string) map[string]bool {
 }
 
 var (
-	// "docs/page.md", "deploy/controller/README.md", with an optional #anchor.
-	messagePageRef = regexp.MustCompile(`\b((?:docs|deploy)/[A-Za-z0-9._/-]+\.md)(#[A-Za-z0-9_-]+)?`)
-	// A section named by its heading, right after its page: docs/page.md, "Heading".
-	messageSectionRef = regexp.MustCompile(`\b((?:docs|deploy)/[A-Za-z0-9._/-]+\.md), "([^"]+)"`)
+	// A page of the documentation site, with an optional #anchor:
+	// https://certistack.dev/docs/troubleshooting/#issue-32.
+	messageSiteRef = regexp.MustCompile(`https://certistack\.dev/docs/([A-Za-z0-9_/-]*)(#[A-Za-z0-9_-]+)?`)
+	siteRefPage    = regexp.MustCompile(`^(?:[a-z0-9-]+/)?$`)
+	// A file of the repository on GitHub, with an optional #anchor.
+	messageRepoRef = regexp.MustCompile(`https://github\.com/cliftcloud/certistack/blob/main/([A-Za-z0-9._/-]+)(#[A-Za-z0-9_-]+)?`)
+	// A page named by its path in the repository ("docs/troubleshooting.md"),
+	// which a reader who installed the binary does not have.
+	messageRepoPath = regexp.MustCompile(`\b(?:docs|deploy)/[A-Za-z0-9._/-]+\.md\b`)
 	// Issue 39, Issues 26 and 27: the troubleshooting page's numbered issues.
 	messageIssueRef = regexp.MustCompile(`\bIssues? (\d+)(?: and (\d+))?`)
 	// "(quickstart ...": the only way to name one of its sections is its step.
@@ -100,58 +105,65 @@ var (
 )
 
 // A message that sends the reader to the documentation names something that
-// is there: a page that exists, a heading or anchor of it, a numbered issue of
-// the troubleshooting page, a numbered step of the quickstart. A section is
-// named by its heading, in quotes, right after its page; a step by its number.
+// is there: a page of the documentation site and an anchor of it, by its
+// address (https://certistack.dev/docs/<page>/#anchor), never by its path in
+// the repository, which a reader who installed the binary does not have; a
+// file of the repository by its address on GitHub; a numbered issue of the
+// troubleshooting page; a numbered step of the quickstart.
 func TestMessagesNameDocumentationThatExists(t *testing.T) {
-	anchorCache := map[string][2]map[string]bool{}
+	type anchorSet = [2]map[string]bool
+	anchorCache := map[string]anchorSet{}
+	anchors := func(file string) anchorSet {
+		set, ok := anchorCache[file]
+		if !ok {
+			mkdocs, github := anchorsOf(t, file)
+			set = anchorSet{mkdocs, github}
+			anchorCache[file] = set
+		}
+		return set
+	}
 	headingCache := map[string]map[string]bool{}
 	checked := 0
 
 	for _, lit := range binaryStrings(t) {
 		text := lit.text
 
-		for _, m := range messagePageRef.FindAllStringSubmatch(text, -1) {
+		for _, m := range messageSiteRef.FindAllStringSubmatch(text, -1) {
 			page, fragment := m[1], strings.TrimPrefix(m[2], "#")
-			file := repoFile(filepath.FromSlash(page))
+			if !siteRefPage.MatchString(page) {
+				t.Errorf("%s: the message names the documentation page %q; name a page as https://certistack.dev/docs/<page>/, with its slash", lit.where, m[0])
+				continue
+			}
+			source := "docs/index.md"
+			if page != "" {
+				source = "docs/" + strings.TrimSuffix(page, "/") + ".md"
+			}
+			file := repoFile(filepath.FromSlash(source))
 			if !existsExactly(file) {
-				t.Errorf("%s: the message names %s, which does not exist", lit.where, page)
+				t.Errorf("%s: the message names %s, and there is no %s", lit.where, m[0], source)
 				continue
 			}
 			checked++
-			if fragment == "" {
-				continue
-			}
-			anchors, ok := anchorCache[page]
-			if !ok {
-				mkdocs, github := anchorsOf(t, file)
-				anchors = [2]map[string]bool{mkdocs, github}
-				anchorCache[page] = anchors
-			}
-			offered := anchors[1]
-			if strings.HasPrefix(page, "docs/") {
-				offered = anchors[0]
-			}
-			if !offered[fragment] {
-				t.Errorf("%s: the message names %s#%s, and %s has no such anchor", lit.where, page, fragment, page)
+			if fragment != "" && !anchors(file)[0][fragment] {
+				t.Errorf("%s: the message names %s, and %s has no anchor %q", lit.where, m[0], source, fragment)
 			}
 		}
 
-		for _, m := range messageSectionRef.FindAllStringSubmatch(text, -1) {
-			page, heading := m[1], m[2]
-			file := repoFile(filepath.FromSlash(page))
+		for _, m := range messageRepoRef.FindAllStringSubmatch(text, -1) {
+			path, fragment := m[1], strings.TrimPrefix(m[2], "#")
+			file := repoFile(filepath.FromSlash(path))
 			if !existsExactly(file) {
-				continue // reported above
-			}
-			headings, ok := headingCache[page]
-			if !ok {
-				headings = headingsOf(t, file)
-				headingCache[page] = headings
+				t.Errorf("%s: the message names %s, and the repository has no %s", lit.where, m[0], path)
+				continue
 			}
 			checked++
-			if !headings[heading] {
-				t.Errorf("%s: the message sends the reader to %q in %s, and that page has no heading of that name", lit.where, heading, page)
+			if fragment != "" && (!strings.HasSuffix(path, ".md") || !anchors(file)[1][fragment]) {
+				t.Errorf("%s: the message names %s, and %s has no anchor %q", lit.where, m[0], path, fragment)
 			}
+		}
+
+		for _, path := range messageRepoPath.FindAllString(messageRepoRef.ReplaceAllString(text, ""), -1) {
+			t.Errorf("%s: the message names %s by its path in the repository; name the page by its address, https://certistack.dev/docs/<page>/#anchor", lit.where, path)
 		}
 
 		for _, m := range messageIssueRef.FindAllStringSubmatch(text, -1) {
@@ -180,7 +192,7 @@ func TestMessagesNameDocumentationThatExists(t *testing.T) {
 		for _, m := range messageQuickstartRef.FindAllStringSubmatch(text, -1) {
 			checked++
 			if !quickstartStepOnly.MatchString(m[1]) {
-				t.Errorf("%s: the message names the quickstart as %q; the quickstart's sections are numbered steps, so name one as (quickstart step N), or send the reader to another page by its heading", lit.where, "(quickstart"+m[1]+")")
+				t.Errorf("%s: the message names the quickstart as %q; the quickstart's sections are numbered steps, so name one as (quickstart step N), or send the reader to another page by its address", lit.where, "(quickstart"+m[1]+")")
 			}
 		}
 		for _, m := range messageStepRef.FindAllStringSubmatch(text, -1) {

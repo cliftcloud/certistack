@@ -2,8 +2,8 @@
 
 ## Start here
 
-1. On the controller, `certistack check --env-file /secure/certistack/controller.env my-first-plan.yaml` stops at the
-   first failing layer and prints the fix.
+1. On the controller, `certistack check my-first-plan.yaml` stops at the first failing layer and prints the fix. It
+   checks the environment file setup recorded; `--env-file FILE` checks another.
 2. For a failed run, `certistack report show` (the newest report) names the VM, the probe and the reason.
 3. On the node, the worker logs to `journalctl -u certistack-worker-<run id>`, and a run the node recovered itself to
    `/var/lib/certistack/logs/<run>.log`.
@@ -18,7 +18,9 @@
 | --- | --- |
 | `the node offered SHA256:...` | A changed host key means a reinstalled node or an impostor: find out which. |
 | `Connection reset by ... port 22` | OpenSSH 10 blocks the controller for up to 10 minutes after failed sign-ins. Wait. |
-| `apt-get cannot install`, `apt-get would remove` | `apt-get -s install libguestfs-tools nftables` on the node shows why. |
+| `apt-get cannot install`, `apt-get would remove` | `apt-get -s install libguestfs-tools nftables` on the node shows why. On PVE 8, replacing `fuse` with `fuse3` is expected and safe: run setup again and answer `y` ([why](manual-setup.md#1-prepare-the-node)). |
+| `this node has no SDN API` | PVE 8.0 without `libpve-network-perl`. As root on the node, `apt update; apt install libpve-network-perl ifupdown2`, or update the node to PVE 8.1 or later. Then run setup again (`certistack check` after a finished setup). |
+| `/var/lib/vz is on the node's root disk`; later `Put overlay storage on a disk of its own` | Expected on a standalone node with one disk, such as a mini PC, and safe to ignore there. On a cluster node, use [a disk of its own](manual-setup.md#plan-around). |
 | `the token's secret is needed` | Put the secret you kept in the file, or run setup again to replace the token (the old secret stops working). |
 | `The PBS part did not finish` | In the PBS web shell, type `sh`, paste `pbs-access.sh`, then `exit`. |
 
@@ -36,7 +38,7 @@
 | `Permission denied (publickey,...)` | The `CERTISTACK_SSH_USER` account must exist and hold the key. |
 | `sudo: a password is required` | Connect as `root`, or add a [sudoers rule](manual-setup.md#the-sudoers-rule-for-a-non-root-account). |
 | `Could not resolve hostname`, `Connection timed out` | Check `CERTISTACK_SSH_HOST`, `CERTISTACK_SSH_PORT` and firewalls. |
-| `x509: certificate signed by unknown authority` | Run `certistack setup pve-ca --env-file <file>`, and add the line it prints. |
+| `x509: certificate signed by unknown authority` | Run `certistack setup pve-ca`, and add the line it prints. |
 | `PBS's TLS certificate`, `list PBS snapshots` | Check `PBS_FINGERPRINT`, `PBS_PASSWORD`, `PBS_NAMESPACE` and the `DatastoreReader` grant. |
 | `No such storage` | Run setup, which adds one. |
 
@@ -54,15 +56,22 @@
 
 ### Issue 3: Admission denied (RAM)
 
-**Cause:** The plan's VMs, each reserving its memory plus 256 MiB, would push the node over its RAM limit.
+**Cause:** The plan's VMs, each reserving its memory plus 256 MiB, would push the node over its RAM limit
+(`max_host_ram_percent`). Neither refusal creates anything:
 
-**Fix:** Free memory, lower `hardware_overrides.memory_mb`, split the plan, or raise the limit (keep the
-block's other fields):
+- `the plan can never be admitted on this node`: the VMs need more than the limit of the node's whole memory, so
+  `plan` and `run` refuse at once.
+- `max admission retries exceeded`: the plan fits the node, but not beside what runs on it. The run waited and
+  checked again (`init` writes 10 retries 30 s apart: 5 minutes), then gave up.
+
+**Fix:** Lower `hardware_overrides.memory_mb`, split the plan, or raise the limit (keep the block's other fields):
 
 ```yaml
 admission_control:
   max_host_ram_percent: 90.0
 ```
+
+Freeing memory or running later helps only when the wait ran out.
 
 <a id="issue-4"></a>
 

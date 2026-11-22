@@ -336,7 +336,7 @@ func verifyReportCmd() *cobra.Command {
 		Long: `Verifies a report's Ed25519 signature against an explicitly trusted signer,
 then evaluates whether the signed contents are acceptable evidence. The
 Enterprise Edition signs its reports; this command, in the Community Edition,
-is how anyone checks one, with no licence.
+is how anyone checks one, with no license.
 
 The Community Edition writes its reports unsigned. A report with no signature
 is refused by default, so that a signature taken off a report is never read

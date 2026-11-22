@@ -192,9 +192,9 @@ func ValidationModeProblem(mode string, allowTestMode bool) string {
 // contradict themselves, or "" when they do not or when the report records
 // none (a report that predates these members, or a run refused before it read
 // the versions, says nothing of them and is judged without them). version_support is
-// tested, untested or unknown: a run of an unsupported pair is refused before
-// it creates anything, so no report of one is signed, and a tested pair names
-// the three versions it was judged on.
+// tested, untested or unknown, or unsupported in the report of a run refused
+// for its versions: such a run creates nothing, so its report records no VM
+// and no pass. A tested pair names the three versions it was judged on.
 func versionSupportProblem(report *attest.Report) string {
 	switch report.VersionSupport {
 	case "", "untested", "unknown":
@@ -204,8 +204,13 @@ func versionSupportProblem(report *attest.Report) string {
 			return "the report says its Proxmox versions are tested but does not record all of pve_version, pbs_version and pbs_client_version"
 		}
 		return ""
+	case "unsupported":
+		if report.AllPassed || len(report.VMRecords) > 0 {
+			return "the report says its Proxmox versions are unsupported but records a VM or a pass (a run of an unsupported pair is refused before it creates anything)"
+		}
+		return ""
 	}
-	return fmt.Sprintf("the report records version_support %q, which is none of tested, untested or unknown (a run of an unsupported pair is refused before it creates anything)", BoundedReason(report.VersionSupport))
+	return fmt.Sprintf("the report records version_support %q, which is none of tested, untested, unknown or unsupported", BoundedReason(report.VersionSupport))
 }
 
 // identity checks the schema and validation mode, and binds the report to the

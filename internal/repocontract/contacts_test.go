@@ -21,8 +21,8 @@ import (
 const contactDomain = "certistack.dev"
 
 // contactMailboxes are the five. Each has one purpose: security (vulnerability
-// reports), sales (buying, quotes, MSP, resellers), licensing (licences,
-// renewals, revocation, the CLA and licence questions), conduct (code of
+// reports), sales (buying, quotes, MSP, resellers), licensing (licenses,
+// renewals, revocation, the CLA and license questions), conduct (code of
 // conduct reports), privacy (telemetry deletion and personal data).
 var contactMailboxes = map[string]bool{
 	"security":  true,
@@ -281,7 +281,7 @@ func TestEachMailboxServesItsPurpose(t *testing.T) {
 			t.Errorf("%s does not name %s for %s", tc.file, mailboxAddress(tc.mailbox), tc.purpose)
 		}
 	}
-	// Buying is sales; the licence terms of the FAQ answer it.
+	// Buying is sales; the license terms of the FAQ answer it.
 	buy := section(t, readRepoText(t, "LICENSING-FAQ.md"), "Where do I buy a commercial license?")
 	if !strings.Contains(buy, mailboxAddress("sales")) || strings.Contains(buy, mailboxAddress("licensing")) {
 		t.Errorf("LICENSING-FAQ.md answers \"Where do I buy a commercial license?\" with another mailbox than %s:\n%s", mailboxAddress("sales"), buy)

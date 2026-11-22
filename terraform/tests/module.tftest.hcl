@@ -28,7 +28,7 @@ run "ephemeral_sandbox_grants" {
   command = plan
 
   assert {
-    condition = tomap({ for path, acl in proxmox_virtual_environment_acl.certistack_token : path => acl.propagate }) == tomap({
+    condition = tomap({ for path, acl in proxmox_acl.certistack_token : path => acl.propagate }) == tomap({
       # grants: ephemeral
       "/vms"                        = true
       "/sdn"                        = false
@@ -40,22 +40,22 @@ run "ephemeral_sandbox_grants" {
   }
 
   assert {
-    condition     = tomap({ for path, acl in proxmox_virtual_environment_acl.certistack_user : path => acl.propagate }) == tomap({ for path, acl in proxmox_virtual_environment_acl.certistack_token : path => acl.propagate })
+    condition     = tomap({ for path, acl in proxmox_acl.certistack_user : path => acl.propagate }) == tomap({ for path, acl in proxmox_acl.certistack_token : path => acl.propagate })
     error_message = "The service user and its separated token must hold the role on the same paths: PVE gives the token only what both hold."
   }
 
   assert {
-    condition     = alltrue([for acl in proxmox_virtual_environment_acl.certistack_token : acl.token_id == "certistack-svc@pve!automation" && acl.user_id == null && acl.role_id == "CertiStackRole"])
+    condition     = alltrue([for acl in proxmox_acl.certistack_token : acl.token_id == "certistack-svc@pve!automation" && acl.user_id == null && acl.role_id == "CertiStackRole"])
     error_message = "Every token ACL must name the CertiStack token and CertiStackRole."
   }
 
   assert {
-    condition     = alltrue([for acl in proxmox_virtual_environment_acl.certistack_user : acl.user_id == "certistack-svc@pve" && acl.token_id == null && acl.role_id == "CertiStackRole"])
+    condition     = alltrue([for acl in proxmox_acl.certistack_user : acl.user_id == "certistack-svc@pve" && acl.token_id == null && acl.role_id == "CertiStackRole"])
     error_message = "Every user ACL must name the CertiStack service user and CertiStackRole."
   }
 
   assert {
-    condition     = proxmox_virtual_environment_user_token.certistack_token.privileges_separation == true
+    condition     = proxmox_user_token.certistack_token.privileges_separation == true
     error_message = "The CertiStack token must stay privilege-separated."
   }
 
@@ -89,7 +89,7 @@ run "secret_output_is_the_secret_alone" {
   command = apply
 
   override_resource {
-    target = proxmox_virtual_environment_user_token.certistack_token
+    target = proxmox_user_token.certistack_token
     values = {
       value = "certistack-svc@pve!automation=11111111-2222-3333-4444-555555555555"
     }
@@ -110,7 +110,7 @@ run "preprovisioned_sandbox_grants" {
   }
 
   assert {
-    condition = tomap({ for path, acl in proxmox_virtual_environment_acl.certistack_token : path => acl.propagate }) == tomap({
+    condition = tomap({ for path, acl in proxmox_acl.certistack_token : path => acl.propagate }) == tomap({
       # grants: preprovisioned
       "/vms"                        = true
       "/sdn/zones/csSb01"           = true
@@ -121,7 +121,7 @@ run "preprovisioned_sandbox_grants" {
   }
 
   assert {
-    condition     = tomap({ for path, acl in proxmox_virtual_environment_acl.certistack_user : path => acl.propagate }) == tomap({ for path, acl in proxmox_virtual_environment_acl.certistack_token : path => acl.propagate })
+    condition     = tomap({ for path, acl in proxmox_acl.certistack_user : path => acl.propagate }) == tomap({ for path, acl in proxmox_acl.certistack_token : path => acl.propagate })
     error_message = "The service user and its separated token must hold the role on the same paths."
   }
 }

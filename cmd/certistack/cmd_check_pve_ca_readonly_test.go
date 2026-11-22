@@ -43,7 +43,7 @@ var hostFix = []string{
 	"certistack setup pve-ca cannot put the CA there",
 	"copy /etc/pve/pve-root-ca.pem from the node",
 	"sudo install -m 0600 -o 65532 -g 65532 pve-root-ca.pem deploy/controller/secrets/pve-ca.pem",
-	`(deploy/controller/README.md, "Prepare controller secrets"`,
+	"(https://github.com/cliftcloud/certistack/blob/main/deploy/controller/README.md#prepare-controller-secrets;",
 }
 
 func assertHostFix(t *testing.T, out, dir string) {

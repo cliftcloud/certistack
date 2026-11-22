@@ -37,12 +37,17 @@ type fakeWizardWorld struct {
 	pbsFails   bool     // ssh to the PBS fails
 	pbsWider   string   // who still holds the grant on the whole datastore, as the PBS part reports it
 	pbsScripts []string // every script run on the PBS
+	pbsReads   int      // runs of the read-only fingerprint script
+	pbsPrint   string   // the fingerprint the PBS reports; "" is wizardPBSPrint
 	customCert bool     // the API certificate is not signed by the cluster CA
 	aptStale   bool     // the package lists do not know the packages until apt-get update
 	aptRemoves []string // what apt-get says installing would remove
 	aptUpdated bool     // apt-get update ran: only then does the preview list every package
 	pveFailACL bool     // the PVE part fails after it created the token
 	nodeName   string
+	pveVersion string // pveversion's line; "" is PVE 9.2.2
+	client     string // what proxmox-backup-client version prints; "" is client 4.1.1
+	sdnError   string // pvesh's error to the read of the SDN zones; "" reads them
 	loginErr   string // what ssh says when the key is not accepted
 	logins     int    // sign-in tests (each failed one counts against the controller on OpenSSH 10)
 	changes    []string
@@ -80,6 +85,14 @@ func (f *fakeWizardWorld) deps(t *testing.T, dir string) setupWizardDeps {
 				return nil, errors.New("ssh: connect to host: Connection refused")
 			}
 			f.pbsScripts = append(f.pbsScripts, script)
+			if script == pbsFingerprintReadScript {
+				f.pbsReads++
+				print := f.pbsPrint
+				if print == "" {
+					print = wizardPBSPrint
+				}
+				return []byte(`{"fingerprint":"` + print + `"}` + "\n"), nil
+			}
 			if strings.Contains(script, "--delete true") && !strings.Contains(script, "PART 2") {
 				f.changes = append(f.changes, "pbs remove grant on "+target)
 				f.pbsWider = ""
@@ -103,7 +116,7 @@ func (f *fakeWizardWorld) deps(t *testing.T, dir string) setupWizardDeps {
 			if f.pbsWider != "" && strings.Contains(script, "wider_grant") {
 				out += `{"wider_grant":"` + f.pbsWider + `"}` + "\n"
 			}
-			return []byte(out + `{"fingerprint":"` + wizardPBSPrint + `"}` + "\n"), nil
+			return []byte(out), nil
 		},
 		check: func(_ context.Context, envPath string, w io.Writer) error {
 			f.checked = envPath
@@ -144,7 +157,19 @@ func (f *fakeWizardWorld) nodeScript(_ context.Context, cfg controller.SSHConfig
 		if f.customCert {
 			ca = "cert_cluster_ca=0"
 		}
-		lines := []string{"pve_local=nodes/" + name, ca, "pve_version=pve-manager/9.2.2/b9984c6d90a4bd80 (running kernel: 7.0.2-6-pve)", "kvm=1", "arch=x86_64",
+		version := f.pveVersion
+		if version == "" {
+			version = "pve-manager/9.2.2/b9984c6d90a4bd80 (running kernel: 7.0.2-6-pve)"
+		}
+		client := f.client
+		if client == "" {
+			client = "client version: 4.1.1"
+		}
+		sdnRead := "sdn_zones=read"
+		if f.sdnError != "" {
+			sdnRead = "sdn_zones_error=" + f.sdnError
+		}
+		lines := []string{"pve_local=nodes/" + name, ca, "pve_version=" + version, "pbs_client_out=" + client, sdnRead, "kvm=1", "arch=x86_64",
 			"root_source=/dev/sda2", "vz_source=/dev/sda2", "vz_avail=107374182400",
 			"storage_cfg=" + base64.StdEncoding.EncodeToString([]byte(f.storageCfg)),
 			"cert_names=IPAddress:127.0.0.1,DNS:localhost,IPAddress:192.0.2.10,DNS:pve1,DNS:pve1.example.com"}
@@ -258,6 +283,7 @@ func TestTheWizardSetsUpAStockNodeFromNothing(t *testing.T) {
 		"",                // the root namespace
 		"y",               // yes, the PBS user may read every namespace of the datastore
 		"",                // run the PBS part over ssh: yes
+		"",                // the fingerprint read over ssh: the dashboard shows it
 	)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -270,6 +296,13 @@ func TestTheWizardSetsUpAStockNodeFromNothing(t *testing.T) {
 	}
 	if strings.Contains(out, wizardPVESecret) || strings.Contains(out, wizardPBSSecret) {
 		t.Fatalf("a secret was shown:\n%s", out)
+	}
+	// The PBS was typed by hand, so setup read its certificate's fingerprint over
+	// ssh, on its own, and asked about it before the PBS part ran.
+	shown := "PBS certificate fingerprint, read from the PBS over ssh (proxmox-backup-manager cert info):\n  " + wizardPBSPrint +
+		"\nDoes the PBS dashboard (Dashboard > Show Fingerprint) show this fingerprint? [Y/n]: PBS user certistack-ro@pbs created.\n"
+	if !strings.Contains(out, shown) || f.pbsReads != 1 || len(f.pbsScripts) != 2 {
+		t.Errorf("the fingerprint read over ssh (%d reads of %d PBS scripts) is not asked about before the PBS part:\n%s", f.pbsReads, len(f.pbsScripts), out)
 	}
 	envPath := filepath.Join(dir, "controller.env")
 	if f.checked != envPath {
@@ -331,6 +364,7 @@ func TestTheWizardOffersTheNodesOwnPBSStorage(t *testing.T) {
 		"", "", "yes",
 		"",  // create the PVE access
 		"1", // the node's PBS storage
+		"",  // the storage's fingerprint: the dashboard shows it
 		"",  // run over ssh
 		"y", // copy the key (the default is no)
 	)
@@ -354,13 +388,20 @@ func TestTheWizardOffersTheNodesOwnPBSStorage(t *testing.T) {
 	if !strings.Contains(out, "Using the existing storage certistack-scratch") {
 		t.Errorf("the existing storage is not reused:\n%s", out)
 	}
+	// The storage names the fingerprint: it is asked about before the PBS part,
+	// and not read again over ssh.
+	shown := "PBS certificate fingerprint, from the node's storage backups:\n  " + wizardPBSPrint +
+		"\nDoes the PBS dashboard (Dashboard > Show Fingerprint) show this fingerprint? [Y/n]: "
+	if i := strings.Index(out, shown); i < 0 || i > strings.Index(out, "PBS user certistack-ro@pbs created.") || f.pbsReads != 0 {
+		t.Errorf("the fingerprint taken from the storage is not asked about before the PBS part, or was read again (%d):\n%s", f.pbsReads, out)
+	}
 }
 
 // Run again on a node set up already: nothing is created twice, the secrets
 // the file holds are kept, and the old file is kept as a copy.
 func TestTheWizardRunAgainReusesWhatExists(t *testing.T) {
 	f, dir := newWizardWorld(t)
-	answers := []string{"", "", "yes", "", "", "", "", "", "", "pbs.example.com", "datastore1", "", "y", ""}
+	answers := []string{"", "", "yes", "", "", "", "", "", "", "pbs.example.com", "datastore1", "", "y", "", ""}
 	if out, err := runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com"}, answers...); err != nil {
 		t.Fatalf("first run: %v\n%s", err, out)
 	}
@@ -382,6 +423,7 @@ func TestTheWizardRunAgainReusesWhatExists(t *testing.T) {
 		"",         // update the PVE access
 		"", "", "", // the PBS host, datastore and namespace the file names
 		"y", // the root namespace: every namespace of the datastore
+		"",  // the earlier file's fingerprint: the dashboard shows it
 		"",  // keep the PBS secret the file holds
 	)
 	if err != nil {
@@ -423,7 +465,7 @@ func TestTheWizardRunAgainReusesWhatExists(t *testing.T) {
 // datastore. Only --pbs-namespace / does that.
 func TestTheWizardRunAgainKeepsTheNamespace(t *testing.T) {
 	f, dir := newWizardWorld(t)
-	answers := []string{"", "", "yes", "", "", "", "", "", "", "pbs.example.com", "datastore1", "prod", ""}
+	answers := []string{"", "", "yes", "", "", "", "", "", "", "pbs.example.com", "datastore1", "prod", "", ""}
 	if out, err := runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com"}, answers...); err != nil {
 		t.Fatalf("first run: %v\n%s", err, out)
 	}
@@ -456,7 +498,8 @@ func TestTheWizardRunAgainKeepsTheNamespace(t *testing.T) {
 }
 
 // --pbs-fingerprint gives the fingerprint setup cannot read (here the PBS part
-// is pasted by hand), and one that differs from what the PBS reports is refused.
+// is pasted by hand), and one that differs from what the PBS reports is refused
+// before the PBS part runs.
 func TestTheWizardTakesThePBSFingerprintFlag(t *testing.T) {
 	f, dir := newWizardWorld(t)
 	f.authorized, f.pbsFails = true, true
@@ -470,7 +513,9 @@ func TestTheWizardTakesThePBSFingerprintFlag(t *testing.T) {
 	if values["PBS_FINGERPRINT"] != wizardPBSPrint || strings.Contains(out, "SHA-256 fingerprint (PBS dashboard") {
 		t.Errorf("PBS_FINGERPRINT = %q, or it was asked although the flag gave it:\n%s", values["PBS_FINGERPRINT"], out)
 	}
-
+	if strings.Contains(out, "PBS certificate fingerprint,") {
+		t.Errorf("the fingerprint the operator gave is shown back as one setup took:\n%s", out)
+	}
 	f, dir = newWizardWorld(t)
 	f.authorized = true
 	f.tools = []string{"guestfish", "nft"}
@@ -482,6 +527,9 @@ func TestTheWizardTakesThePBSFingerprintFlag(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "controller.env")); err == nil {
 		t.Error("an environment file was written with a fingerprint the PBS contradicts")
+	}
+	if f.pbsReads != 1 || len(f.pbsScripts) != 1 {
+		t.Errorf("the PBS was given %d scripts (%d reads of its fingerprint): the refusal must come before the PBS part", len(f.pbsScripts), f.pbsReads)
 	}
 }
 
@@ -508,6 +556,7 @@ func TestTheWizardReplacesAnExistingTokenOnlyAfterAYes(t *testing.T) {
 		"", "", "", // PBS host, datastore, namespace (the flags')
 		"y", // every namespace of the datastore
 		"",  // over ssh
+		"",  // the fingerprint read over ssh
 	)
 	if err != nil {
 		t.Fatalf("accepted replacement: %v\n%s", err, out)
@@ -601,6 +650,7 @@ func TestTheWizardKeepsAClusterNodesOverlaysOffTheRootDisk(t *testing.T) {
 		"", "", "", // PBS host, datastore, namespace
 		"y", // every namespace of the datastore
 		"",  // over ssh
+		"",  // the fingerprint read over ssh
 	)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -746,7 +796,7 @@ func TestTheWizardUnattendedRefusesAMissingNamespaceBeforeItCreatesAnything(t *t
 // takes it. Only setup's own grant, for the user and the token, is removed.
 func TestTheWizardOffersToRemoveAnEarlierGrantOnTheWholeDatastore(t *testing.T) {
 	const question = "The PBS user can still read every namespace of datastore datastore1 (granted by an earlier setup). Remove that grant? [Y/n]"
-	interactive := []string{"", "", "yes", "", "pbs.example.com", "datastore1", "prod", ""}
+	interactive := []string{"", "", "yes", "", "pbs.example.com", "datastore1", "prod", "", ""}
 	removal := "proxmox-backup-manager acl update /datastore/datastore1 DatastoreReader --auth-id certistack-ro@pbs --delete true >&2\n" +
 		"proxmox-backup-manager acl update /datastore/datastore1 DatastoreReader --auth-id 'certistack-ro@pbs!ro' --delete true >&2\n"
 

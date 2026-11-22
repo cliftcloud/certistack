@@ -43,7 +43,7 @@ func quickstartStepNumber(t *testing.T, words string) int {
 func TestCheckNamesTheQuickstartStepsByTheirNumbers(t *testing.T) {
 	setup := fmt.Sprintf("(quickstart step %d)", quickstartStepNumber(t, "run the setup"))
 	planning := fmt.Sprintf("(quickstart step %d)", quickstartStepNumber(t, "first plan"))
-	byHand := `(docs/manual-setup.md, "Set up by hand")`
+	byHand := "(https://certistack.dev/docs/manual-setup/#set-up-by-hand)"
 
 	t.Run("layer 2 sends a missing key to the setup, and by hand to the guide", func(t *testing.T) {
 		c := readyController(t)
@@ -101,15 +101,16 @@ func TestCheckNamesTheQuickstartStepsByTheirNumbers(t *testing.T) {
 	})
 }
 
-// The by-hand pages check names are headings that exist: the manual setup page
+// The by-hand page check names is a section that exists: the manual setup page
 // has a section called "Set up by hand", and it holds the file check asks for.
+// check names it by its address on the site, whose anchor is the heading's.
 func TestCheckSendsAHandWrittenSetupToTheGuide(t *testing.T) {
-	const heading = "Set up by hand"
+	const heading, anchor = "Set up by hand", "set-up-by-hand"
 	guide := markdownText(t, filepath.Join(docRoot, "docs", "manual-setup.md"))
 	if !regexp.MustCompile(`(?m)^## ` + heading + `( \{#[^}]*\})?$`).MatchString(guide) {
 		t.Fatalf("docs/manual-setup.md has no heading %q", heading)
 	}
-	if setupByHandGuide != `(docs/manual-setup.md, "`+heading+`")` {
+	if setupByHandGuide != "(https://certistack.dev/docs/manual-setup/#"+anchor+")" {
 		t.Errorf("setupByHandGuide = %q, which does not name the %q section", setupByHandGuide, heading)
 	}
 }
@@ -119,7 +120,7 @@ func TestCheckSendsAHandWrittenSetupToTheGuide(t *testing.T) {
 // quickstart section. The heading is read from the docs here, and must be the
 // one that holds the rule.
 func TestCheckSendsANonRootAccountToTheSudoersRule(t *testing.T) {
-	const heading = "The sudoers rule for a non-root account"
+	const heading, anchor = "The sudoers rule for a non-root account", "the-sudoers-rule-for-a-non-root-account"
 	guide := markdownText(t, filepath.Join(docRoot, "docs", "manual-setup.md"))
 	if !regexp.MustCompile(`(?m)^###? ` + heading + `( \{#[^}]*\})?$`).MatchString(guide) {
 		t.Fatalf("docs/manual-setup.md has no heading %q", heading)
@@ -128,7 +129,7 @@ func TestCheckSendsANonRootAccountToTheSudoersRule(t *testing.T) {
 		c := readyController(t)
 		withNode(t, &nodeStub{stagingError: errors.New(text)})
 		out, _ := failsAt(t, c)
-		if want := `CERTISTACK_SSH_SUDO=true (docs/manual-setup.md, "` + heading + `").`; !strings.Contains(out, want) {
+		if want := "CERTISTACK_SSH_SUDO=true (https://certistack.dev/docs/manual-setup/#" + anchor + ")."; !strings.Contains(out, want) {
 			t.Errorf("the fix for %q does not end %q:\n%s", text, want, out)
 		}
 		if strings.Contains(out, "quickstart: set up SSH access") {

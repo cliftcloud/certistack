@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -207,16 +208,30 @@ func (f *firstBoot) runGuideBlock(body string) {
 	}
 }
 
-// prepare puts the operator's files in place the way the guide says and
-// installs them with the guide's install command. mutateEnv edits the copy of
-// controller.env.example that becomes controller.env.
-func (f *firstBoot) prepare(mutateEnv func(string) string) {
-	f.t.Helper()
+// guideEnvironment is the template's controller.env.example edited as the
+// guide says for a stock setup: both commented-out lines active.
+func guideEnvironment(t *testing.T) string {
+	t.Helper()
 	example, err := os.ReadFile(repoFile("deploy", "appliance", "files", "controller.env.example"))
 	if err != nil {
-		f.t.Fatal(err)
+		t.Fatal(err)
 	}
 	env := string(example)
+	for _, line := range []string{"#PBS_FINGERPRINT=", "#CERTISTACK_PVE_CA_SOURCE="} {
+		if strings.Count(env, "\n"+line) != 1 {
+			t.Fatalf("the example has no single commented-out %q line for the guide to activate", line)
+		}
+		env = strings.Replace(env, "\n"+line, "\n"+line[1:], 1)
+	}
+	return env
+}
+
+// prepare puts the operator's files in place the way the guide says and
+// installs them with the guide's install command. mutateEnv edits the
+// controller.env that guideEnvironment makes.
+func (f *firstBoot) prepare(mutateEnv func(string) string) {
+	f.t.Helper()
+	env := guideEnvironment(f.t)
 	if mutateEnv != nil {
 		env = mutateEnv(env)
 	}
@@ -224,12 +239,18 @@ func (f *firstBoot) prepare(mutateEnv func(string) string) {
 		"controller.env": env,
 		"id_ed25519":     "synthetic identity\n",
 		"known_hosts":    "pve-01.example.internal ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFirstBootOnlySyntheticHostKey\n",
+		"pve-ca.pem":     "synthetic CA\n",
 	} {
 		if err := os.WriteFile(filepath.Join(f.work, name), []byte(content), 0o600); err != nil {
 			f.t.Fatal(err)
 		}
 	}
 	f.runGuideBlock(readmeBlock(f.t, "First boot", "sudo install -m 0600 -o 65532 -g 65532 controller.env"))
+	for _, name := range []string{"controller.env", "id_ed25519", "known_hosts", "pve-ca.pem"} {
+		if _, err := os.Stat(filepath.Join(f.secrets, name)); err != nil {
+			f.t.Errorf("the guide's install leaves no %s in /etc/certistack/secrets: %v", name, err)
+		}
+	}
 
 	plan, err := os.ReadFile(repoFile("examples", "minimal-single-vm.yaml"))
 	if err != nil {
@@ -240,25 +261,11 @@ func (f *firstBoot) prepare(mutateEnv func(string) string) {
 	}
 }
 
-// run is the guide's own first-boot invocation, through the real wrapper. It
-// returns what the operator sees and which transport commands the controller
-// reached.
+// run is the guide's own first run, through the real wrapper. It returns
+// what the operator sees and which transport commands the controller reached.
 func (f *firstBoot) run() (output, transport string) {
 	f.t.Helper()
-	var invocation []string
-	for _, block := range codeBlocks(f.t, repoFile("deploy", "appliance", "README.md")) {
-		if block.heading != "First boot" {
-			continue
-		}
-		for _, command := range block.commands() {
-			if fields := strings.Fields(command); len(fields) > 2 && fields[0] == "sudo" && fields[1] == "certistack-controller" {
-				invocation = fields[2:]
-			}
-		}
-	}
-	if len(invocation) == 0 {
-		f.t.Fatal("the guide's First boot section has no certistack-controller invocation")
-	}
+	invocation := guideRunInvocation(f.t)
 	cmd := exec.Command("sh", append([]string{f.wrapper}, invocation...)...)
 	cmd.Env = f.env()
 	out, _ := cmd.CombinedOutput()
@@ -268,9 +275,9 @@ func (f *firstBoot) run() (output, transport string) {
 
 // The guide's first boot, followed from empty state with the guide's own
 // commands and the files it ships, reaches the controller's transfer boundary:
-// it does not stop on the environment (PVE_URL is required), on a CA file the
-// guide calls optional, or on a signing key (the Community controller needs
-// none).
+// it does not stop on the environment (PVE_URL is required), on the CA file, or
+// on a signing key (the Community controller needs none). The run line names
+// no node or SSH flag: the environment file supplies them.
 func TestApplianceFirstBootFollowsTheGuideToTheTransferBoundary(t *testing.T) {
 	f := newFirstBoot(t)
 	f.prepare(nil)
@@ -285,13 +292,13 @@ func TestApplianceFirstBootFollowsTheGuideToTheTransferBoundary(t *testing.T) {
 	}
 }
 
-// The same walk with one piece of the shipped files taken out, so the test
-// above is known to stop on each of them, and with the CA the guide calls
-// conditional installed the way the guide says.
+// The same walk with one piece taken out, so the test above is known to stop
+// on each of them, and with the CA line left commented out, as for a node
+// whose certificate a public CA signed.
 func TestApplianceFirstBootStopsAtEachMissingPiece(t *testing.T) {
 	for name, c := range map[string]struct {
 		mutate   func(string) string
-		caFile   bool
+		removeCA bool
 		want     string
 		transfer bool
 	}{
@@ -302,27 +309,24 @@ func TestApplianceFirstBootStopsAtEachMissingPiece(t *testing.T) {
 			want: `unsupported controller environment variable "CERTISTACK_SIGN_KEY"`,
 		},
 		"the CA line active and no CA installed": {
-			mutate: func(env string) string {
-				return strings.Replace(env, "#CERTISTACK_PVE_CA_SOURCE=", "CERTISTACK_PVE_CA_SOURCE=", 1)
-			},
-			want: "stage PVE CA file",
+			removeCA: true,
+			want:     "stage PVE CA file",
 		},
-		"the CA line active and the CA installed as the guide says": {
+		"the CA line commented out and no CA installed": {
 			mutate: func(env string) string {
-				return strings.Replace(env, "#CERTISTACK_PVE_CA_SOURCE=", "CERTISTACK_PVE_CA_SOURCE=", 1)
+				return strings.Replace(env, "\nCERTISTACK_PVE_CA_SOURCE=", "\n#CERTISTACK_PVE_CA_SOURCE=", 1)
 			},
-			caFile:   true,
+			removeCA: true,
 			transfer: true,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := newFirstBoot(t)
 			f.prepare(c.mutate)
-			if c.caFile {
-				if err := os.WriteFile(filepath.Join(f.work, "pve-ca.pem"), []byte("synthetic CA\n"), 0o600); err != nil {
+			if c.removeCA {
+				if err := os.Remove(filepath.Join(f.secrets, "pve-ca.pem")); err != nil {
 					t.Fatal(err)
 				}
-				f.runGuideBlock(readmeBlock(t, "First boot", "install -m 0600 -o 65532 -g 65532 pve-ca.pem"))
 			}
 			out, transport := f.run()
 			reached := strings.Contains(out, "STUB_STOP_BEFORE_TRANSFER") && strings.Contains(transport, "scp")
@@ -330,5 +334,63 @@ func TestApplianceFirstBootStopsAtEachMissingPiece(t *testing.T) {
 				t.Errorf("reached the transfer = %v, want %v; output should contain %q:\n%s", reached, c.transfer, c.want, out)
 			}
 		})
+	}
+}
+
+// First boot is a whole path for an operator with a fresh clone: the clone's
+// own cloud-init login and address, the node prepared and its access made on
+// the node and the PBS (setup cannot run in the appliance's container), the
+// controller's key with its host key checked and authorized, the node's CA,
+// the files installed, and then a check, a plan in the directory the template
+// makes, a run and its report, in that order.
+func TestApplianceFirstBootIsACompletePath(t *testing.T) {
+	readme := flat(applianceReadme(t))
+	start := strings.Index(readme, "## First boot")
+	end := strings.Index(readme, "## Upgrade and roll back")
+	if start < 0 || end < start {
+		t.Fatal("the guide has no First boot section before Upgrade and roll back")
+	}
+	section := readme[start:end]
+	steps := []string{
+		"qm clone 9800",
+		"--sshkeys",
+		"--ipconfig0",
+		"https://certistack.dev/docs/manual-setup/#1-prepare-the-node",
+		"https://certistack.dev/docs/manual-setup/#the-pve-role-and-its-permissions",
+		"`certistack setup` cannot do this from the appliance",
+		"ssh-keygen -t ed25519 -N '' -C certistack-controller -f id_ed25519",
+		"ssh-keyscan -t ed25519",
+		"ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub",
+		"ssh-copy-id",
+		"uname -m",
+		"/etc/pve/pve-root-ca.pem pve-ca.pem",
+		"sudo cat /etc/certistack/secrets/controller.env.example > controller.env",
+		"`PBS_FINGERPRINT`",
+		"`CERTISTACK_PVE_CA_SOURCE`",
+		"sudo install -m 0600 -o 65532 -g 65532 controller.env id_ed25519 known_hosts pve-ca.pem /etc/certistack/secrets/",
+		"sudo certistack-controller check",
+		"sudo certistack-controller init --vm 100 -o /var/lib/certistack/plans/",
+		"sudo certistack-controller run /var/lib/certistack/plans/",
+		"sudo certistack-controller report show",
+	}
+	at := 0
+	for _, step := range steps {
+		i := strings.Index(section[at:], step)
+		if i < 0 {
+			t.Errorf("First boot does not say %q after the steps before it", step)
+			continue
+		}
+		at += i + len(step)
+	}
+	// The plans directory the guide writes into is one the template makes, for
+	// the container's user.
+	if !regexp.MustCompile(`install -d -m 0700 -o 65532 -g 65532 [^"]*/var/lib/certistack/plans`).MatchString(packerRecipe(t)) {
+		t.Error("the recipe does not create /var/lib/certistack/plans for UID 65532, which First boot writes its plan into")
+	}
+	// The environment example names the overlay storage the node preparation
+	// makes, as the manual setup's file does.
+	active, _ := activeEnvironment(t, repoFile("deploy", "appliance", "files", "controller.env.example"))
+	if active["CERTISTACK_OVERLAY_STORAGE"] == "" {
+		t.Error("the appliance's controller.env.example does not set CERTISTACK_OVERLAY_STORAGE")
 	}
 }

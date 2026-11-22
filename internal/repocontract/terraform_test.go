@@ -55,8 +55,8 @@ func TestTerraformModuleGrantsTheTokenWhatItGrantsTheUser(t *testing.T) {
 	}
 	source := string(data)
 
-	user, haveUser := resourceBody(source, "proxmox_virtual_environment_acl", "certistack_user")
-	token, haveToken := resourceBody(source, "proxmox_virtual_environment_acl", "certistack_token")
+	user, haveUser := resourceBody(source, "proxmox_acl", "certistack_user")
+	token, haveToken := resourceBody(source, "proxmox_acl", "certistack_token")
 	if !haveUser || !haveToken {
 		t.Fatalf("main.tf must grant the role to the user (found: %v) and to the token (found: %v)", haveUser, haveToken)
 	}
@@ -78,11 +78,11 @@ func TestTerraformModuleGrantsTheTokenWhatItGrantsTheUser(t *testing.T) {
 			t.Errorf("the token's ACL lacks %q", want)
 		}
 	}
-	if !regexp.MustCompile(`(?m)^\s*certistack_token_id\s*=\s*"\$\{proxmox_virtual_environment_user\.certistack_user\.user_id\}!\$\{proxmox_virtual_environment_user_token\.certistack_token\.token_name\}"`).MatchString(source) ||
+	if !regexp.MustCompile(`(?m)^\s*certistack_token_id\s*=\s*"\$\{proxmox_virtual_environment_user\.certistack_user\.user_id\}!\$\{proxmox_user_token\.certistack_token\.token_name\}"`).MatchString(source) ||
 		!strings.Contains(token, "token_id  = local.certistack_token_id") {
 		t.Error("the token ACL's subject is not the created token's own ID")
 	}
-	if tokenResource, _ := resourceBody(source, "proxmox_virtual_environment_user_token", "certistack_token"); !regexp.MustCompile(`(?m)^\s*privileges_separation\s*=\s*true\s*$`).MatchString(tokenResource) {
+	if tokenResource, _ := resourceBody(source, "proxmox_user_token", "certistack_token"); !regexp.MustCompile(`(?m)^\s*privileges_separation\s*=\s*true\s*$`).MatchString(tokenResource) {
 		t.Error("the token is not privilege-separated, which is what makes its own ACLs necessary and meaningful")
 	}
 
@@ -141,5 +141,51 @@ func TestWorkflowsRunTheModulesOfflineTests(t *testing.T) {
 		if !found {
 			t.Errorf("%s %s never runs `terraform -chdir=terraform test`, so nothing binds main.tf to the grants pkg/pve checks", c.workflow, c.job)
 		}
+	}
+}
+
+// The provider deprecates its proxmox_virtual_environment_* names for the ACL
+// and token resources. State that holds them under those names must move to
+// the current ones without a destroy and create, which would issue a new token
+// secret: each such resource needs a moved block from its deprecated address,
+// and the module must require a Terraform that can move across types (1.8).
+func TestTerraformModuleMovesTheDeprecatedResourceNames(t *testing.T) {
+	data, err := os.ReadFile(repoFile("terraform", "main.tf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	moved, err := os.ReadFile(repoFile("terraform", "moved.tf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	blocks := regexp.MustCompile(`(?m)^moved \{\n\s*from\s*=\s*(\S+)\n\s*to\s*=\s*(\S+)\n\}`).FindAllStringSubmatch(string(moved), -1)
+	have := map[string]string{}
+	for _, b := range blocks {
+		have[b[2]] = b[1]
+	}
+	for _, r := range []struct{ kind, name string }{
+		{"proxmox_user_token", "certistack_token"},
+		{"proxmox_acl", "certistack_user"},
+		{"proxmox_acl", "certistack_token"},
+	} {
+		if _, ok := resourceBody(source, r.kind, r.name); !ok {
+			t.Errorf("main.tf has no resource %s.%s", r.kind, r.name)
+		}
+		to := r.kind + "." + r.name
+		if from, want := have[to], "proxmox_virtual_environment_"+strings.TrimPrefix(r.kind, "proxmox_")+"."+r.name; from != want {
+			t.Errorf("moved.tf moves %q to %s, want %s", from, to, want)
+		}
+	}
+	if len(blocks) != 3 {
+		t.Errorf("moved.tf has %d moved blocks, want 3", len(blocks))
+	}
+	for _, deprecated := range []string{"proxmox_virtual_environment_acl", "proxmox_virtual_environment_user_token"} {
+		if strings.Contains(source, deprecated) {
+			t.Errorf("main.tf still uses the deprecated %s", deprecated)
+		}
+	}
+	if !regexp.MustCompile(`(?m)^\s*required_version\s*=\s*">= 1\.8\.0"`).MatchString(source) {
+		t.Error(`main.tf must require Terraform ">= 1.8.0", the first release whose moved blocks can change a resource's type`)
 	}
 }

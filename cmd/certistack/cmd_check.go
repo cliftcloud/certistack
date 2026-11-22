@@ -22,9 +22,11 @@ import (
 	"github.com/cliftcloud/certistack/internal/nodecheck"
 	"github.com/cliftcloud/certistack/internal/nodeidentity"
 	"github.com/cliftcloud/certistack/internal/nodesetup"
+	"github.com/cliftcloud/certistack/internal/support"
 	"github.com/cliftcloud/certistack/internal/sysutil"
 	"github.com/cliftcloud/certistack/pkg/config"
 	"github.com/cliftcloud/certistack/pkg/controller"
+	"github.com/cliftcloud/certistack/pkg/sdn"
 )
 
 // The two things check asks of a node. They are variables so that a test gives
@@ -74,7 +76,7 @@ const (
 // environment file is not there: the first run has not happened, and
 // certistack setup writes the file (check says the same at layer 1).
 func environmentFileMissingFix() string {
-	return "Run certistack setup (quickstart step " + strconv.Itoa(quickstartStepSetup) + "): it asks for a directory and writes controller.env there. Or write the file by hand " + setupByHandGuide + ": NAME=value lines, mode 0600. Every variable is listed in docs/configuration.md."
+	return "Run certistack setup (quickstart step " + strconv.Itoa(quickstartStepSetup) + "): it asks for a directory and writes controller.env there. Or write the file by hand " + setupByHandGuide + ": NAME=value lines, mode 0600. Every variable is listed at https://certistack.dev/docs/configuration/#variables."
 }
 
 // setupByHandGuide is where the fix for a missing environment file or SSH key
@@ -82,13 +84,13 @@ func environmentFileMissingFix() string {
 // docs/manual-setup.md that gives the same steps one command at a time. A
 // test reads every section a message names (the heading must exist on the
 // page).
-const setupByHandGuide = `(docs/manual-setup.md, "Set up by hand")`
+const setupByHandGuide = "(https://certistack.dev/docs/manual-setup/#set-up-by-hand)"
 
 // sudoersRuleGuide is where the fix for a non-root SSH account sends the
 // reader: the subsection of docs/manual-setup.md that lists the commands the
 // controller runs under sudo and gives the rule that allows them. A test reads
 // every section a message names (the heading must exist on the page).
-const sudoersRuleGuide = `(docs/manual-setup.md, "The sudoers rule for a non-root account")`
+const sudoersRuleGuide = "(https://certistack.dev/docs/manual-setup/#the-sudoers-rule-for-a-non-root-account)"
 
 // The layers, in the order they are tried.
 const (
@@ -125,16 +127,18 @@ the first that fails and prints the command that fixes it:
      names;
   4. the node has the tools a run needs: qemu-img, proxmox-backup-client,
      guestfish (libguestfs-tools), ip and nft (nftables; not asked of a plan
-     that has no network probe). certistack setup installs what is missing
+     that has no network probe), and proxmox-backup-client is a version this
+     release supports. certistack setup installs what is missing
      after it shows what apt-get would install, upgrade and remove. By hand,
      on the node as root: apt update; apt install --no-upgrade libguestfs-tools
      nftables. Without a Proxmox subscription apt update prints 401
      Unauthorized for enterprise.proxmox.com and ends with an error; that is
      expected, and the package lists it could fetch are still updated;
   5. PVE_TOKEN_ID and PVE_TOKEN_SECRET are set (if not, the fix is the access
-     script from certistack setup rbac), and the node can reach the PVE API and
+     script from certistack setup rbac), the node can reach the PVE API and
      PVE accepts the token (a certificate the node does not trust is fixed by
-     certistack setup pve-ca);
+     certistack setup pve-ca), the Proxmox VE release is one this release
+     supports, and PVE has the SDN API a run builds its sandbox network with;
   6. the PBS credential can list the repository (and PBS_NAMESPACE, if set);
   7. with a plan file, that the file exists;
   8. with a plan file, the node judges the plan's sandbox network: the range
@@ -428,7 +432,7 @@ func checkEnvironmentFile(envPath string) (detail, fix string, restore func()) {
 			detail, fix := shapes.layerDetail(envPath)
 			return detail, fix, nil
 		}
-		return err.Error(), "Correct the line the message names. The variables an environment file may hold are listed in docs/configuration.md.", nil
+		return err.Error(), "Correct the line the message names. The variables an environment file may hold are listed at https://certistack.dev/docs/configuration/#variables.", nil
 	}
 	missing := missingVariables(checkRequiredVariables)
 	if len(missing) > 0 {
@@ -612,7 +616,11 @@ func fetchPVECAOnTheHost(dir string) string {
 // pveCAContainerGuide names where the container's secrets are installed, as the
 // README of the controller container gives it. The appliance mounts its own
 // directory at the same path in the container.
-const pveCAContainerGuide = `(deploy/controller/README.md, "Prepare controller secrets"; the appliance keeps those files in /etc/certistack/secrets.)`
+const pveCAContainerGuide = "(https://github.com/cliftcloud/certistack/blob/main/deploy/controller/README.md#prepare-controller-secrets; the appliance keeps those files in /etc/certistack/secrets.)"
+
+// aptUpdateNote is what a fix that starts with apt update adds: on a node
+// without a subscription it ends with an error that does no harm.
+const aptUpdateNote = "Without a Proxmox subscription apt update prints 401 Unauthorized for enterprise.proxmox.com and ends with an error; that is expected, and the package lists it could fetch are still updated."
 
 // nodeLayerFix is the fix for a layer the node reported as failed. withEnv is
 // how a command it prints names the environment file (controllerEnvFile.flag).
@@ -620,6 +628,12 @@ func nodeLayerFix(layer nodecheck.Layer, envPath, withEnv string) string {
 	switch layer.Code {
 	case nodecheck.CodeToolsMissing:
 		return toolsFix(layer.Missing, envPath)
+	case nodecheck.CodeClientUnsupported:
+		return fmt.Sprintf("Update proxmox-backup-client on the node to version %d or later. On the node as root: apt update; apt install proxmox-backup-client (apt lists what it would do and asks). PVE 8.1 and later ship a client this release supports.\n%s", support.MinPBSMajor, aptUpdateNote)
+	case nodecheck.CodePVEUnsupported:
+		return fmt.Sprintf("Update the node to Proxmox VE %d.%d or later; the versions this release supports are listed at https://certistack.dev/docs/compatibility/#supported-versions", support.MinPVEMajor, support.MinPVEMinor)
+	case nodecheck.CodePVESDNMissing:
+		return "A run builds its sandbox network with PVE's SDN, which this node lacks: " + sdn.MissingFix + ". On the node as root: apt update; apt install libpve-network-perl ifupdown2 (apt lists what it would do and asks).\n" + aptUpdateNote
 	case nodecheck.CodePVECAUntrusted:
 		if source := os.Getenv("CERTISTACK_PVE_CA_SOURCE"); source != "" {
 			lead := "CERTISTACK_PVE_CA_SOURCE is set (" + source + "), but the PVE certificate was not signed by a CA in that file. "
@@ -711,7 +725,7 @@ func toolsFix(missing []nodecheck.Tool, envPath string) string {
 	// is why the two commands are joined by a semicolon, not by &&.
 	fix := "Run " + setup + ": it shows what apt-get would install, upgrade and remove on the node, and asks before it installs." +
 		"\nBy hand, on the node as root: apt update; apt install --no-upgrade " + strings.Join(packages, " ") + " (apt lists what it would do and asks)." +
-		"\nWithout a Proxmox subscription apt update prints 401 Unauthorized for enterprise.proxmox.com and ends with an error; that is expected, and the package lists it could fetch are still updated."
+		"\n" + aptUpdateNote
 	if proxmoxClient {
 		fix += "\nproxmox-backup-client comes from the Proxmox repositories (a Proxmox VE node has them configured)."
 	}

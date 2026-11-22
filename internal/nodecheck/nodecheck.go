@@ -2,9 +2,11 @@
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
 // Package nodecheck answers, on the node, the layers of `certistack check` that
-// only the node can answer: whether the tools a run needs are installed, whether
-// the PVE API accepts the token over the TLS trust the run would use, and
-// whether the PBS credential can list the repository's namespace. The temporary
+// only the node can answer: whether the tools a run needs are installed (and
+// proxmox-backup-client is a version this release supports), whether the PVE
+// API accepts the token over the TLS trust the run would use and has the SDN
+// API a run builds its sandbox with, and whether the PBS credential can list
+// the repository's namespace. The temporary
 // worker runs it (node-check) and the controller reads its report. It stops at
 // the first layer that fails, so a missing tool is never reported as a PVE
 // problem, and it changes nothing.
@@ -23,9 +25,11 @@ import (
 	"time"
 
 	"github.com/cliftcloud/certistack/internal/preflight"
+	"github.com/cliftcloud/certistack/internal/support"
 	"github.com/cliftcloud/certistack/pkg/config"
 	"github.com/cliftcloud/certistack/pkg/pbs"
 	"github.com/cliftcloud/certistack/pkg/pve"
+	"github.com/cliftcloud/certistack/pkg/sdn"
 )
 
 // The layers, in the order they are tried.
@@ -49,14 +53,21 @@ const (
 
 // Codes of a failed layer, for the controller to attach the fix to.
 const (
-	CodeToolsMissing   = "tools_missing"
-	CodePVEConfig      = "pve_config"
-	CodePVECAUntrusted = "pve_ca_untrusted"
-	CodePVECertName    = "pve_cert_name"
-	CodePVECertInvalid = "pve_cert_invalid"
-	CodePVEAuth        = "pve_auth"
-	CodePVEForbidden   = "pve_forbidden"
-	CodePVEUnreachable = "pve_unreachable"
+	CodeToolsMissing = "tools_missing"
+	// CodeClientUnsupported is a proxmox-backup-client older than this release
+	// supports (internal/support).
+	CodeClientUnsupported = "pbs_client_unsupported"
+	CodePVEConfig         = "pve_config"
+	CodePVECAUntrusted    = "pve_ca_untrusted"
+	CodePVECertName       = "pve_cert_name"
+	CodePVECertInvalid    = "pve_cert_invalid"
+	CodePVEAuth           = "pve_auth"
+	CodePVEForbidden      = "pve_forbidden"
+	CodePVEUnreachable    = "pve_unreachable"
+	// CodePVEUnsupported is a Proxmox VE release older than this release
+	// supports, CodePVESDNMissing a PVE without the SDN API (sdn.MissingError).
+	CodePVEUnsupported = "pve_unsupported"
+	CodePVESDNMissing  = "pve_sdn_missing"
 	CodePVEOther       = "pve_other"
 	CodePBSFailed      = "pbs_failed"
 	// CodeSandboxRange is a sandbox range that holds the PVE API or the PBS
@@ -170,31 +181,50 @@ func SettingsFromEnvironment(insecure bool) Settings {
 	}
 }
 
-// Probes are what the layers ask of the node. A test replaces them.
+// Probes are what the layers ask of the node. A test replaces them. A nil
+// ClientVersion or PVESDN is a check that is not made.
 type Probes struct {
-	LookPath   func(name string) (string, error)
-	PVEVersion func(ctx context.Context, s Settings) (string, error)
+	LookPath func(name string) (string, error)
+	// ClientVersion is the version proxmox-backup-client reports of itself.
+	ClientVersion func(ctx context.Context) (string, error)
+	PVEVersion    func(ctx context.Context, s Settings) (string, error)
+	// PVESDN reads the cluster's SDN zones and VNets, as init and a run do.
+	PVESDN     func(ctx context.Context, s Settings) error
 	PBSBackups func(ctx context.Context, s Settings) ([]pbs.VMBackups, error)
 	// NodeNetworks reads the node's routes and addresses.
 	NodeNetworks func() (preflight.NodeNetworks, error)
 }
 
-// DefaultProbes are the real ones: the node's PATH, the PVE client a run uses
-// (with its TLS trust, and no retries so a failure is reported at once), and
-// the PBS client a run uses.
+// pveClient is the PVE client a run uses, with its TLS trust, and no retries
+// so that a failure is reported at once.
+func pveClient(s Settings) *pve.Client {
+	return pve.NewClient(pve.Config{
+		BaseURL:     s.PVEURL,
+		TLSInsecure: s.PVETLSInsecure,
+		TLSCAFile:   s.PVECAFile,
+		TokenID:     s.PVETokenID,
+		TokenSecret: s.PVETokenSecret,
+		Timeout:     10 * time.Second,
+		NoRetry:     true,
+	})
+}
+
+// DefaultProbes are the real ones: the node's PATH, the client's own version
+// (asked with no repository, so no server is contacted), the PVE client a run
+// uses, and the PBS client a run uses.
 func DefaultProbes() Probes {
 	return Probes{
 		LookPath: exec.LookPath,
+		ClientVersion: func(ctx context.Context) (string, error) {
+			client, _, err := pbs.New(pbs.Config{}).Versions(ctx)
+			return client, err
+		},
 		PVEVersion: func(ctx context.Context, s Settings) (string, error) {
-			return pve.NewClient(pve.Config{
-				BaseURL:     s.PVEURL,
-				TLSInsecure: s.PVETLSInsecure,
-				TLSCAFile:   s.PVECAFile,
-				TokenID:     s.PVETokenID,
-				TokenSecret: s.PVETokenSecret,
-				Timeout:     10 * time.Second,
-				NoRetry:     true,
-			}).Version(ctx)
+			return pveClient(s).Version(ctx)
+		},
+		PVESDN: func(ctx context.Context, s Settings) error {
+			_, err := sdn.NewManager(pveClient(s)).UsedIDs(ctx)
+			return err
 		},
 		PBSBackups: func(ctx context.Context, s Settings) ([]pbs.VMBackups, error) {
 			return pbs.New(pbs.Config{
@@ -227,7 +257,7 @@ func RunThrough(ctx context.Context, s Settings, p Probes, through string) Repor
 		var layer Layer
 		switch name {
 		case LayerTools:
-			layer = checkTools(s, p)
+			layer = checkTools(ctx, s, p)
 		case LayerPVE:
 			layer = checkPVE(ctx, s, p)
 		case LayerPBS:
@@ -246,7 +276,10 @@ func RunThrough(ctx context.Context, s Settings, p Probes, through string) Repor
 	return report
 }
 
-func checkTools(s Settings, p Probes) Layer {
+// checkTools finds the tools a run needs, and then holds the client's version
+// to the oldest this release supports. A version that cannot be read is not a
+// failure: plan and run read it again and say so.
+func checkTools(ctx context.Context, s Settings, p Probes) Layer {
 	var missing []Tool
 	var found, notNeeded []string
 	for _, tool := range Tools {
@@ -269,12 +302,62 @@ func checkTools(s Settings, p Probes) Layer {
 			Detail: "not installed on the node (or not on its PATH): " + strings.Join(names, ", ")}
 	}
 	detail := "found on the node: " + strings.Join(found, ", ")
+	if p.ClientVersion != nil {
+		if raw, err := p.ClientVersion(ctx); err == nil {
+			if reason := ClientRefusal(raw); reason != "" {
+				return Layer{Name: LayerTools, Status: StatusFailed, Code: CodeClientUnsupported, Detail: detail + ", but " + reason}
+			}
+		}
+	}
 	if len(notNeeded) > 0 {
 		detail += "; " + strings.Join(notNeeded, ", ") + " not found, and not needed: the plan has no wire probe"
 	}
 	return Layer{Name: LayerTools, Status: StatusPassed, Detail: detail}
 }
 
+// ClientRefusal is why this release refuses a proxmox-backup-client that
+// reports version, or "" when it does not: a version that cannot be read is
+// not refused (plan and run read it again and say so).
+func ClientRefusal(version string) string {
+	if status := support.Classify(support.Version{}, support.Version{}, support.ParseVersion(version)); status.Level == support.Unsupported {
+		return status.Reason
+	}
+	return ""
+}
+
+// PVERefusal is why this release refuses Proxmox VE version, or "" when it
+// does not, as ClientRefusal.
+func PVERefusal(version string) string {
+	if status := support.Classify(support.ParseVersion(version), support.Version{}, support.Version{}); status.Level == support.Unsupported {
+		return status.Reason
+	}
+	return ""
+}
+
+// Refusals are the layers check would fail a node at for its versions or its
+// lack of the SDN API, judged from what certistack setup reads of the node
+// over SSH before it changes anything (it has no PVE token yet): the client's
+// version, the Proxmox VE version, and pvesh's read of the SDN zones, nil when
+// it did not show the API missing. They are in check's order, each with
+// check's code and its reason as Detail: the client (the tools layer), then
+// the PVE release or else its SDN API (the PVE layer). None is a node check
+// does not refuse for these.
+func Refusals(clientVersion, pveVersion string, sdnMissing *sdn.MissingError) []Layer {
+	var layers []Layer
+	if reason := ClientRefusal(clientVersion); reason != "" {
+		layers = append(layers, Layer{Name: LayerTools, Status: StatusFailed, Code: CodeClientUnsupported, Detail: reason})
+	}
+	if reason := PVERefusal(pveVersion); reason != "" {
+		layers = append(layers, Layer{Name: LayerPVE, Status: StatusFailed, Code: CodePVEUnsupported, Detail: reason})
+	} else if sdnMissing != nil {
+		layers = append(layers, Layer{Name: LayerPVE, Status: StatusFailed, Code: CodePVESDNMissing, Detail: sdnMissing.Problem()})
+	}
+	return layers
+}
+
+// checkPVE asks PVE for its version with the token, holds the version to the
+// oldest this release supports, and reads the SDN zones and VNets as init and a
+// run do: a node without the SDN API cannot build a sandbox network.
 func checkPVE(ctx context.Context, s Settings, p Probes) Layer {
 	version, err := p.PVEVersion(ctx, s)
 	if err != nil {
@@ -284,6 +367,23 @@ func checkPVE(ctx context.Context, s Settings, p Probes) Layer {
 	detail := "the node reaches the PVE API and PVE accepts the token"
 	if version != "" {
 		detail += " (Proxmox VE " + version + ")"
+	}
+	if reason := PVERefusal(version); reason != "" {
+		return Layer{Name: LayerPVE, Status: StatusFailed, Code: CodePVEUnsupported, Detail: detail + ", but " + reason}
+	}
+	if p.PVESDN != nil {
+		if err := p.PVESDN(ctx, s); err != nil {
+			var missing *sdn.MissingError
+			if errors.As(err, &missing) {
+				return Layer{Name: LayerPVE, Status: StatusFailed, Code: CodePVESDNMissing, Detail: detail + ", but " + missing.Problem()}
+			}
+			code, why := ClassifyPVE(err)
+			var apiError *pve.APIError
+			if errors.As(err, &apiError) {
+				code, why = CodePVEOther, apiError.Error()
+			}
+			return Layer{Name: LayerPVE, Status: StatusFailed, Code: code, Detail: detail + ", but its SDN zones and VNets could not be read: " + why}
+		}
 	}
 	return Layer{Name: LayerPVE, Status: StatusPassed, Detail: detail}
 }

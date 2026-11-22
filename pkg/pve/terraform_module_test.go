@@ -272,11 +272,10 @@ func TestTerraformInputsAreDocumented(t *testing.T) {
 }
 
 // The provider reads a user's ACL entries back into the user resource's `acl`
-// blocks, so a module that manages them with proxmox_virtual_environment_acl
-// must tell the user resource to leave them alone. Without that, every apply
-// after the first removes the entries from PVE (PVE 9.2 with bpg/proxmox
-// 0.66.3) and the privilege-separated token, which holds only what
-// its user also holds, is left with nothing. The mocked provider of
+// blocks, so a module that manages them with proxmox_acl must tell the user
+// resource to leave them alone. Without that, every apply after the first
+// removes the entries from PVE and the privilege-separated token, which holds
+// only what its user also holds, is left with nothing. The mocked provider of
 // `terraform test` cannot see this, so the module's text is checked here.
 func TestTerraformUserResourceLeavesItsACLToTheACLResources(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "terraform", "main.tf"))
@@ -284,7 +283,7 @@ func TestTerraformUserResourceLeavesItsACLToTheACLResources(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(data)
-	if !strings.Contains(text, `resource "proxmox_virtual_environment_acl" "certistack_user"`) {
+	if !strings.Contains(text, `resource "proxmox_acl" "certistack_user"`) {
 		t.Skip("the module does not manage the service user's ACL with separate ACL resources")
 	}
 	start := strings.Index(text, `resource "proxmox_virtual_environment_user" "certistack_user"`)

@@ -17,7 +17,7 @@ separate commercial license ([LICENSING-FAQ.md](LICENSING-FAQ.md) explains why).
 A pull request cannot be merged until the check passes. The check identifies each commit author by GitHub account, so
 author your commits with an e-mail address linked to your account; a commit GitHub cannot link to an account cannot be
 signed for. The check refuses a pull request of more than 100 commits: squash or split it. Only pull requests opened
-by GitHub's Dependabot account are exempt.
+by GitHub's Dependabot account or by the maintainer's account are exempt.
 
 ## Issues
 

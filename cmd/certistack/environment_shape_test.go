@@ -370,7 +370,7 @@ func TestCheckLayer1ReportsEveryShapeProblemAtOnce(t *testing.T) {
 	for _, want := range []string{
 		"6 values in <dir>/controller.env are not shaped as they should be",
 		"line 1, PVE_URL:", "line 2, PVE_TOKEN_ID:", "line 4, PBS_REPOSITORY:", "line 6, CERTISTACK_NODE:", "line 9, CERTISTACK_SSH_PORT:", "line 10, PBS_FINGERPRINT:",
-		"Fix: Correct the lines above in <dir>/controller.env", "docs/configuration.md",
+		"Fix: Correct the lines above in <dir>/controller.env", "https://certistack.dev/docs/configuration/#variables",
 		"- 2. SSH files", "not checked: an earlier layer failed",
 	} {
 		if !strings.Contains(out, want) {

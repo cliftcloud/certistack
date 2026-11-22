@@ -195,6 +195,95 @@ func TestApplianceRecipePinsAndSizesTheBuild(t *testing.T) {
 	}
 }
 
+// sourceBlock is the body of the recipe's proxmox-clone source block.
+func sourceBlock(t *testing.T, recipe string) string {
+	t.Helper()
+	source := regexp.MustCompile(`(?ms)^source "proxmox-clone" "controller" \{\n(.*?)^\}`).FindStringSubmatch(recipe)
+	if source == nil {
+		t.Fatal("no proxmox-clone source block")
+	}
+	return source[1]
+}
+
+// The settings a stock Debian or Ubuntu cloud source needs for the build VM to
+// boot, be reached and leave a template its clones can use:
+//
+//   - a VirtIO SCSI controller: the plugin's own default, lsi, has no driver
+//     in Debian's cloud kernel, and the build VM finds no disk;
+//   - a network adapter on a bridge the operator names, and a static address
+//     through cloud-init for a bridge without DHCP (the plugin attaches an
+//     ipconfig only to a declared adapter);
+//   - an empty cloud-init drive on the template, since the plugin removes the
+//     build's drive and settings before the conversion;
+//   - a wait for the source's first-boot cloud-init before apt, which it may
+//     still hold.
+func TestApplianceRecipeGivesTheBuildVMADiskANetworkAndCloudInit(t *testing.T) {
+	recipe := packerRecipe(t)
+	source := sourceBlock(t, recipe)
+	for setting, variable := range map[string]string{
+		"scsi_controller": "scsi_controller", "cloud_init_storage_pool": "cloud_init_storage_pool",
+	} {
+		if !regexp.MustCompile(`(?m)^\s*` + setting + `\s*=\s*var\.` + variable + `\s*$`).MatchString(source) {
+			t.Errorf("the source block does not take %s from var.%s", setting, variable)
+		}
+	}
+	if got := packerDefault(t, recipe, "scsi_controller"); got != "virtio-scsi-single" {
+		t.Errorf("scsi_controller defaults to %q, want virtio-scsi-single", got)
+	}
+	if !regexp.MustCompile(`(?m)^\s*cloud_init\s*=\s*true\s*$`).MatchString(source) {
+		t.Error("the source block does not set cloud_init = true, so the template has no cloud-init drive for its clones")
+	}
+	if !regexp.MustCompile(`(?s)network_adapters \{\s*model\s*=\s*"virtio"\s*bridge\s*=\s*var\.bridge\s*\}`).MatchString(source) {
+		t.Error("the source block declares no virtio network adapter on var.bridge")
+	}
+	if !regexp.MustCompile(`(?s)dynamic "ipconfig" \{\s*for_each\s*=\s*var\.build_ip == "" \? \[\] : \[var\.build_ip\]\s*content \{\s*ip\s*=\s*ipconfig\.value\s*gateway\s*=\s*var\.build_gateway\s*\}`).MatchString(source) {
+		t.Error("the source block does not pass build_ip and build_gateway as an ipconfig only when build_ip is set")
+	}
+	if !regexp.MustCompile(`(?m)^\s*template_description\s*=\s*".*\$\{var\.controller_image\}`).MatchString(source) {
+		t.Error("the template's description does not name the controller image")
+	}
+
+	provisioner := recipe[strings.Index(recipe, `provisioner "shell"`):]
+	inline := regexp.MustCompile(`"([^"\n]*)"`).FindAllStringSubmatch(provisioner[strings.Index(provisioner, "inline"):], -1)
+	if len(inline) == 0 || !strings.HasPrefix(inline[0][1], "cloud-init status --wait") {
+		t.Fatalf("the first shell provisioner does not start by waiting for cloud-init: %q", inline)
+	}
+	if !strings.Contains(inline[0][1], "test $? -eq 2") {
+		t.Errorf("the wait %q does not accept cloud-init's exit 2 (finished, with recoverable errors)", inline[0][1])
+	}
+}
+
+// proxmox_url needs the API path (the plugin appends paths to it, so
+// https://host:8006 fails at the first call) and source_template is a name
+// (clone_vm takes no ID). packer validate refuses either mistake before a
+// build starts.
+func TestApplianceRecipeRefusesAnEndpointWithoutItsPathAndATemplateID(t *testing.T) {
+	recipe := packerRecipe(t)
+	body, _ := packerVariable(recipe, "proxmox_url")
+	endpoint := hclRegex(t, body)
+	for _, url := range []string{"https://pve-01.example.internal:8006/api2/json", "https://10.0.0.5:8006/api2/json"} {
+		if !endpoint.MatchString(url) {
+			t.Errorf("the endpoint %q is refused", url)
+		}
+	}
+	for _, url := range []string{"https://pve-01.example.internal:8006", "https://pve-01.example.internal:8006/", "http://pve-01.example.internal:8006/api2/json", "https://pve-01.example.internal:8006/api2/json/nodes", ""} {
+		if endpoint.MatchString(url) {
+			t.Errorf("the endpoint %q is accepted", url)
+		}
+	}
+
+	body, _ = packerVariable(recipe, "source_template")
+	if !strings.Contains(body, "!can(regex(") {
+		t.Fatalf("source_template's validation does not refuse what its pattern matches:\n%s", body)
+	}
+	id := hclRegex(t, body)
+	for value, refused := range map[string]bool{"9000": true, "100": true, "debian12-cloudinit": false, "ubuntu-2404": false} {
+		if id.MatchString(value) != refused {
+			t.Errorf("source_template %q: refused = %v, want %v", value, id.MatchString(value), refused)
+		}
+	}
+}
+
 // The recipe has no fallback that turns a failed cleanup into a
 // built template, and the cleanup it does is the script the tests below run.
 func TestApplianceRecipeHasNoSwallowedFailure(t *testing.T) {
@@ -277,6 +366,7 @@ const (
 // cloud-init as the golden-image procedure meets it. STUB_CLOUDINIT chooses:
 //
 //	current     knows --machine-id, sets "uninitialized"
+//	deletesID   knows --machine-id and deletes the file (Debian 12's 22.4)
 //	old         predates --machine-id and rejects it
 //	fail        clean itself fails (status 73)
 //	ignoresID   accepts --machine-id and leaves the ID alone
@@ -307,7 +397,8 @@ if [ "$mode" != leavesState ]; then
   if [ $seed = yes ]; then rm -rf "$root/var/lib/cloud/seed"/*; fi
 fi
 if [ $logs = yes ]; then rm -f "$root/var/log/cloud-init.log" "$root/var/log/cloud-init-output.log"; fi
-if [ $id = yes ] && [ "$mode" != ignoresID ]; then printf 'uninitialized\n' > "$root/etc/machine-id"; fi
+if [ $id = yes ] && [ "$mode" = deletesID ]; then rm -f "$root/etc/machine-id"
+elif [ $id = yes ] && [ "$mode" != ignoresID ]; then printf 'uninitialized\n' > "$root/etc/machine-id"; fi
 exit 0
 `
 
@@ -324,6 +415,16 @@ esac
 
 const dpkgQueryStub = `#!/bin/sh
 printf 'podman 4.3.1+ds1-8\nca-certificates 20230311\ntini 0.19.0-1\n'
+`
+
+// journalctl logs each call with the number of journal files there were at
+// the time, so a test sees journald moved off /var before they are deleted.
+// STUB_JOURNALCTL=fail makes it fail as on a journald that does not answer.
+const journalctlStub = `#!/bin/sh
+files=$(find "$CERTISTACK_FINALIZE_ROOT/var/log/journal" -type f 2>/dev/null | grep -c .)
+printf 'journalctl %s (journal files: %s)\n' "$*" "$files" >> "$STUB_LOG"
+[ "$STUB_JOURNALCTL" != fail ] || { echo 'Failed to relinquish /var/log/journal' >&2; exit 1; }
+[ "$*" = --relinquish-var ] || exit 64
 `
 
 // finalizeTree is a guest filesystem as the build leaves it before the last
@@ -344,6 +445,7 @@ func newFinalizeTree(t *testing.T) *finalizeTree {
 	writeExecutable(t, filepath.Join(tree.stubs, "cloud-init"), cloudInitStub)
 	writeExecutable(t, filepath.Join(tree.stubs, "podman"), finalizePodmanStub)
 	writeExecutable(t, filepath.Join(tree.stubs, "dpkg-query"), dpkgQueryStub)
+	writeExecutable(t, filepath.Join(tree.stubs, "journalctl"), journalctlStub)
 
 	tree.write("etc/os-release", "PRETTY_NAME=\"Debian GNU/Linux 12 (bookworm)\"\nID=debian\nVERSION_ID=\"12\"\n", 0o644)
 	// A real /etc/machine-id is 0444 and root writes it anyway; the tests run
@@ -362,6 +464,12 @@ func newFinalizeTree(t *testing.T) *finalizeTree {
 	tree.write("root/.ssh/authorized_keys", "# build access\n"+build+operator, 0o600)
 	tree.write("home/ubuntu/.ssh/authorized_keys", `command="/bin/true",no-pty ssh-ed25519 `+buildKeyBlob+" restricted\n"+operator, 0o600)
 	tree.write("etc/ssh/authorized_keys/ubuntu", build, 0o644)
+	tree.write("etc/ssh/sshd_config", "PermitRootLogin prohibit-password\n", 0o644)
+	for _, key := range []string{"ssh_host_ed25519_key", "ssh_host_ecdsa_key", "ssh_host_rsa_key", "ssh_host_dsa_key"} {
+		tree.write("etc/ssh/"+key, "private host key\n", 0o600)
+		tree.write("etc/ssh/"+key+".pub", "public host key\n", 0o644)
+	}
+	tree.write("var/log/journal/"+machineID+"/system.journal", "journal\n", 0o640)
 	return tree
 }
 
@@ -452,16 +560,30 @@ func (f *finalizeTree) keyStillAuthorized() []string {
 // seed and logs, removes the build key from every authorized_keys file and
 // keeps the other keys, records the image and a build manifest, and succeeds.
 func TestFinalizeTemplateLeavesACleanTemplate(t *testing.T) {
-	for _, mode := range []string{"current", "old"} {
+	for _, mode := range []string{"current", "deletesID", "old"} {
 		t.Run(mode, func(t *testing.T) {
 			tree := newFinalizeTree(t)
 			out, err := tree.run(map[string]string{"STUB_CLOUDINIT": mode})
 			if err != nil {
 				t.Fatalf("finalization failed: %v\n%s", err, out)
 			}
-			// systemd will make a new ID on each clone's first boot.
+			// systemd will make a new ID on each clone's first boot. It needs
+			// the file: a clone without one boots with no network.
+			if !tree.exists("etc/machine-id") {
+				t.Fatal("/etc/machine-id is missing after finalization")
+			}
 			if id := strings.TrimSpace(tree.read("etc/machine-id")); id != "" && id != "uninitialized" {
 				t.Errorf("the machine ID is %q after finalization", id)
+			}
+			// The build VM's host keys and journals go; cloud-init makes new
+			// host keys on each clone. The SSH configuration stays.
+			for _, rel := range []string{"etc/ssh/ssh_host_ed25519_key", "etc/ssh/ssh_host_ed25519_key.pub", "etc/ssh/ssh_host_dsa_key", "var/log/journal/" + machineID} {
+				if tree.exists(rel) {
+					t.Errorf("%s remains", rel)
+				}
+			}
+			if !tree.exists("etc/ssh/sshd_config") || !tree.exists("var/log/journal") {
+				t.Error("finalization removed the SSH configuration or the journal directory itself")
 			}
 			// The build key is gone from every file; the operator's stays.
 			if left := tree.keyStillAuthorized(); len(left) > 0 {
@@ -508,7 +630,22 @@ func TestFinalizeTemplateLeavesACleanTemplate(t *testing.T) {
 			if mode == "old" && strings.Contains(calls, "--machine-id\n") {
 				t.Errorf("an old cloud-init was given --machine-id:\n%s", calls)
 			}
+			// journald leaves /var/log/journal while the build's journal is
+			// still there, so the shutdown after it writes nothing to the template.
+			if !strings.Contains(calls, "journalctl --relinquish-var (journal files: 1)") {
+				t.Errorf("journald was not moved off /var/log/journal before its files were deleted:\n%s", calls)
+			}
 		})
+	}
+}
+
+// A journald that does not leave /var/log/journal would write the build VM's
+// shutdown into the template, so the failure fails the build.
+func TestFinalizeTemplateFailsWhenJournaldKeepsWritingToVar(t *testing.T) {
+	tree := newFinalizeTree(t)
+	out, err := tree.run(map[string]string{"STUB_JOURNALCTL": "fail"})
+	if err == nil || !strings.Contains(out, "journalctl --relinquish-var failed") {
+		t.Errorf("a failed journalctl --relinquish-var did not fail the build: err=%v\n%s", err, out)
 	}
 }
 

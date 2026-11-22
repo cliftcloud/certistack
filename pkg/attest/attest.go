@@ -156,10 +156,10 @@ type Report struct {
 	// node, as the node wrote them; a version the run could not read is
 	// absent. VersionSupport is what internal/support made of them: "tested",
 	// "untested", or "unknown" when one of the three could not be read. A run
-	// of an unsupported pair is refused before it creates anything, so no
-	// report says "unsupported". A report that records none of the four (an
-	// older build, or a refusal before the versions were read) says nothing of
-	// the versions.
+	// of an unsupported pair is refused before it creates anything, so only
+	// the report of that refusal, which records no VM, says "unsupported". A
+	// report that records none of the four (an older build, or a refusal
+	// before the versions were read) says nothing of the versions.
 	PVEVersion       string `json:"pve_version,omitempty"`
 	PBSVersion       string `json:"pbs_version,omitempty"`
 	PBSClientVersion string `json:"pbs_client_version,omitempty"`

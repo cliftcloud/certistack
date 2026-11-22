@@ -15,8 +15,8 @@ import (
 // from an earlier build or a refusal before the versions were read, is judged
 // without them.
 // When version_support is there it is one of tested, untested or unknown, and
-// a tested pair names the versions it was judged on. "unsupported" is not a
-// value a signed report can hold: a run of such a pair is refused.
+// a tested pair names the versions it was judged on. "unsupported" is only the
+// report of a run refused for its versions, which records no VM and no pass.
 func TestReportAcceptanceVersionSupport(t *testing.T) {
 	plan := mustLoadFixturePlan()
 	exp := fixtureExpectations(plan, accept.OutcomePass)
@@ -44,10 +44,32 @@ func TestReportAcceptanceVersionSupport(t *testing.T) {
 	report.VersionSupport = "tested"
 	expectRejected(t, "tested with no versions at all", report, exp, "tested but does not record all of")
 
-	for _, value := range []string{"unsupported", "Tested", "ok", " tested"} {
+	for _, value := range []string{"Tested", "ok", " tested", "Unsupported"} {
 		report = passReport(plan)
 		report.PVEVersion, report.PBSVersion, report.PBSClientVersion, report.VersionSupport = "7.4-20", "4.2.7", "4.2.5", value
-		expectRejected(t, "version_support "+value, report, exp, "none of tested, untested or unknown")
+		expectRejected(t, "version_support "+value, report, exp, "none of tested, untested, unknown or unsupported")
+	}
+
+	// A pass, or any VM, beside unsupported versions contradicts the refusal
+	// that such versions get.
+	report = passReport(plan)
+	report.PVEVersion, report.PBSVersion, report.PBSClientVersion, report.VersionSupport = "7.4-20", "4.2.7", "4.2.5", "unsupported"
+	expectRejected(t, "a pass of an unsupported pair", report, exp, "unsupported but records a VM or a pass")
+
+	// The report of the refusal says unsupported, and that is no contradiction:
+	// it is rejected as a pass for not being one, not for its versions.
+	report = passReport(plan)
+	report.AllPassed, report.VMRecords = false, nil
+	report.FailureReason = "node preflight failed: version_support: PVE 8.0.3, PBS 4.2.0, proxmox-backup-client 2.99.0: unsupported"
+	report.PVEVersion, report.PBSVersion, report.PBSClientVersion, report.VersionSupport = "8.0.3", "4.2.0", "2.99.0", "unsupported"
+	result := accept.Evaluate(report, exp)
+	if result.Verdict != accept.Rejected {
+		t.Fatalf("a refused run was accepted as a pass: %+v", result)
+	}
+	for _, reason := range result.Reasons {
+		if strings.Contains(reason, "records version_support") || strings.Contains(reason, "unsupported but records") {
+			t.Errorf("the refusal's own versions were held against it: %q", reason)
+		}
 	}
 
 	// Versions without a verdict (a build that wrote the first and not the

@@ -221,7 +221,7 @@ func verifyInterfaceForwardingDisabled(ctx context.Context, iface string) error 
 		return fmt.Errorf("verify IPv4 forwarding is disabled for interface %s: %w", iface, err)
 	}
 	if strings.TrimSpace(string(result.Stdout)) != "0" {
-		return fmt.Errorf("refusing VNet interface %s because IPv4 forwarding is enabled on it. PVE's ifupdown2 turns it on for every SDN bridge at each network reload; a pre-provisioned sandbox VNet must keep it off (for example with an if-up.d hook), see docs/plan-reference.md#use-a-pre-provisioned-sandbox", iface)
+		return fmt.Errorf("refusing VNet interface %s because IPv4 forwarding is enabled on it. PVE's ifupdown2 turns it on for every SDN bridge at each network reload; a pre-provisioned sandbox VNet must keep it off (for example with an if-up.d hook), see https://certistack.dev/docs/plan-reference/#use-a-pre-provisioned-sandbox", iface)
 	}
 	return nil
 }

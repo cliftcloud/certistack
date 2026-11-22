@@ -21,7 +21,7 @@ const (
 	spdxWindow = 8
 )
 
-// spdxChecked reports whether a repository file must carry a licence header,
+// spdxChecked reports whether a repository file must carry a license header,
 // by its name. Generated lock files and data are not source. A script with
 // no known name is found by its first line instead (beginsWithShebang).
 func spdxChecked(name string) bool {
@@ -82,10 +82,10 @@ func spdxOf(text string) string {
 	return ""
 }
 
-// licenceProblems walks root and returns one line for each source file whose
-// licence header is missing or names another licence, and how many files it
+// licenseProblems walks root and returns one line for each source file whose
+// license header is missing or names another license, and how many files it
 // checked.
-func licenceProblems(root string) (problems []string, checked int, err error) {
+func licenseProblems(root string) (problems []string, checked int, err error) {
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -116,13 +116,13 @@ func licenceProblems(root string) (problems []string, checked int, err error) {
 	return problems, checked, err
 }
 
-// TestEverySourceFileCarriesTheCommunityHeader is the open-core licence guard
+// TestEverySourceFileCarriesTheCommunityHeader is the open-core license guard
 // for the public repository: a source file with no SPDX line, or one that names
-// another licence (an Enterprise identifier here would put proprietary terms on
+// another license (an Enterprise identifier here would put proprietary terms on
 // AGPL code, or the reverse), fails with the file's name. A source file is one
 // with a source file's name or one that begins with a shebang.
 func TestEverySourceFileCarriesTheCommunityHeader(t *testing.T) {
-	problems, checked, err := licenceProblems(repoFile())
+	problems, checked, err := licenseProblems(repoFile())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestEverySourceFileCarriesTheCommunityHeader(t *testing.T) {
 // extension (deploy/appliance/files/certistack-controller, a #!/bin/sh
 // wrapper) had no header and was never looked at. The same scan, over a tree
 // that holds each kind of file.
-func TestLicenceGuardTakesScriptsByTheirShebangAndDockerfilesByTheirNames(t *testing.T) {
+func TestLicenseGuardTakesScriptsByTheirShebangAndDockerfilesByTheirNames(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, content string) {
 		t.Helper()
@@ -153,14 +153,14 @@ func TestLicenceGuardTakesScriptsByTheirShebangAndDockerfilesByTheirNames(t *tes
 	const header = "# SPDX-License-Identifier: AGPL-3.0-or-later\n"
 	write("deploy/wrapper", "#!/bin/sh\necho no header\n")                  // a script with no extension and no header: reported
 	write("deploy/wrapper-ok", "#!/bin/sh\n"+header+"echo header\n")        // the same with a header: clean
-	write("deploy/wrapper-ee", "#!/bin/sh\n# SPDX-License-Identifier: X\n") // another licence: reported
+	write("deploy/wrapper-ee", "#!/bin/sh\n# SPDX-License-Identifier: X\n") // another license: reported
 	write("deploy/notes", "plain text with no header\n")                    // not a script: not checked
 	write("deploy/testdata/fixture", "#!/bin/sh\necho a fixture\n")         // under testdata: skipped
 	write("images/Dockerfile.prod", "FROM scratch\n")                       // a Dockerfile by a longer name: reported
 	write("images/app.Dockerfile", "FROM scratch\n")                        // and by an extension: reported
 	write("images/Dockerfile", header+"FROM scratch\n")                     // the plain name, with a header: clean
 	write("lock/.terraform.lock.hcl", "# generated\n")                      // a generated file: not source
-	problems, checked, err := licenceProblems(root)
+	problems, checked, err := licenseProblems(root)
 	if err != nil {
 		t.Fatal(err)
 	}

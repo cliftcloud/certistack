@@ -17,16 +17,19 @@ permissions:
 jobs:
   CLAAssistant:
     runs-on: ubuntu-24.04
-    # Dependabot's pull requests are exempt by the account that opened them,
-    # identified by its immutable ID (49699333), never by a name a commit can
-    # claim: the action has no allowlist, so every commit author in any other
-    # pull request must have signed.
+    # Pull requests opened by Dependabot (49699333) or by the maintainer
+    # account (46729202) are exempt by the account that opened them,
+    # identified by its immutable ID, never by a name a commit can claim: the
+    # action has no allowlist, so every commit author in any other pull
+    # request must have signed.
     if: >
       (github.event_name == 'pull_request_target' &&
-       github.event.pull_request.user.id != 49699333) ||
+       github.event.pull_request.user.id != 49699333 &&
+       github.event.pull_request.user.id != 46729202) ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
        github.event.issue.user.id != 49699333 &&
+       github.event.issue.user.id != 46729202 &&
        (github.event.comment.body == 'recheck' ||
         github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA'))
     steps:

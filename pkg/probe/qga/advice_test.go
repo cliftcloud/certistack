@@ -131,7 +131,7 @@ func TestDisabledGuestExecNamesTheAllowList(t *testing.T) {
 				"stock setting on Red Hat family guests",
 				"Rocky Linux, AlmaLinux, RHEL and Oracle Linux",
 				"tcp or http probe",
-				"Issue 32 in docs/troubleshooting.md",
+				"Issue 32 at https://certistack.dev/docs/troubleshooting/#issue-32",
 			} {
 				if !strings.Contains(result.Error, want) {
 					t.Errorf("error lacks %q: %s", want, result.Error)

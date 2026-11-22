@@ -37,13 +37,15 @@ case "${1:-}" in
     ;;
 esac
 
+# Podman's U option gives the tmpfs to the container user; Podman refuses the
+# uid= and gid= tmpfs options.
 exec /usr/bin/podman run --rm --pull=never \
   --name "certistack-controller-job-$$" \
   --user 65532:65532 \
   --read-only \
   --cap-drop=all \
   --security-opt no-new-privileges:true \
-  --tmpfs /tmp/certistack:uid=65532,gid=65532,mode=0700 \
+  --tmpfs /tmp/certistack:mode=0700,U \
   --env TMPDIR=/tmp/certistack \
   --env XDG_CONFIG_HOME=/var/lib/certistack/.config \
   --volume /var/lib/certistack:/var/lib/certistack:rw \

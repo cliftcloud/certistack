@@ -61,8 +61,10 @@ certistack schema > certistack-plan.schema.json
 
 ### `admission_control`
 
-A run over either limit waits `defer_retry_interval_sec` and checks again, up to `max_defer_retries` times, then fails
-before it creates anything.
+A run over either limit waits `defer_retry_interval_sec` and checks again, up to `max_defer_retries` times (`init`
+writes 30 and 10: 5 minutes), then fails before it creates anything. A plan whose VMs need more than
+`max_host_ram_percent` of the node's whole memory can never be admitted: `plan` and `run` refuse it at once
+([Issue 3](troubleshooting.md#issue-3)).
 
 | Key | What it does |
 | --- | --- |

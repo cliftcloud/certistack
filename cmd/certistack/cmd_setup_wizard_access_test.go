@@ -45,7 +45,7 @@ func TestTheWizardSaysWhatARunDoesToTheNetworkOfAClusterNode(t *testing.T) {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	flat := strings.Join(strings.Fields(out), " ")
-	const note = "Every run applies SDN twice, and PVE reloads the network on all 3 nodes each time. network.lifecycle: preprovisioned in the plan avoids it (docs/plan-reference.md#use-a-pre-provisioned-sandbox)."
+	const note = "Every run applies SDN twice, and PVE reloads the network on all 3 nodes each time. network.lifecycle: preprovisioned in the plan avoids it (https://certistack.dev/docs/plan-reference/#use-a-pre-provisioned-sandbox)."
 	if strings.Count(flat, note) != 1 || !strings.Contains(flat, "in a cluster of 3 nodes") {
 		t.Errorf("the cluster note is not said once, with the node count:\n%s", out)
 	}
@@ -83,6 +83,7 @@ func TestAnEmptyPBSNamespaceAnswerAsksBeforeItGrantsTheWholeDatastore(t *testing
 		"",     // Continue? the default
 		"prod", // asked again: a namespace
 		"",     // over ssh
+		"",     // the fingerprint read over ssh: the dashboard shows it
 	)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -100,7 +101,7 @@ func TestAnEmptyPBSNamespaceAnswerAsksBeforeItGrantsTheWholeDatastore(t *testing
 
 	f, dir = settledNode(t)
 	out, err = runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com"},
-		"", "", "yes", "", "pbs.example.com", "datastore1", "/", "y", "")
+		"", "", "yes", "", "pbs.example.com", "datastore1", "/", "y", "", "")
 	if err != nil {
 		t.Fatalf("a yes: %v\n%s", err, out)
 	}
@@ -111,7 +112,7 @@ func TestAnEmptyPBSNamespaceAnswerAsksBeforeItGrantsTheWholeDatastore(t *testing
 	// --pbs-namespace / is the root namespace asked for by name: no question.
 	f, dir = settledNode(t)
 	out, err = runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com", PBSNamespace: "/"},
-		"", "", "yes", "", "pbs.example.com", "datastore1", "")
+		"", "", "yes", "", "pbs.example.com", "datastore1", "", "")
 	if err != nil || strings.Contains(out, "Continue?") {
 		t.Errorf("--pbs-namespace /: %v\n%s", err, out)
 	}
@@ -163,6 +164,7 @@ func TestThePBSStorageListMarksTheDefaultAndAsksAboutTheRootNamespace(t *testing
 		"",  // Continue? no: back to the list
 		"2", // archive: namespace old
 		"",  // over ssh
+		"",  // the fingerprint read over ssh: the dashboard shows it
 	)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
@@ -194,7 +196,7 @@ func TestTheEncryptionKeyIsCopiedOnlyAfterAYes(t *testing.T) {
 		"pbs: backups\n\tserver 10.42.10.5\n\tdatastore pbs-data\n\tnamespace prod\n\tfingerprint 1B:FB:2F:B9:9C:66:ED:63:D5:0D:53:DF:91:7C:AA:97:17:D5:CD:D7:24:82:18:03:CD:2E:68:C3:3F:93:1E:86\n\tencryption-key 44:a5\n"
 	f, dir := settledNode(t)
 	f.storageCfg = cfg
-	out, err := runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com"}, "", "", "yes", "", "1", "", "")
+	out, err := runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com"}, "", "", "yes", "", "1", "", "", "")
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -229,7 +231,7 @@ func TestTheReplaceTokenQuestionsSayWhatStopsWorking(t *testing.T) {
 	f, dir = settledNode(t)
 	f.pbsToken = true
 	out, err = runWizard(t, f, dir, setupWizardOptions{NodeHost: "pve1.example.com", PBSNamespace: "/"},
-		"", "", "yes", "", "pbs.example.com", "datastore1", "", "n")
+		"", "", "yes", "", "pbs.example.com", "datastore1", "", "", "n")
 	if err == nil || !strings.Contains(out, holders) || !strings.Contains(out, "PBS cannot show its secret again. Replace it with a new one?") {
 		t.Errorf("the PBS question: %v\n%s", err, out)
 	}

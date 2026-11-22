@@ -87,7 +87,7 @@ rerun reuses what exists and takes its defaults from `controller.env`. Without r
 | `--pbs-port` | PBS API port. Default `8007` |
 | `--pbs-datastore` | PBS datastore, with `--pbs-host` |
 | `--pbs-namespace` | The only namespace the PBS user is granted; `/` grants every namespace of the datastore |
-| `--pbs-fingerprint` | The PBS certificate's fingerprint, when setup cannot read it |
+| `--pbs-fingerprint` | The PBS certificate's fingerprint (Dashboard > Show Fingerprint). Refused if the node's PBS storage or the PBS reports another. Without it, setup asks you to confirm the one it reads |
 | `--pbs-ssh` | How to reach the PBS as root over your own `ssh`. Default `root@<PBS host>` |
 | `--pbs-manual` | Write `pbs-access.sh` for the PBS web shell instead of using `ssh` |
 
@@ -183,7 +183,10 @@ tears it down; the controller saves the [report](reports.md).
 ### doctor
 
 On the node, as root: read-only checks of the node and, with a plan, each VM's backup, showing why `run` would refuse
-it.
+it. From the controller, [`check`](#check) and [`plan`](#plan) test the node through a temporary worker instead. The
+installer puts `certistack` on the controller only: to run `doctor`, copy `/usr/local/bin/certistack` to the node, run
+it there as root, and delete the copy. Without an environment file it cannot reach PVE or PBS, so it shows their
+versions as `unknown`.
 
 | Flag | Meaning |
 | --- | --- |

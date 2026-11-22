@@ -19,7 +19,13 @@ packer {
 
 variable "proxmox_url" {
   type        = string
-  description = "PVE API endpoint, for example https://pve.example:8006/api2/json"
+  description = "PVE API endpoint with its path, for example https://pve.example:8006/api2/json"
+  validation {
+    # The plugin appends API paths to this value, so a bare https://host:8006
+    # fails only at the first call, with "no such file '/cluster/resources'".
+    condition     = can(regex("^https://[^/\\s]+/api2/json$", var.proxmox_url))
+    error_message = "The PVE API endpoint must be https://<host>:8006/api2/json."
+  }
 }
 
 variable "proxmox_token_id" {
@@ -40,7 +46,12 @@ variable "proxmox_node" {
 
 variable "source_template" {
   type        = string
-  description = "Existing patched Debian/Ubuntu cloud-init VM template name or ID. It must have cloud-init and a running qemu-guest-agent"
+  description = "Name of an existing patched Debian/Ubuntu cloud-init VM template. It must have cloud-init, a cloud-init drive and a running qemu-guest-agent"
+  validation {
+    # clone_vm takes a name; an ID fails only at the clone, with "vm '9000' not found".
+    condition     = !can(regex("^[0-9]+$", var.source_template))
+    error_message = "The source template must be given by its name, not its VM ID."
+  }
 }
 
 variable "template_name" {
@@ -51,6 +62,40 @@ variable "template_name" {
 variable "template_vmid" {
   type    = number
   default = 9800
+}
+
+variable "bridge" {
+  type        = string
+  default     = "vmbr0"
+  description = "Bridge of the build VM's network adapter, which the template keeps. The Packer token needs SDN.Use on /sdn/zones/localnetwork/<bridge>"
+}
+
+variable "build_ip" {
+  type        = string
+  default     = ""
+  description = "Static address with prefix length for the build VM, such as 192.0.2.50/24, on a bridge without DHCP. Empty: DHCP"
+  validation {
+    condition     = var.build_ip == "" || can(cidrhost(var.build_ip, 0))
+    error_message = "The build VM's address must be an address with its prefix length, such as 192.0.2.50/24."
+  }
+}
+
+variable "build_gateway" {
+  type        = string
+  default     = ""
+  description = "Gateway for build_ip"
+}
+
+variable "scsi_controller" {
+  type        = string
+  default     = "virtio-scsi-single"
+  description = "SCSI controller of the build VM and the template. The plugin's own default, lsi, has no driver in Debian's cloud kernel, which then finds no disk"
+}
+
+variable "cloud_init_storage_pool" {
+  type        = string
+  default     = "local-lvm"
+  description = "PVE storage for the template's cloud-init drive. The Packer token needs the role on it"
 }
 
 variable "pool" {
@@ -158,6 +203,7 @@ source "proxmox-clone" "controller" {
   vm_id                    = var.template_vmid
   vm_name                  = var.template_name
   template_name            = var.template_name
+  template_description     = "CertiStack controller appliance. Controller image: ${var.controller_image}. Build manifest: /etc/certistack/build-manifest."
   pool                     = var.pool
   full_clone               = true
   task_timeout             = var.task_timeout
@@ -166,6 +212,7 @@ source "proxmox-clone" "controller" {
   sockets                  = var.sockets
   cpu_type                 = var.cpu_type
   os                       = var.os
+  scsi_controller          = var.scsi_controller
   qemu_agent               = true
   insecure_skip_tls_verify = var.insecure_skip_tls_verify
   ssh_username             = var.ssh_username
@@ -174,6 +221,27 @@ source "proxmox-clone" "controller" {
   # the static key above; the finalize provisioner below is the control that
   # matters. It stays on as a second, cheap line of defence.
   ssh_clear_authorized_keys = true
+
+  network_adapters {
+    model  = "virtio"
+    bridge = var.bridge
+  }
+
+  # The plugin passes a static address through the clone's cloud-init drive,
+  # and needs the network adapter above to attach it to.
+  dynamic "ipconfig" {
+    for_each = var.build_ip == "" ? [] : [var.build_ip]
+    content {
+      ip      = ipconfig.value
+      gateway = var.build_gateway
+    }
+  }
+
+  # Before the conversion the plugin removes the build's cloud-init drive and
+  # settings; this adds an empty drive back, so each clone takes its login and
+  # address from its own cloud-init settings.
+  cloud_init              = true
+  cloud_init_storage_pool = var.cloud_init_storage_pool
 }
 
 build {
@@ -195,12 +263,17 @@ build {
     destination = "/tmp/certistack-finalize-template.sh"
   }
 
+  # The source's first-boot cloud-init may still be upgrading packages (PVE's
+  # user-data sets package_upgrade), and apt would then fail on its lock. Exit
+  # 2 is a finished run with recoverable errors; any other failure fails the
+  # build.
   provisioner "shell" {
     inline = [
+      "cloud-init status --wait || test $? -eq 2",
       "export DEBIAN_FRONTEND=noninteractive",
       "apt-get update",
       "apt-get install -y --no-install-recommends ca-certificates openssh-client podman tini",
-      "install -d -m 0700 -o 65532 -g 65532 /etc/certistack/secrets /var/lib/certistack",
+      "install -d -m 0700 -o 65532 -g 65532 /etc/certistack/secrets /var/lib/certistack /var/lib/certistack/plans",
       "install -m 0755 /tmp/certistack-controller /usr/local/bin/certistack-controller",
       "install -m 0600 /tmp/controller.env.example /etc/certistack/secrets/controller.env.example",
       "podman pull '${var.controller_image}'",
@@ -211,8 +284,9 @@ build {
   }
 
   # Last: checks the pulled image, records the controller image reference and
-  # a build manifest, resets the machine ID and cloud-init state, removes the
-  # build key, and then asserts every one of those postconditions. Any failure
+  # a build manifest, resets the machine ID, cloud-init state, SSH host keys
+  # and journals, removes the build key, and then asserts every one of those
+  # postconditions. Any failure
   # fails the build, so no template is produced from a half-cleaned guest.
   provisioner "shell" {
     environment_vars = [

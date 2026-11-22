@@ -22,15 +22,15 @@ func setupRBACCmd() *cobra.Command {
 		Short: "Print the script that creates the PVE role, user, token and ACLs and the read-only PBS user",
 		Long: `Prints a shell script for you to read and run; it executes nothing and
 changes nothing. The script holds the commands of the manual recipe
-(docs/manual-setup.md, "Set up by hand"), filled in for your node; certistack
-setup runs the same script itself, part by part:
+(https://certistack.dev/docs/manual-setup/#set-up-by-hand), filled in for your
+node; certistack setup runs the same script itself, part by part:
 
   PART 1, as root on a Proxmox VE node (pveum):
     the role CertiStackRole (the privileges in terraform/main.tf), the user
     certistack-svc@pve, the privilege-separated token certistack-svc@pve!automation,
     and the ACLs for the user AND the token on each path of the permission table
-    in docs/manual-setup.md, with the propagation the table gives and
-    never on "/".
+    at https://certistack.dev/docs/manual-setup/, with the propagation the table
+    gives and never on "/".
   PART 2, as root on the Proxmox Backup Server (proxmox-backup-manager), only
     with --pbs-datastore: a read-only user and token, each holding DatastoreReader
     on the datastore (or only on one namespace of it, with --pbs-namespace).

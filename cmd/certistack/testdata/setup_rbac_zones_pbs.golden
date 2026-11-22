@@ -30,8 +30,8 @@ STEP='starting'
 trap 'status=$?; [ "$status" -eq 0 ] || echo "certistack access setup stopped while $STEP (exit status $status). Nothing after this step ran. Fix the cause shown above, then run the script again: every step can be repeated." >&2' EXIT
 
 # 1. The role: the privileges a run needs and nothing else. It is the list in
-#    terraform/main.tf and docs/manual-setup.md. A role that exists is set
-#    to this list; a missing one is created.
+#    terraform/main.tf and at https://certistack.dev/docs/manual-setup/. A role that
+#    exists is set to this list; a missing one is created.
 STEP='creating or updating the role CertiStackRole'
 if pveum role list --output-format json | grep -Fq '"CertiStackRole"'; then
   pveum role modify CertiStackRole --privs "VM.Allocate VM.Audit VM.PowerMgmt VM.Console VM.Config.Disk VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.HWType VM.Config.CDROM SDN.Allocate SDN.Audit SDN.Use Sys.Audit Datastore.AllocateSpace Datastore.Audit"

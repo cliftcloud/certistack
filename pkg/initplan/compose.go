@@ -199,7 +199,7 @@ func Compose(d *Discovery, opts Options) (*Result, error) {
 		return nil, errors.New("the discovery has no free sandbox VM IDs or SDN IDs")
 	}
 	if storage == "" {
-		note("Node %s has no storage the token can use for overlays (file-based, with disk image content), so overlays go to the node's scratch directory. UEFI VMs need one; see storage.overlay_storage on the Plans page (docs/plan-reference.md). %s", progress.SingleLine(d.Node), pve.CreateOverlayStorageHint)
+		note("Node %s has no storage the token can use for overlays (file-based, with disk image content), so overlays go to the node's scratch directory. UEFI VMs need one; see storage.overlay_storage at https://certistack.dev/docs/plan-reference/#storage. %s", progress.SingleLine(d.Node), pve.CreateOverlayStorageHint)
 	}
 
 	type entry struct {

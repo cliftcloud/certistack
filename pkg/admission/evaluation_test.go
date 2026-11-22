@@ -155,3 +155,20 @@ func TestWithoutAReservationTheProjectionIsTheUseNow(t *testing.T) {
 		t.Errorf("evaluation = %+v, want a grant projecting the 40%% in use, with no capacity read", got)
 	}
 }
+
+// The deferral line names the memory in use, not the memory available: the two
+// numbers it adds are the ones the percentage is made of.
+func TestTheDeferralLineAddsTheMemoryInUseToTheReservation(t *testing.T) {
+	const total, available, reserved = 15992.0, 13596.0, 12544
+	projected, err := projectedRAMPercent(total, available, reserved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := projectedRAMDeferral(total, available, reserved, projected, 85)
+	if want := "Host admission deferred: 2396 MiB in use plus the recovery reservation of 12544 MiB would reach 93.4% of 15992 MiB (max 85.0%)."; got != want {
+		t.Errorf("line = %q\nwant   %q", got, want)
+	}
+	if strings.Contains(got, "available") {
+		t.Errorf("the line calls a number available: %q", got)
+	}
+}

@@ -150,7 +150,7 @@ func TestBoundedReasonCutsAtAReadableLength(t *testing.T) {
 func TestRejectionReasonsDoNotTalkOfSigning(t *testing.T) {
 	digest := strings.Repeat("ab", 32)
 	noDigest := &attest.Report{ReportSchemaVersion: attest.CurrentReportSchemaVersion, ValidationMode: attest.ValidationModeFullIntegrity}
-	badSupport := &attest.Report{ReportSchemaVersion: attest.CurrentReportSchemaVersion, ValidationMode: attest.ValidationModeFullIntegrity, VersionSupport: "unsupported"}
+	badSupport := &attest.Report{ReportSchemaVersion: attest.CurrentReportSchemaVersion, ValidationMode: attest.ValidationModeFullIntegrity, VersionSupport: "supported"}
 	for name, result := range map[string]acceptance.Result{
 		"no worker digest recorded": acceptance.Evaluate(noDigest, acceptance.Expectations{WorkerSHA256: &digest}),
 		"unknown version support":   acceptance.Evaluate(badSupport, acceptance.Expectations{}),

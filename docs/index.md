@@ -26,15 +26,15 @@ credentials and reports. A *plan* names the VMs to restore and what to check.
 5. It removes the VM, the overlays, the backup maps and the network, and checks that each is gone. The controller writes
    the report.
 
-A run passes only when every check passed **and** the cleanup was verified. On the exact v0.1.1 binary, 24 of 24
-restore tests passed ([what was tested](compatibility.md#what-was-tested)).
+A run passes only when every check passed **and** the cleanup was verified. CertiStack has been tested with more than
+10,000 VM restore tests ([what was tested](compatibility.md#what-was-tested)).
 
 <a id="what-it-changes"></a>
 
 ## What it changes on your node
 
-- Setup adds the controller's SSH key to root's `authorized_keys`, the packages `libguestfs-tools` and `nftables`, a
-  directory storage `certistack-scratch` for the overlays, a PVE API token that can manage VMs and SDN, and a read-only
+- Setup adds the controller's SSH key to root's `authorized_keys`, the package `libguestfs-tools` (and `nftables` if
+  missing), a directory storage `certistack-scratch` for the overlays, a PVE API token that can manage VMs and SDN, and a read-only
   PBS user.
 - A run adds a sandbox VM (IDs from 9100 up), a temporary SDN zone and VNet, and a worker, and removes them again. On a
   cluster, applying SDN reloads the network on every node.

@@ -308,8 +308,10 @@ func TestOrchestrator_AdmissionDenied(t *testing.T) {
 	if res.AllPassed {
 		t.Errorf("expected res.AllPassed to be false, got true")
 	}
-	if res.RTO <= 0 || res.PhaseTimings == nil || res.PhaseTimings.TotalRTOSec <= 0 {
-		t.Fatalf("failed validation must preserve elapsed RTO evidence: rto=%v timings=%+v", res.RTO, res.PhaseTimings)
+	// Nothing was restored, so there is no recovery time; the phases keep where
+	// the time went.
+	if len(res.VMRecords) != 0 || res.RTO != 0 || res.PhaseTimings == nil || res.PhaseTimings.TotalRTOSec != 0 {
+		t.Fatalf("a run refused before any restore records a recovery time: rto=%v timings=%+v", res.RTO, res.PhaseTimings)
 	}
 }
 

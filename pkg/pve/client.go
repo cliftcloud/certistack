@@ -280,6 +280,20 @@ type APIError struct {
 	// (or contains) that host name, and an exact match on "nodes/<node>/..."
 	// would never succeed. It is never printed (Error uses Message).
 	matchMessage string
+	// Method and Path are the request PVE answered ("GET",
+	// "nodes/pve1/storage"), the path with any lock token redacted; empty in an
+	// error the client did not make.
+	Method, Path string
+}
+
+// Call is the request PVE answered with this error, as "GET
+// /nodes/pve1/storage", or "" when it is not known. Error does not include it,
+// so a caller that names the call says it once.
+func (e *APIError) Call() string {
+	if e.Method == "" || e.Path == "" {
+		return ""
+	}
+	return e.Method + " /" + strings.TrimLeft(e.Path, "/")
 }
 
 func (e *APIError) Error() string {
@@ -433,6 +447,14 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte, re
 		if message == "" && decodeErr != nil {
 			message = sanitizeAPIErrorText(string(respBody), c.cfg.BaseURL)
 		}
+		// PVE also writes its error text into the HTTP status line, and some
+		// releases (PVE 8.0 to 8.3 among them) leave it out of the JSON body
+		// ({"data":null}): the status line is then the only place that says,
+		// for example, that a VM's configuration file does not exist.
+		reason := statusReason(resp)
+		if message == "" && reason != "" {
+			message = sanitizeAPIErrorText(reason, c.cfg.BaseURL)
+		}
 		if resp.StatusCode < 400 {
 			// A redirect's or informational reply's body is not PVE's message.
 			message = fmt.Sprintf("unexpected HTTP status %d %s: the request was not followed and PVE has not acknowledged it", resp.StatusCode, statusText(resp.StatusCode))
@@ -445,12 +467,17 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte, re
 		if matchMessage == "" && decodeErr != nil {
 			matchMessage = apiErrorMatchText(string(respBody))
 		}
+		if matchMessage == "" && reason != "" {
+			matchMessage = apiErrorMatchText(reason)
+		}
 		return transientStatus(resp.StatusCode, readOnly), &APIError{
 			StatusCode:   resp.StatusCode,
 			Message:      message,
 			Errors:       details,
 			omitted:      omitted,
 			matchMessage: matchMessage,
+			Method:       method,
+			Path:         redactPath(path),
 		}
 	}
 
@@ -512,6 +539,22 @@ func IsTransient(err error) bool {
 // statusText names an HTTP status, including the ones pveproxy uses when a
 // request for another cluster node fails in transit, which it often sends
 // without a message.
+// statusReason is the reason phrase of the reply's status line when it says
+// more than the standard text for its code (PVE puts its error message there),
+// or "". pveproxy's own codes 595 to 597 keep statusText's explanation, and a
+// phrase net/http made up for a code it does not know ("status code 599") is
+// not one.
+func statusReason(resp *http.Response) string {
+	if resp.StatusCode >= 595 && resp.StatusCode <= 597 {
+		return ""
+	}
+	reason := strings.TrimSpace(strings.TrimPrefix(resp.Status, strconv.Itoa(resp.StatusCode)))
+	if reason == "" || strings.EqualFold(reason, http.StatusText(resp.StatusCode)) || reason == "status code "+strconv.Itoa(resp.StatusCode) {
+		return ""
+	}
+	return reason
+}
+
 func statusText(status int) string {
 	switch status {
 	case 595:

@@ -44,7 +44,7 @@ const (
 	agentSilentAdvice = " (the guest agent did not answer in time: qemu-guest-agent is not running in the guest, or the guest had not finished starting. " +
 		"Install and start qemu-guest-agent in the guest (on Windows, the VirtIO guest agent) and take a new backup, or probe the service over the network instead with a tcp or http probe)"
 	guestExecDisabledAdvice = " (the guest agent's allow-list refuses guest-exec, which is the stock setting on Red Hat family guests such as Rocky Linux, AlmaLinux, RHEL and Oracle Linux, " +
-		"so no command can run inside this guest. Probe the service over the network instead with a tcp or http probe; see Issue 32 in docs/troubleshooting.md)"
+		"so no command can run inside this guest. Probe the service over the network instead with a tcp or http probe; see Issue 32 at https://certistack.dev/docs/troubleshooting/#issue-32)"
 )
 
 // unavailableAdvice is the remedy for a channel that did not come up, or "".

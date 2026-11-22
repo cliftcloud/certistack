@@ -58,7 +58,7 @@ func TestCheckReportsTheProxmoxVersions(t *testing.T) {
 		detail            []string
 	}{
 		{"tested", "9.1.1", "client version: 4.2.5\nserver version: 4.2.7\n", "passed", "tested", []string{"PVE 9.1.1", "PBS 4.2.7", "proxmox-backup-client 4.2.5", "tested"}},
-		{"untested", "8.3.5", "client version: 3.3.7\nserver version: 3.4.0\n", "warning", "untested", []string{"PVE 8.3.5", "PBS 3.4.0", "proxmox-backup-client 3.3.7", "not covered by the release evidence"}},
+		{"untested", "10.0.1", "client version: 3.3.7\nserver version: 3.4.0\n", "warning", "untested", []string{"PVE 10.0.1", "PBS 3.4.0", "proxmox-backup-client 3.3.7", "not covered by the release evidence"}},
 		{"unsupported", "7.4-20", "client version: 4.2.5\nserver version: 4.2.7\n", "failed", "unsupported", []string{"PVE 7.4-20", "PBS 4.2.7", "unsupported", "older than PVE 8"}},
 		{"unsupported PBS", "9.1.1", "client version: 2.4.1\nserver version: 2.4.7\n", "failed", "unsupported", []string{"PBS 2.4.7", "older than PBS 3"}},
 		{"server not reached", "9.1.1", "client version: 4.2.5\n", "warning", "unknown", []string{"PBS unknown", "could not be read"}},

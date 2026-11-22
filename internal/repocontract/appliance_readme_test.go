@@ -109,7 +109,7 @@ func TestApplianceReadmeKeepsTheTokenOutOfArguments(t *testing.T) {
 			if secretInArguments(command) {
 				t.Errorf("the guide puts a secret on a command line: %q", command)
 			}
-			if strings.HasPrefix(command, "packer build") {
+			if isPackerBuild(command) {
 				sawBuild = true
 				if !strings.Contains(command, "-var-file=") {
 					t.Errorf("the guide's build command takes no -var-file: %q", command)
@@ -120,6 +120,16 @@ func TestApplianceReadmeKeepsTheTokenOutOfArguments(t *testing.T) {
 	if !sawBuild {
 		t.Error("the guide has no packer build command")
 	}
+}
+
+// isPackerBuild reports whether a shell command runs packer build, after any
+// VAR=value environment assignments.
+func isPackerBuild(command string) bool {
+	fields := strings.Fields(command)
+	for len(fields) > 0 && regexp.MustCompile(`^[A-Z_][A-Z0-9_]*=`).MatchString(fields[0]) {
+		fields = fields[1:]
+	}
+	return len(fields) > 1 && fields[0] == "packer" && fields[1] == "build"
 }
 
 // The Packer token's permission contract is written down: a named
@@ -162,8 +172,15 @@ func TestApplianceReadmeStatesThePackerTokenContract(t *testing.T) {
 			}
 		}
 	}
-	for _, privilege := range []string{"VM.Clone", "VM.Allocate", "VM.Audit", "VM.PowerMgmt", "VM.GuestAgent.Audit", "VM.Config.CPU", "VM.Config.Memory", "Datastore.AllocateSpace", "SDN.Use"} {
-		if !strings.Contains(roleCommand, privilege) {
+	// VM.Config.Cloudinit and VM.Config.CDROM: the plugin removes the build's
+	// cloud-init drive and settings before the conversion and adds an empty
+	// drive to the template, after the whole build has run.
+	privileges := map[string]bool{}
+	for _, privilege := range strings.Fields(strings.Trim(strings.TrimPrefix(roleCommand, "pveum role add PackerTemplateBuilder --privs "), `"`)) {
+		privileges[privilege] = true
+	}
+	for _, privilege := range []string{"VM.Clone", "VM.Allocate", "VM.Audit", "VM.PowerMgmt", "VM.GuestAgent.Audit", "VM.Config.CPU", "VM.Config.Memory", "VM.Config.Cloudinit", "VM.Config.CDROM", "Datastore.AllocateSpace", "SDN.Use"} {
+		if !privileges[privilege] {
 			t.Errorf("the role omits %s", privilege)
 		}
 	}
@@ -182,6 +199,56 @@ func TestApplianceReadmeStatesThePackerTokenContract(t *testing.T) {
 		if !strings.Contains(section, want) {
 			t.Errorf("the section does not show %q", want)
 		}
+	}
+	// PVE deletes a VM's grants with the VM, so a failed build takes the build
+	// VM's grant with it, and the guide says to grant it again before a retry.
+	if !strings.Contains(flat(readme), "PVE deletes the VM's grant with it: run the `/vms/<template_vmid>` line") {
+		t.Error("the guide does not say a failed build takes the /vms/<template_vmid> grant with it")
+	}
+}
+
+// A token removed before its grants leaves them in PVE's user.cfg, and every
+// pveum and qm command then warns about an invalid ACL token. The guide removes
+// the grants on each path it granted, then the token.
+func TestApplianceReadmeRemovesTheTokensGrantsBeforeTheToken(t *testing.T) {
+	var granted []string
+	var removal []string
+	for _, block := range codeBlocks(t, repoFile("deploy", "appliance", "README.md")) {
+		if block.heading != "Packer token permissions" {
+			continue
+		}
+		commands := block.commands()
+		for _, command := range commands {
+			if strings.HasPrefix(command, "pveum acl modify ") {
+				granted = append(granted, strings.Fields(command)[3])
+			}
+			if command == "pveum user token remove packer@pve template" {
+				removal = commands
+			}
+		}
+	}
+	if removal == nil {
+		t.Fatal("the Packer token section has no block that runs pveum user token remove packer@pve template")
+	}
+	loop := regexp.MustCompile(`^for path in ([^;]+); do$`)
+	var deleted []string
+	deleteAt, removeAt := -1, -1
+	for i, command := range removal {
+		if m := loop.FindStringSubmatch(command); m != nil {
+			deleted = strings.Fields(m[1])
+		}
+		switch command {
+		case `pveum acl delete "$path" --roles PackerTemplateBuilder --tokens 'packer@pve!template'`:
+			deleteAt = i
+		case "pveum user token remove packer@pve template":
+			removeAt = i
+		}
+	}
+	if deleteAt < 0 || deleteAt > removeAt {
+		t.Errorf("the token's grants are not removed before the token:\n%s", strings.Join(removal, "\n"))
+	}
+	if strings.Join(deleted, " ") != strings.Join(granted, " ") {
+		t.Errorf("the grants are removed on %v and were granted on %v", deleted, granted)
 	}
 }
 

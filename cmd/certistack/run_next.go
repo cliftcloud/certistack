@@ -16,11 +16,11 @@ import (
 
 // troubleshootingGuide is where the usual causes of a failed run, and their
 // fixes, are written down.
-const troubleshootingGuide = "docs/troubleshooting.md"
+const troubleshootingGuide = "https://certistack.dev/docs/troubleshooting/"
 
 // runNextSteps are the lines that end a run's output, after the verdict and the
-// saved-report line: what to read next. They are only commands and a path of
-// the documentation, and name the report only when it was saved. A run that was
+// saved-report line: what to read next. They are only commands and the address
+// of the documentation, and name the report only when it was saved. A run that was
 // stopped (Ctrl-C) says nothing: the operator knows.
 //
 //   - A pass: read the report. The Community Edition's report is unsigned, so

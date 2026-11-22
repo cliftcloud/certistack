@@ -166,23 +166,62 @@ func TestApplianceWrapperLoadsTheMountedControllerEnvironment(t *testing.T) {
 		}
 	}
 
-	// The documented first-boot invocation, exactly as the README gives it.
+	// The documented first run, exactly as the README gives it.
+	invocation := guideRunInvocation(t)
+	_, got := applianceWrapper(t, invocation...)
+	if len(got) < 3 || got[0] != invocation[0] || got[1] != "--env-file" || got[2] != envFile || strings.Join(got[3:], " ") != strings.Join(invocation[1:], " ") {
+		t.Errorf("the README's invocation %q reaches the container as %q", invocation, got)
+	}
+}
+
+// guideRunInvocation is the arguments of the appliance guide's
+// `sudo certistack-controller run ...` under First boot.
+func guideRunInvocation(t *testing.T) []string {
+	t.Helper()
 	var invocation []string
 	for _, block := range codeBlocks(t, repoFile("deploy", "appliance", "README.md")) {
 		if block.heading != "First boot" {
 			continue
 		}
 		for _, command := range block.commands() {
-			if fields := strings.Fields(command); len(fields) > 2 && fields[0] == "sudo" && fields[1] == "certistack-controller" {
+			if fields := strings.Fields(command); len(fields) > 2 && fields[0] == "sudo" && fields[1] == "certistack-controller" && fields[2] == "run" {
 				invocation = fields[2:]
 			}
 		}
 	}
 	if len(invocation) == 0 {
-		t.Fatal("the appliance README's First boot section has no certistack-controller invocation")
+		t.Fatal("the appliance guide's First boot section has no sudo certistack-controller run")
 	}
-	_, got := applianceWrapper(t, invocation...)
-	if len(got) < 3 || got[0] != invocation[0] || got[1] != "--env-file" || got[2] != envFile || strings.Join(got[3:], " ") != strings.Join(invocation[1:], " ") {
-		t.Errorf("the README's invocation %q reaches the container as %q", invocation, got)
+	return invocation
+}
+
+// Podman's tmpfs options have no uid= or gid= (Debian 12's Podman 4.3 and
+// later releases refuse them: "unknown mount option"), so a wrapper that passed
+// them would fail every command. The tmpfs goes to the container user with
+// Podman's own U option, private to it.
+func TestApplianceWrapperTmpfsUsesOptionsPodmanAccepts(t *testing.T) {
+	before, _ := applianceWrapper(t, "version")
+	var tmpfs []string
+	for i, arg := range before {
+		if arg == "--tmpfs" && i+1 < len(before) {
+			tmpfs = append(tmpfs, before[i+1])
+		}
+	}
+	if len(tmpfs) != 1 {
+		t.Fatalf("the wrapper gives podman %d --tmpfs mounts, want one: %q", len(tmpfs), before)
+	}
+	target, options, _ := strings.Cut(tmpfs[0], ":")
+	if target != "/tmp/certistack" {
+		t.Errorf("the tmpfs is mounted at %q, not at the image's TMPDIR /tmp/certistack", target)
+	}
+	set := map[string]bool{}
+	for _, option := range strings.Split(options, ",") {
+		set[option] = true
+		if strings.HasPrefix(option, "uid=") || strings.HasPrefix(option, "gid=") {
+			t.Errorf("the tmpfs option %q is one Podman refuses", option)
+		}
+	}
+	if !set["U"] || !set["mode=0700"] {
+		t.Errorf("the tmpfs options %q do not give the directory to the container user (U) with mode 0700", options)
 	}
 }

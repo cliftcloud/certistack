@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	accept "github.com/cliftcloud/certistack/pkg/acceptance"
+	"github.com/cliftcloud/certistack/pkg/admission"
 	"github.com/cliftcloud/certistack/pkg/attest"
 	"github.com/cliftcloud/certistack/pkg/probe"
 )
@@ -578,13 +579,21 @@ func renderReportView(out io.Writer, view *reportView) {
 		}
 	} else if signature.Status == "unsigned" {
 		rows.row("Signature:", "none: this report is unsigned (the Community Edition writes its reports unsigned): its contents are the run's own claim, not authenticated evidence.")
-		rows.cont("Judge it: certistack verify-report --unsigned --expect-outcome pass <report.json>")
+		if outcome, fits := judgedOutcome(r); fits {
+			rows.cont("Judge it: certistack verify-report --unsigned --expect-outcome %s <report.json>", outcome)
+		} else {
+			rows.cont("Judge it: no verify-report outcome accepts it: the run stopped before any restore, and not for capacity (the reason below says why).")
+		}
 	} else if signature.Status == "malformed" {
 		rows.row("Signature:", "MALFORMED: %s.", signature.Note)
 		rows.cont("Neither verify-report --unsigned nor verify-report --keyring will accept it: do not rely on its contents.")
 	} else {
 		rows.row("Signature:", "signature NOT checked (no --keyring): this is what the file says, not verified evidence.")
-		rows.cont("Check it: certistack verify-report --keyring <trusted-signers> <report.json>")
+		if outcome, _ := judgedOutcome(r); outcome == accept.OutcomeDenied {
+			rows.cont("Check it: certistack verify-report --keyring <trusted-signers> --expect-outcome denied <report.json>")
+		} else {
+			rows.cont("Check it: certistack verify-report --keyring <trusted-signers> <report.json>")
+		}
 	}
 	if acceptance := view.Acceptance; acceptance != nil {
 		rows.row("Acceptance:", "%s as %s evidence (%s)", strings.ToUpper(acceptance.Verdict), acceptance.ExpectedOutcome, acceptance.Note)
@@ -594,6 +603,9 @@ func renderReportView(out io.Writer, view *reportView) {
 				break
 			}
 			rows.cont("- %s", reason)
+		}
+		if outcome, _ := judgedOutcome(r); outcome == accept.OutcomeDenied && acceptance.ExpectedOutcome != outcome {
+			rows.cont("As a capacity refusal: certistack verify-report --keyring <trusted-signers> --expect-outcome denied <report.json>")
 		}
 	}
 	outcome := upperOutcome(r.Outcome)
@@ -632,6 +644,8 @@ func renderReportView(out io.Writer, view *reportView) {
 		rows.row("Proxmox:", "%s", line)
 	}
 	switch {
+	case r.ValidationMode == attest.ValidationModeFullIntegrity && len(r.VMs) == 0:
+		rows.row("Validation:", "full_integrity, but no disk image was read: the run stopped before any restore")
 	case r.ValidationMode == attest.ValidationModeFullIntegrity:
 		rows.row("Validation:", "full_integrity: every mapped disk image was read back and checksummed")
 	case r.TestMode:
@@ -645,6 +659,10 @@ func renderReportView(out io.Writer, view *reportView) {
 
 	rto := humanDuration(r.RTO.Seconds) + fmt.Sprintf(" (%.2f s)", r.RTO.Seconds)
 	switch {
+	case len(r.VMs) == 0:
+		// Nothing was restored, so there is no recovery time, whatever an
+		// older report recorded; the phases say where the time went.
+		rto = "none: no VM was restored"
 	case r.RTO.TargetSeconds != nil && r.RTO.TargetMet != nil && *r.RTO.TargetMet:
 		rto += fmt.Sprintf("; objective %s, met", humanDuration(*r.RTO.TargetSeconds))
 	case r.RTO.TargetSeconds != nil:
@@ -657,7 +675,7 @@ func renderReportView(out io.Writer, view *reportView) {
 	rows.row("RTO:", "%s", rto)
 	var shown int
 	for _, phase := range r.Phases {
-		if phase.Seconds <= 0 {
+		if phase.Seconds <= 0 || (phase.Key == "total_rto_sec" && len(r.VMs) == 0) {
 			continue
 		}
 		label := phase.Label
@@ -671,7 +689,18 @@ func renderReportView(out io.Writer, view *reportView) {
 		fmt.Fprintf(out, "    %-28s %s\n", label, humanDuration(phase.Seconds))
 	}
 	if admitted := r.AdmissionPolicy; admitted != nil {
-		line := fmt.Sprintf("limits RAM %.1f%%, I/O wait %.1f%%; reserved %d MiB for %d VM(s)", admitted.MaxHostRAMPercent, admitted.MaxHostIOWaitPercent, admitted.RecoveryReservationMiB, admitted.RecoveryReservationVMs)
+		// The memory is reserved only when admission granted the run; a refusal,
+		// or a run that stopped before admission, reserved none.
+		line := fmt.Sprintf("limits RAM %.1f%%, I/O wait %.1f%%; ", admitted.MaxHostRAMPercent, admitted.MaxHostIOWaitPercent)
+		reservation := fmt.Sprintf("%d MiB for %d VM(s)", admitted.RecoveryReservationMiB, admitted.RecoveryReservationVMs)
+		switch {
+		case admitted.Decision == admission.DecisionGranted, admitted.Decision == "" && len(r.VMs) > 0:
+			line += "reserved " + reservation
+		case admitted.Decision == "":
+			line += "needs " + reservation + ", not reserved: the run stopped before admission"
+		default:
+			line += "needs " + reservation + ", not reserved"
+		}
 		if admitted.Decision != "" {
 			line += "; " + admitted.Decision
 		}
@@ -697,7 +726,13 @@ func renderReportView(out io.Writer, view *reportView) {
 			state = "CLEANUP NOT VERIFIED"
 		}
 		fmt.Fprintf(out, "  %s (at %s)\n", state, orNone(teardown.VerifiedAt))
-		fmt.Fprintf(out, "  sandbox VM destroyed: %s; %d overlay disk(s) removed; %d loop device(s) unmapped\n", plainYesNo(teardown.VMDestroyed), teardown.OverlaysRemoved, teardown.LoopDevicesUnmapped)
+		// A VM's record exists from the start of its restore, before its VM
+		// is made: a report with none made no sandbox VM.
+		vm := "sandbox VM destroyed: " + plainYesNo(teardown.VMDestroyed)
+		if len(r.VMs) == 0 {
+			vm = "sandbox VM: none was created"
+		}
+		fmt.Fprintf(out, "  %s; %d overlay disk(s) removed; %d loop device(s) unmapped\n", vm, teardown.OverlaysRemoved, teardown.LoopDevicesUnmapped)
 		fmt.Fprintf(out, "  sandbox network: %s\n", teardown.SDN)
 		fmt.Fprintf(out, "  every resource the run owned confirmed removed: %s; confirmed from the node's journal: %s\n", yesNo(teardown.OwnedResourcesClean), yesNo(teardown.JournalRecoveryVerified))
 		for _, list := range []struct {
@@ -711,6 +746,23 @@ func renderReportView(out io.Writer, view *reportView) {
 	} else {
 		fmt.Fprintln(out, "\nTeardown: the report has no teardown evidence, so cleanup of the run's temporary resources is unknown.")
 	}
+}
+
+// judgedOutcome is the verify-report outcome a report is judged as, and
+// whether one fits it: pass for a run that records a pass, and denied for a run
+// refused for capacity before any VM was restored. Any other run that stopped
+// before a restore fits none. A run that failed with its VMs is judged as a
+// pass, which it is not: the verdict says why.
+func judgedOutcome(r *viewReport) (string, bool) {
+	switch {
+	case r.Outcome == "pass":
+		return accept.OutcomePass, true
+	case len(r.VMs) == 0 && accept.CapacityDenial(r.FailureReason):
+		return accept.OutcomeDenied, true
+	case len(r.VMs) == 0:
+		return "", false
+	}
+	return accept.OutcomePass, true
 }
 
 func orUnknown(value string) string {

@@ -99,3 +99,34 @@ func TestARunThatEndsBeforeAdmissionRecordsNoEvaluation(t *testing.T) {
 		t.Errorf("a run refused before admission records %+v", result.Admission)
 	}
 }
+
+// A run that admission refused restored nothing: it has no recovery time (the
+// time it spent is in its phases), and its teardown destroyed no sandbox VM,
+// which leaves the cleanup clean.
+func TestARunRefusedAtAdmissionHasNoRTOAndDestroyedNoVM(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("admission reads the node's /proc counters")
+	}
+	plan := networkOnlyPlan()
+	plan.PlanID = "admission-refused-no-rto"
+	plan.AdmissionControl.MaxHostRAMPercent = 0.00001
+	plan.AdmissionControl.MaxDeferRetries = 0
+	o := New(plan, Options{ScratchDir: t.TempDir(), StateDir: t.TempDir()},
+		pbs.New(pbs.Config{}), pve.NewClient(pve.Config{BaseURL: "http://127.0.0.1:1"}))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	result, err := o.Run(ctx)
+	if err == nil || !strings.Contains(err.Error(), "admission control guardrail triggered") {
+		t.Fatalf("run = %v, want the admission refusal", err)
+	}
+	if len(result.VMRecords) != 0 || result.RTO != 0 || result.PhaseTimings.TotalRTOSec != 0 {
+		t.Errorf("a run that restored nothing has %d VM record(s), RTO %v, total %v s", len(result.VMRecords), result.RTO, result.PhaseTimings.TotalRTOSec)
+	}
+	if result.PhaseTimings.AdmissionCheckSec <= 0 {
+		t.Errorf("the time admission took is not recorded: %+v", result.PhaseTimings)
+	}
+	evidence := result.TeardownEvidence
+	if evidence == nil || evidence.VMStoppedAndDestroyed || !evidence.AllCleaned || !evidence.OrphanSweepClean {
+		t.Errorf("teardown evidence = %+v, want no VM destroyed and the cleanup clean", evidence)
+	}
+}

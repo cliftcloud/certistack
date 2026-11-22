@@ -141,14 +141,16 @@ func countWarnings(events []progress.Event, text string) int {
 
 // run's worker refuses an unsupported pair before it creates anything: the
 // refusal is the signed failure reason, it names the versions as doctor does,
-// and nothing but the two version reads touched PVE or PBS.
+// the report records them and that they are unsupported, and nothing but the
+// two version reads touched PVE or PBS.
 func TestNodeRunRefusesAnUnsupportedPairBeforeItCreatesAnything(t *testing.T) {
 	for _, tc := range []struct {
 		name, pve, client string
 		want              []string
+		versions          [3]string
 	}{
-		{"PVE 7", "7.4-20", clientPBS4, []string{"PVE 7.4-20", "PBS 4.2.7", "proxmox-backup-client 4.2.5", "unsupported", "older than PVE 8"}},
-		{"PBS 2", "9.1.1", "client version: 2.4.1\nserver version: 2.4.7\n", []string{"PVE 9.1.1", "PBS 2.4.7", "unsupported", "older than PBS 3"}},
+		{"PVE 7", "7.4-20", clientPBS4, []string{"PVE 7.4-20", "PBS 4.2.7", "proxmox-backup-client 4.2.5", "unsupported", "older than PVE 8"}, [3]string{"7.4-20", "4.2.7", "4.2.5"}},
+		{"PBS 2", "9.1.1", "client version: 2.4.1\nserver version: 2.4.7\n", []string{"PVE 9.1.1", "PBS 2.4.7", "unsupported", "older than PBS 3"}, [3]string{"9.1.1", "2.4.7", "2.4.1"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			result, pveRequests, clientCalls := nodeRunOnVersionHost(t, tc.pve, tc.client)
@@ -163,8 +165,8 @@ func TestNodeRunRefusesAnUnsupportedPairBeforeItCreatesAnything(t *testing.T) {
 			if result.Report.AllPassed || result.Report.FailureReason != result.Error || len(result.Report.VMRecords) != 0 {
 				t.Errorf("refusal report = passed %v, reason %q, %d VM records", result.Report.AllPassed, result.Report.FailureReason, len(result.Report.VMRecords))
 			}
-			if result.Report.VersionSupport == "unsupported" {
-				t.Error("a report says unsupported; the run refuses instead of signing that")
+			if got := [3]string{result.Report.PVEVersion, result.Report.PBSVersion, result.Report.PBSClientVersion}; got != tc.versions || result.Report.VersionSupport != "unsupported" {
+				t.Errorf("the refusal's report records versions %v (%q), want %v (unsupported)", got, result.Report.VersionSupport, tc.versions)
 			}
 			if got := pveRequests(); len(got) != 1 || got[0] != "GET /api2/json/version" {
 				t.Errorf("PVE was asked %v; a refused run asks for its version and nothing else", got)
@@ -181,7 +183,7 @@ func TestNodeRunRefusesAnUnsupportedPairBeforeItCreatesAnything(t *testing.T) {
 // The same worker, on an untested pair, goes on past the version gate: it is
 // not refused for its versions, and what it reads next is the backup.
 func TestNodeRunDoesNotRefuseAnUntestedPair(t *testing.T) {
-	result, _, clientCalls := nodeRunOnVersionHost(t, "8.3.5", clientPBS3)
+	result, _, clientCalls := nodeRunOnVersionHost(t, "10.0.1", clientPBS3)
 	if strings.Contains(result.Error, "unsupported") || strings.Contains(result.Error, "release evidence") {
 		t.Fatalf("an untested pair was refused: %q", result.Error)
 	}

@@ -160,11 +160,14 @@ func nodeRunCmd() *cobra.Command {
 					// before the orchestrator can create a report, and before
 					// the run's journal exists. The controller must still be
 					// able to retain evidence that validation safely
-					// stopped before sandbox resources were created.
-					result = refusedRunResult(stateDir, runID, nodeapi.RunResult{
-						Report: failedNodeReport(sentPlan, nodeName, result.Error, skipIntegrity),
-						Error:  result.Error,
-					})
+					// stopped before sandbox resources were created. It
+					// records the versions the run read, else the
+					// preflight's.
+					report := failedNodeReport(sentPlan, nodeName, result.Error, skipIntegrity)
+					if !runner.StampReadVersions(report, runErr) {
+						stampPreflightVersions(report, preflightResult)
+					}
+					result = refusedRunResult(stateDir, runID, nodeapi.RunResult{Report: report, Error: result.Error})
 				}
 			}
 			if err := writeNodeResult(cmd, result); err != nil {
@@ -246,7 +249,18 @@ func preflightFailureResult(plan *config.Plan, nodeName string, preflightResult 
 	if preflightResult.MemoryEvaluation != nil {
 		report.Admission = report.Admission.WithEvaluation(*preflightResult.MemoryEvaluation)
 	}
+	stampPreflightVersions(report, preflightResult)
 	return nodeapi.RunResult{Report: report, Error: failure}
+}
+
+// stampPreflightVersions records in a refused run's report the Proxmox
+// versions the preflight read (all its checks run, the version check among
+// them, whichever failed), and what the release makes of them: unsupported,
+// when they are why the run was refused.
+func stampPreflightVersions(report *attest.Report, preflightResult preflight.Result) {
+	if versions := preflightResult.Versions; versions != nil {
+		runner.StampVersions(report, versions.Status)
+	}
 }
 
 // failedNodeReport produces evidence for a refusal that occurred after plan
@@ -258,6 +272,7 @@ func preflightFailureResult(plan *config.Plan, nodeName string, preflightResult 
 func failedNodeReport(plan *config.Plan, nodeName, failure string, skipIntegrity bool) *attest.Report {
 	report := attest.BuildReport(plan, nodeName, 0, false, nil, "")
 	report.FailureReason = failure
+	report.PBSFingerprint, report.PBSNamespace = runner.ReportPBSIdentity(plan)
 	report.TeardownEvidence = &attest.TeardownEvidence{
 		OrphanSweepClean: true,
 		AllCleaned:       true,

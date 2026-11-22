@@ -339,7 +339,7 @@ func (c *Controller) evaluate(ctx context.Context, reservedMemoryMB int, ev *Eva
 		ev.HostTotalMiB, ev.HostAvailableMiB, ev.ProjectedRAMPercent = totalMB, availableMB, projectedPercent
 		if projectedPercent > c.cfg.MaxHostRAMPercent {
 			ev.Decision = DecisionDeniedProjectedRAM
-			progress.Warn("Admission", "Host admission deferred: current available RAM %.0f MiB plus recovery reservation %d MiB would reach %.1f%% (max %.1f%%).", availableMB, reservedMemoryMB, projectedPercent, c.cfg.MaxHostRAMPercent)
+			progress.Warn("Admission", "%s", projectedRAMDeferral(totalMB, availableMB, reservedMemoryMB, projectedPercent, c.cfg.MaxHostRAMPercent))
 			return fmt.Errorf("%w: recovery reservation %d MiB plus current host usage would reach %.2f%% of %.0f MiB, exceeding max %.2f%%", ErrAdmissionDenied, reservedMemoryMB, projectedPercent, totalMB, c.cfg.MaxHostRAMPercent)
 		}
 		ev.Decision = DecisionGranted
@@ -350,6 +350,13 @@ func (c *Controller) evaluate(ctx context.Context, reservedMemoryMB int, ev *Eva
 	progress.Info("Admission", "Host admission check: RAM %.1f%% (max %.1f%%), IO wait %.1f%% (max %.1f%%) → ADMISSION GRANTED", ramPercent, c.cfg.MaxHostRAMPercent, ioWaitPercent, c.cfg.MaxHostIOWaitPercent)
 
 	return nil
+}
+
+// projectedRAMDeferral is the line that says why a check deferred the run over
+// its reservation: the memory in use (total less available), the reservation,
+// and the share of the total the two would reach.
+func projectedRAMDeferral(totalMB, availableMB float64, reservedMemoryMB int, projectedPercent, maxPercent float64) string {
+	return fmt.Sprintf("Host admission deferred: %.0f MiB in use plus the recovery reservation of %d MiB would reach %.1f%% of %.0f MiB (max %.1f%%).", totalMB-availableMB, reservedMemoryMB, projectedPercent, totalMB, maxPercent)
 }
 
 func projectedRAMPercent(totalMB, availableMB float64, reservedMemoryMB int) (float64, error) {

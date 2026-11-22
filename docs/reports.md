@@ -15,6 +15,8 @@ verified. Community reports are unsigned.
   refuses one that group or other users can write: its permissions are what keep an unsigned report as written.
 - A failed validation still writes a report. A run that never created evidence (an SSH failure, a busy node) writes
   none.
+- A run refused before any restore, for capacity or for its Proxmox versions, writes a report with no VM, an
+  `rto_seconds` of `0` and no memory reserved; `report show` says so.
 - If the report cannot be saved, `run` exits `2` and prints it between `-----BEGIN CERTISTACK REPORT-----` and
   `-----END CERTISTACK REPORT-----` lines.
 - A worker result that does not match the plan, node or run is kept as
@@ -85,7 +87,7 @@ certistack verify-report --unsigned --format json \
 | `--expect-worker-sha256` | The uploaded executable: for a release, the published checksum of `certistack-linux-amd64` |
 | `--expect-version-support` | `tested` or `untested` as recorded |
 | `--expect-outcome fault` | A fault drill: only the first probe of the plan's first VM failed, cleanup verified. Needs `--expect-plan` |
-| `--expect-outcome denied` | A capacity refusal before any restore |
+| `--expect-outcome denied` | A capacity refusal before any restore: by admission, or by the node's memory check. No outcome accepts a refusal for another reason, such as unsupported versions |
 
 An `--expect-*` check that a report is too old to answer shows as `NOT BOUND`; it is not skipped. All flags:
 [Commands](configuration.md#verify-report).
@@ -102,10 +104,10 @@ The report schema is `1.7`.
 | `all_passed` | `true` only when every VM and probe passed and cleanup was verified |
 | `failure_reason` | Why the run failed |
 | `validation_mode` | `full_integrity`, or test-only `test_skip_integrity`, which is not evidence |
-| `rto_seconds`, `rto_target_seconds` | The recovery time, and the plan's objective |
+| `rto_seconds`, `rto_target_seconds` | The recovery time (`0` when no VM was restored), and the plan's objective |
 | `plan_sha256` | The SHA-256 of the plan file the controller read |
 | `node_fqdn`, `engine_version`, `worker_sha256` | The node, the build, and the uploaded worker's SHA-256 |
-| `pve_version`, `pbs_version`, `pbs_client_version`, `version_support` | Versions read on the node, and `tested`, `untested` or `unknown` |
+| `pve_version`, `pbs_version`, `pbs_client_version`, `version_support` | Versions read on the node, and `tested`, `untested` or `unknown`; `unsupported` only in the report of a run refused for them |
 | `frameworks`, `retention_days` | From the plan's `compliance` keys |
 | `vm_records[].verification_status` | `verified`, `failed`, `unverified` (no probe checked the guest) or `incomplete` |
 | `vm_records[].source_snapshot` | The exact snapshot restored |

@@ -579,11 +579,12 @@ func (m *Manager) listIDs(ctx context.Context, path, key string) ([]string, erro
 // readList reads a PVE list: its data present, a JSON array, every entry an
 // object. PVE answers an empty list as []; data that is missing, null or not a
 // list is an answer that carries no list, which is not an empty one, and a
-// caller that took it for "nothing there" would act on what it never saw.
+// caller that took it for "nothing there" would act on what it never saw. A
+// node without the SDN API answers HTTP 501, which is a MissingError.
 func (m *Manager) readList(ctx context.Context, path string) ([]map[string]json.RawMessage, error) {
 	var raw json.RawMessage
 	if err := m.client.Do(ctx, "GET", path, nil, &raw); err != nil {
-		return nil, err
+		return nil, missingAPI(err, path)
 	}
 	var entries []map[string]json.RawMessage
 	if trimmed := strings.TrimSpace(string(raw)); !strings.HasPrefix(trimmed, "[") || json.Unmarshal(raw, &entries) != nil {

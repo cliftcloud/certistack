@@ -605,8 +605,11 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		// filesystem, and kernel loop table are queried after the whole LIFO
 		// stack drains so a transient PVE response or a silently retained file
 		// cannot be represented as a clean validation.
+		// A run that made no sandbox VM destroyed none: the flag says so, and
+		// only a VM it made and could not show gone makes the teardown unclean.
 		vmVerifyErr := o.verifyTrackedVMsAbsent()
-		evidence.VMStoppedAndDestroyed = vmVerifyErr == nil
+		vmsAbsent := vmVerifyErr == nil
+		evidence.VMStoppedAndDestroyed = vmsAbsent && len(o.record.VMs) > 0
 		if vmVerifyErr != nil {
 			evidence.CleanupErrors = append(evidence.CleanupErrors, vmVerifyErr.Error())
 		}
@@ -670,7 +673,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 			(!vnetTracked || (!vnetUnverified && (o.sdnVNetAbsent || evidence.SDNVNetRemoved == o.plan.Network.VNetID)))
 		sdnReloaded := !o.sdnReloadRequired || o.sdnTeardownReload
 		evidence.SDNClusterReloaded = o.sdnReloadRequired && o.sdnTeardownReload
-		evidence.OrphanSweepClean = len(cleanupFailures) == 0 && !pendingAllocation && sdnLockSettled && evidence.VMStoppedAndDestroyed && overlaysRemoved && loopsUnmapped && sdnResourcesRemoved && sdnReloaded
+		evidence.OrphanSweepClean = len(cleanupFailures) == 0 && !pendingAllocation && sdnLockSettled && vmsAbsent && overlaysRemoved && loopsUnmapped && sdnResourcesRemoved && sdnReloaded
 		evidence.AllCleaned = evidence.OrphanSweepClean
 		evidence.VerifiedAt = time.Now().UTC().Format(time.RFC3339)
 		res.TeardownEvidence = evidence
@@ -1135,15 +1138,21 @@ func (o *Orchestrator) networkRecoveryEnabled() (bool, error) {
 // validation records time to its last verified recovery point and excludes
 // teardown; a negative validation has no recovery point, so it records elapsed
 // time to terminal failure, which includes teardown because deferred timing
-// runs after cleanup. TeardownSec remains available in both cases.
+// runs after cleanup. A run that stopped before any VM's restore began (an
+// admission refusal, a sandbox that could not be made) recovered nothing and
+// has no recovery time: its RTO is zero, and the phases say where its time
+// went. TeardownSec remains available in every case.
 func finalizeResultTiming(res *ExecutionResult, timings *attest.PhaseTimings, start, lastSuccess time.Time) {
 	if res == nil || !res.EndTime.IsZero() {
 		return
 	}
 	res.EndTime = time.Now()
-	if res.AllPassed && !lastSuccess.IsZero() {
+	switch {
+	case len(res.VMRecords) == 0:
+		res.RTO = 0
+	case res.AllPassed && !lastSuccess.IsZero():
 		res.RTO = lastSuccess.Sub(start)
-	} else {
+	default:
 		res.RTO = res.EndTime.Sub(start)
 	}
 	if timings != nil {

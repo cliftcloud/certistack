@@ -106,7 +106,7 @@ func TestDoctorPrintsTheVersionCheck(t *testing.T) {
 		jsonSupport       string
 	}{
 		{"tested", "9.1.1", clientPBS4, "✓", []string{"PVE 9.1.1", "PBS 4.2.7", "proxmox-backup-client 4.2.5", "tested"}, "tested"},
-		{"untested", "8.3.5", clientPBS3, "!", []string{"PVE 8.3.5", "PBS 3.4.0", "proxmox-backup-client 3.3.7", "untested", "not covered by the release evidence"}, "untested"},
+		{"untested", "10.0.1", clientPBS3, "!", []string{"PVE 10.0.1", "PBS 3.4.0", "proxmox-backup-client 3.3.7", "untested", "not covered by the release evidence"}, "untested"},
 		{"unsupported", "7.4-20", clientPBS4, "✗", []string{"PVE 7.4-20", "PBS 4.2.7", "unsupported", "older than PVE 8"}, "unsupported"},
 		{"unreadable", "9.1.1", "no version here\n", "!", []string{"PVE 9.1.1", "PBS unknown", "proxmox-backup-client unknown", "could not be read"}, "unknown"},
 	} {

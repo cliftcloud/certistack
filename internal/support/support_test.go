@@ -6,6 +6,7 @@ package support
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -74,9 +75,12 @@ func TestClassify(t *testing.T) {
 		{"PVE 8.4 with PBS 4.x and the 3.x client it ships", "8.4.0", "4.2.7", "3.3.7", Tested, "tested", "release evidence", nil},
 		{"PVE 8.4 with PBS 4.x but a 4.x client", "8.4.0", "4.2.7", "4.2.5", Untested, "untested", "not of major 3", nil},
 		{"PVE 8.4 with PBS 3.x", "8.4.0", "3.4.0", "3.3.7", Tested, "tested", "release evidence", nil},
-		{"PVE 8.3 with PBS 3.x", "8.3.5", "3.4.0", "3.3.7", Untested, "untested", "not yet exercised by the release evidence", nil},
+		{"PVE 8.3 with PBS 3.x", "8.3.5", "3.4.0", "3.3.7", Tested, "tested", "release evidence", nil},
+		{"PVE 8.1 with PBS 4.x and the 3.x client it ships", "8.1.3", "4.2.0", "3.0.4", Tested, "tested", "release evidence", nil},
+		{"PVE 8.2 with PBS 3.x", "8.2.2", "3.4.0", "3.2.2", Tested, "tested", "release evidence", nil},
 		{"PVE 8.4 with PBS 3.x but a 4.x client", "8.4.0", "3.4.0", "4.2.5", Untested, "untested", "same major", nil},
-		{"PVE 8.0 with PBS 3.0", "8.0", "3.0.0", "3.0.0", Untested, "untested", "not yet exercised by the release evidence", nil},
+		{"PVE 8.0 is older than the release supports", "8.0.3", "3.4.0", "3.0.0", Unsupported, "unsupported", "PVE 8.1", nil},
+		{"PVE 8.0 with the 2.x client it ships", "8.0.3", "4.2.0", "2.99.0", Unsupported, "unsupported", "PVE 8.1", nil},
 		{"PVE 8.99 with a Debian revision", "8.99", "3.4.0-1", "3.3.7", Untested, "untested", "", nil},
 		{"a pre-release PVE 8.4 counts as 8.4", "8.4.0~rc1", "3.4.0-1", "3.3.7", Tested, "tested", "", nil},
 		{"PVE 9 with PBS 3.x and the 4.x client it ships", "9.1.1", "3.4.0", "4.2.5", Tested, "tested", "release evidence", nil},
@@ -162,9 +166,9 @@ func TestRefusalIsTheDescription(t *testing.T) {
 	}
 }
 
-// The initial content of the table: one tested pair, and every other pair of
-// the supported majors listed as untested. Whoever flips a pair after live
-// evidence edits Pairs and this list.
+// The table holds exactly the pairs the release evidence covers: PVE 9.x and
+// PVE 8.1 to 8.4, each with PBS 3.x and PBS 4.x. Whoever changes a pair after
+// live evidence edits Pairs and this list.
 func TestPairsHoldTheReleaseStatement(t *testing.T) {
 	tested := map[string]bool{}
 	seen := map[string]bool{}
@@ -184,16 +188,20 @@ func TestPairsHoldTheReleaseStatement(t *testing.T) {
 			tested[key] = true
 		}
 	}
-	if len(tested) != 4 || !tested["PVE 9.x with PBS 4.x"] || !tested["PVE 9.x with PBS 3.x"] || !tested["PVE 8.4 with PBS 4.x"] || !tested["PVE 8.4 with PBS 3.x"] {
-		t.Errorf("tested pairs = %v, want PVE 9.x and PVE 8.4, each with PBS 3.x and PBS 4.x", tested)
+	want := []string{"PVE 9.x with PBS 4.x", "PVE 9.x with PBS 3.x"}
+	for minor := 1; minor <= 4; minor++ {
+		want = append(want, fmt.Sprintf("PVE 8.%d with PBS 4.x", minor), fmt.Sprintf("PVE 8.%d with PBS 3.x", minor))
 	}
-	for _, want := range []string{"PVE 9.x with PBS 3.x", "PVE 8.x with PBS 3.x", "PVE 8.x with PBS 4.x"} {
-		if !seen[want] {
-			t.Errorf("pair %s is not listed", want)
+	for _, key := range want {
+		if !tested[key] {
+			t.Errorf("pair %s is not tested", key)
 		}
 	}
-	if MinPVEMajor != 8 || MinPBSMajor != 3 {
-		t.Errorf("minimums are PVE %d and PBS %d, want PVE 8 and PBS 3", MinPVEMajor, MinPBSMajor)
+	if len(tested) != len(want) {
+		t.Errorf("tested pairs = %v, want exactly %v", tested, want)
+	}
+	if MinPVEMajor != 8 || MinPVEMinor != 1 || MinPBSMajor != 3 {
+		t.Errorf("minimums are PVE %d.%d and PBS %d, want PVE 8.1 and PBS 3", MinPVEMajor, MinPVEMinor, MinPBSMajor)
 	}
 }
 

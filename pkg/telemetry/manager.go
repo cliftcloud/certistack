@@ -384,8 +384,8 @@ type Outcome struct {
 }
 
 // UnwritableFix is how to give an account without a writable home a state file
-// it can write; docs/telemetry.md#service-accounts says the same.
-const UnwritableFix = "Set XDG_CONFIG_HOME to a directory this account can write, for example in a systemd unit Environment=XDG_CONFIG_HOME=%S/certistack (docs/telemetry.md#service-accounts)."
+// it can write; the telemetry page (#service-accounts) says the same.
+const UnwritableFix = "Set XDG_CONFIG_HOME to a directory this account can write, for example in a systemd unit Environment=XDG_CONFIG_HOME=%S/certistack (https://certistack.dev/docs/telemetry/#service-accounts)."
 
 // UnwritableWarning is the one line a run prints when the report is on but its
 // state file could not be written, so nothing was sent; "" for any other

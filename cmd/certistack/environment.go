@@ -483,7 +483,7 @@ var commonEnvironmentNames = map[string]bool{
 
 // notASettingNote says what an environment file holds, for a name that is not
 // one of CertiStack's.
-const notASettingNote = "an environment file holds only the settings in docs/configuration.md (it is read literally, not as a shell script)"
+const notASettingNote = "an environment file holds only the settings listed at https://certistack.dev/docs/configuration/#variables (it is read literally, not as a shell script)"
 
 // unsupportedEnvironmentLine is the error for a line whose name the file may
 // not have. What is before the "=" is quoted back only when it is shaped like a

@@ -23,7 +23,7 @@ func warnedHost() preflight.Result {
 	return preflight.Result{Ready: true, Checks: []preflight.CheckItem{
 		{Name: "kvm", Status: "passed", Detail: "/dev/kvm is accessible"},
 		{Name: "pve_privileges", Status: "warning", Detail: privilegeWarning},
-		{Name: preflight.VersionCheckName, Status: "warning", Detail: "PVE 8.3.5 and PBS 3.4.0 are untested"},
+		{Name: preflight.VersionCheckName, Status: "warning", Detail: "PVE 10.0.1 and PBS 3.4.0 are untested"},
 	}}
 }
 
@@ -33,7 +33,7 @@ func warnedHost() preflight.Result {
 // runner's alone, so it is not said twice.
 func TestNodeRunTellsTheOperatorWhatAPassingPreflightWarned(t *testing.T) {
 	var events []progress.Event
-	result, _, _ := nodeRunOnVersionHostWith(t, "8.3.5", clientPBS3, warnedHost(), &events)
+	result, _, _ := nodeRunOnVersionHostWith(t, "10.0.1", clientPBS3, warnedHost(), &events)
 	if strings.HasPrefix(result.Error, accept.PreflightFailurePrefix) {
 		t.Fatalf("the worker refused on a passing preflight: %q", result.Error)
 	}
@@ -64,7 +64,7 @@ func TestNodeRunRefusesWithTheFailedPreflightCheckAndNoWarning(t *testing.T) {
 		{Name: "kvm", Status: "failed", Detail: "/dev/kvm is not accessible"},
 	}}
 	var events []progress.Event
-	result, pveRequests, _ := nodeRunOnVersionHostWith(t, "8.3.5", clientPBS3, failed, &events)
+	result, pveRequests, _ := nodeRunOnVersionHostWith(t, "10.0.1", clientPBS3, failed, &events)
 	if result.Report == nil || !strings.Contains(result.Error, "kvm: /dev/kvm is not accessible") {
 		t.Fatalf("the refusal lost its failed check: report %v, error %q", result.Report != nil, result.Error)
 	}

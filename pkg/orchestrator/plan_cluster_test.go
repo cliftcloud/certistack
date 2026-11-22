@@ -190,7 +190,7 @@ func TestPlanSaysAClusterReloadsItsNetworkOnEveryRun(t *testing.T) {
 			if warned != tc.want || onStep != tc.want {
 				t.Fatalf("the cluster note: in the warnings %v, on the sdn-reload step %v; want %v\nwarnings: %v", warned, onStep, tc.want, p.Warnings)
 			}
-			if tc.want && !strings.Contains(strings.Join(p.Warnings, "\n"), "docs/plan-reference.md") {
+			if tc.want && !strings.Contains(strings.Join(p.Warnings, "\n"), "https://certistack.dev/docs/plan-reference/#use-a-pre-provisioned-sandbox") {
 				t.Errorf("the note names no page to read: %v", p.Warnings)
 			}
 		})

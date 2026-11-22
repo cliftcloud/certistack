@@ -35,13 +35,17 @@ const (
 
 func (l Level) String() string { return string(l) }
 
-// MinPVEMajor and MinPBSMajor are the oldest releases this one accepts. The
-// proxmox-backup-client must be at least MinPBSMajor too. Anything older is
-// Unsupported whatever the other versions are.
+// MinPVEMajor and MinPBSMajor are the oldest releases this one accepts (with
+// MinPVEMinor). The proxmox-backup-client must be at least MinPBSMajor too.
+// Anything older is Unsupported whatever the other versions are.
 const (
 	MinPVEMajor = 8
 	MinPBSMajor = 3
 )
+
+// MinPVEMinor is the oldest minor release of MinPVEMajor this one accepts: PVE
+// 8.0 ships proxmox-backup-client 2.x and installs no SDN support by default.
+const MinPVEMinor = 1
 
 // AnyMinor in a Pair matches every minor release of its PVE major.
 const AnyMinor = -1
@@ -83,9 +87,8 @@ const (
 	DefaultReason = "not yet exercised by the release evidence"
 )
 
-// Pairs is the support table, the first match winning. The untested rows
-// repeat what the default would say; they are here so that flipping a pair
-// to Tested is one edit of one row.
+// Pairs is the support table, the first match winning. A pair it does not list
+// is Untested with DefaultReason.
 var Pairs = []Pair{
 	{PVEMajor: 9, PVEMinor: AnyMinor, PBSMajor: 4, Level: Tested, Reason: TestedReason},
 	// PVE 8.4 ships proxmox-backup-client 3.x, so with a PBS 4 server the client is of another major.
@@ -93,8 +96,13 @@ var Pairs = []Pair{
 	{PVEMajor: 8, PVEMinor: 4, PBSMajor: 3, Level: Tested, Reason: TestedReason},
 	// PVE 9 ships proxmox-backup-client 4.x, so with a PBS 3 server the client is of another major.
 	{PVEMajor: 9, PVEMinor: AnyMinor, PBSMajor: 3, ClientMajor: 4, Level: Tested, Reason: TestedReason},
-	{PVEMajor: 8, PVEMinor: AnyMinor, PBSMajor: 4, Level: Untested, Reason: DefaultReason},
-	{PVEMajor: 8, PVEMinor: AnyMinor, PBSMajor: 3, Level: Untested, Reason: DefaultReason},
+	// PVE 8.1 to 8.3 ship the 3.x client, as 8.4 does.
+	{PVEMajor: 8, PVEMinor: 3, PBSMajor: 4, ClientMajor: 3, Level: Tested, Reason: TestedReason},
+	{PVEMajor: 8, PVEMinor: 3, PBSMajor: 3, Level: Tested, Reason: TestedReason},
+	{PVEMajor: 8, PVEMinor: 2, PBSMajor: 4, ClientMajor: 3, Level: Tested, Reason: TestedReason},
+	{PVEMajor: 8, PVEMinor: 2, PBSMajor: 3, Level: Tested, Reason: TestedReason},
+	{PVEMajor: 8, PVEMinor: 1, PBSMajor: 4, ClientMajor: 3, Level: Tested, Reason: TestedReason},
+	{PVEMajor: 8, PVEMinor: 1, PBSMajor: 3, Level: Tested, Reason: TestedReason},
 }
 
 // Version is a version a node reported. The zero value is a version that
@@ -199,6 +207,8 @@ func Classify(pve, pbs, client Version) Status {
 	var refusals []string
 	if pve.Known() && pve.Major < MinPVEMajor {
 		refusals = append(refusals, fmt.Sprintf("PVE %s is older than PVE %d, the oldest this release supports", pve.Raw, MinPVEMajor))
+	} else if pve.Known() && pve.Major == MinPVEMajor && pve.Minor < MinPVEMinor {
+		refusals = append(refusals, fmt.Sprintf("PVE %s is older than PVE %d.%d, the oldest this release supports (PVE %d.0 ships proxmox-backup-client 2.x and no SDN support): update the node", pve.Raw, MinPVEMajor, MinPVEMinor, MinPVEMajor))
 	}
 	if pbs.Known() && pbs.Major < MinPBSMajor {
 		refusals = append(refusals, fmt.Sprintf("PBS %s is older than PBS %d, the oldest this release supports", pbs.Raw, MinPBSMajor))

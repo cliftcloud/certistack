@@ -9,7 +9,7 @@ Your backups and source VMs are never changed. Setup asks before each change.
 | Where | What | Why |
 | --- | --- | --- |
 | Node | The controller's SSH key in `/root/.ssh/authorized_keys` | The controller runs a short-lived worker as root. On a cluster the file is shared, so the key is root on every node: use a dedicated controller. |
-| Node | `libguestfs-tools`, `nftables` and their dependencies (about 110 packages, 1.6 GiB on a stock PVE 9.2) | Preparing the guest's network offline; network probes |
+| Node | `libguestfs-tools` and `nftables`, each if missing (stock PVE 9 has `nftables`), with about 110 dependencies (about 225 MB on a stock PVE 9.2); the first run adds libguestfs's cache, `/var/tmp/.guestfs-0` (about 1.3 GB). apt may also upgrade a few installed packages they need, such as `util-linux` and `mount`, and on PVE 8 it replaces `fuse` with `fuse3`: setup lists them and asks first | Preparing the guest's network offline; network probes |
 | Node | A directory storage `certistack-scratch` | The sandbox VM's overlays |
 | PVE | Role `CertiStackRole`, user `certistack-svc@pve`, token `certistack-svc@pve!automation` | Creating and removing the sandbox VM and network. The token could do this to any VM or zone: keep `controller.env` private. |
 | PBS | User `certistack-ro@pbs` and its token, with `DatastoreReader` | Reading the whole datastore, or only the namespace you give setup |
@@ -38,8 +38,12 @@ PBS, datastore and overlay storage. Without `sudo`, see [Install without sudo](q
 ### 1. Prepare the node
 
 As root on the node. A run needs `qemu-img` and `proxmox-backup-client`, which every node has, and the two packages
-below. Apt's list should remove nothing; without a subscription, a `401 Unauthorized` for `enterprise.proxmox.com` is
-expected.
+below. Without a subscription, a `401 Unauthorized` for `enterprise.proxmox.com` is expected.
+
+Apt's list should remove nothing, except on PVE 8, where it replaces `fuse` with `fuse3`: `fuse3` provides `fuse`, so
+`pve-cluster` keeps working. Setup shows this as `It would REMOVE: fuse.` and asks, with No as the default: answer `y`
+when `fuse` is the only package listed. For any other removal, answer No and find out why
+([Setup messages](troubleshooting.md#setup-messages)).
 
 ```bash
 apt update; apt install --no-upgrade libguestfs-tools nftables
@@ -165,6 +169,31 @@ certistack check --env-file /secure/certistack/controller.env
 
 Add a plan file to check the plan and its sandbox range too.
 
+## A second PBS for the same node
+
+Run `certistack setup` once per node. Never run it again for the same node to reach another PBS: it can only replace
+the node's PVE token, and the first environment file then stops working. For another PBS, print the PBS part of
+[step 3](#3-create-the-pve-token-and-the-read-only-pbs-user) and run it as root on that PBS
+(`ssh root@pbs2.example.com sh -s < pbs2-access.sh`); it prints the token secret once:
+
+```bash
+certistack setup rbac --node pve-node-01 --overlay-storage certistack-scratch \
+  --pbs-datastore datastore2 --part pbs > pbs2-access.sh
+```
+
+Copy the environment file, owner-only, and in the copy change only `PBS_REPOSITORY`, `PBS_PASSWORD` (the secret the
+script printed) and `PBS_FINGERPRINT` (`proxmox-backup-manager cert info` on that PBS):
+
+```bash
+install -m 0600 /secure/certistack/controller.env /secure/certistack/controller-pbs2.env
+```
+
+Pass the copy to each command for that PBS; without `--env-file`, commands use the first file:
+
+```bash
+certistack check --env-file /secure/certistack/controller-pbs2.env
+```
+
 ## The sudoers rule for a non-root account
 
 The worker runs as root. To connect as another account, give it passwordless `sudo` (at `/usr/bin/sudo`), and set
@@ -245,7 +274,7 @@ proxmox-backup-manager acl update /datastore/datastore1 DatastoreReader --auth-i
 
 ## Create the PVE access with Terraform
 
-The module in `terraform/` (Terraform or OpenTofu 1.7 or later) creates the same role, user, token and grants;
+The module in `terraform/` (Terraform 1.8 or later, or OpenTofu 1.10 or later) creates the same role, user, token and grants;
 `terraform/terraform.tfvars.example` lists its inputs. Run it with `SSL_CERT_FILE=/secure/certistack/pve-root-ca.pem`
 and a bootstrap token you remove afterwards (`pveum user token add root@pam terraform --privsep 0`).
 `terraform output -raw pve_token_secret` prints the secret. The state holds it: use an encrypted backend.
@@ -255,7 +284,7 @@ and a bootstrap token you remove afterwards (`pveum user token add root@pam terr
 You need `make` and Go 1.26.11 or later.
 
 ```bash
-git clone --depth 1 --branch v0.1.1 https://github.com/cliftcloud/certistack.git certistack-src
+git clone --depth 1 --branch v0.1.2 https://github.com/cliftcloud/certistack.git certistack-src
 cd certistack-src
 make build-linux          # bin/certistack-linux-amd64
 make build-linux-arm64    # bin/certistack-linux-arm64 (offline commands only)
@@ -269,7 +298,7 @@ To keep versions side by side, run this in the download directory of
 [Install by hand](quickstart.md#install-by-hand):
 
 ```bash
-version=v0.1.1
+version=v0.1.2
 sudo install -d -m 0755 "/opt/certistack/releases/$version"
 sudo install -m 0755 certistack-linux-amd64 "/opt/certistack/releases/$version/certistack"
 sudo ln -sfn "/opt/certistack/releases/$version/certistack" /usr/local/bin/certistack
@@ -308,12 +337,23 @@ qm list
 pvesh get /cluster/sdn/zones --output-format json
 ```
 
+On a node without SDN (PVE 8.0 without `libpve-network-perl`), `pvesh` prints `No 'get' handler defined for
+'/cluster/sdn/zones'`: there is no zone to look for.
+
 ```bash
 # On the node, as root: recover every workspace that is listed.
 for w in /var/lib/certistack/workers/*/; do
   [ -x "$w/certistack-node" ] && "$w/certistack-node" recover \
     --state-dir /var/lib/certistack --env-file "$w/runtime.env"
 done
+```
+
+An interrupted `init`, `check` or `run` can also leave a staging directory with a copy of the credentials (root only,
+mode 0600); the command that was stopped prints how to delete it. Look for one and delete it:
+
+```bash
+# On the node, as root.
+ls -d /tmp/certistack-controller-* 2>/dev/null && rm -rf /tmp/certistack-controller-*
 ```
 
 A workspace with `credentials-removed.txt` cannot recover: run one more `certistack run` (it recovers first), or
@@ -335,9 +375,14 @@ pveum role delete CertiStackRole
 pveum acl list | grep -i certistack
 ```
 
+`pveum user delete` may print `ignore invalid acl token 'certistack-svc@pve!automation'` once per grant of the removed
+token; the last command shows that none is left.
+
 Then the overlay storage and state directory, **on the node only**: on the controller, `/var/lib/certistack` holds your
-reports. If setup said `Using the existing storage`, keep the storage, and after the first block delete only
-CertiStack's files with `find "$P" -type f -name 'certistack-delta-*' -delete`.
+reports. If the storage was yours before setup (setup said `Using the existing storage` the first time it ran),
+keep the storage, and after the first block delete only CertiStack's files with
+`find "$P" -type f -name 'certistack-delta-*' -delete`. A storage that setup added and a later rerun reused is
+CertiStack's: remove it.
 
 ```bash
 # On the node, as root. P is the storage's directory, read before pvesm forgets it.
@@ -383,8 +428,8 @@ ssh -i /secure/certistack/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes \
 
 ### 4. Proxmox Backup Server: take back the read-only user
 
-As root on the PBS. Keep one `acl update` line per path the first command shows; the last prints nothing when none
-is left.
+As root on each PBS you gave access. Keep one `acl update` line per path the first command shows; the last prints
+nothing when none is left.
 
 ```bash
 proxmox-backup-manager acl list | grep -i certistack
@@ -399,7 +444,8 @@ proxmox-backup-manager acl list | grep -i certistack
 
 ### 5. Controller: remove the files
 
-Use your setup directory, and delete the encryption key `CERTISTACK_PBS_KEYFILE` named, if any (`<storage>.enc`).
+Use your setup directory, and delete the encryption key `CERTISTACK_PBS_KEYFILE` named, if any (`<storage>.enc`), and
+any other environment file you made, such as `controller-pbs2.env`.
 
 ```bash
 certistack telemetry reset
@@ -414,7 +460,21 @@ sudo rm -f /usr/local/bin/certistack /usr/local/bin/certistack.prev
 
 ### What stays
 
-- Your reports and plans; the node's `libguestfs-tools` and `nftables` (remove them only if nothing else uses them).
+- Your reports and plans.
+- On the node: `libguestfs-tools` and its dependencies, if setup installed them (`The node lacks libguestfs-tools`),
+  and libguestfs's cache, `/var/tmp/.guestfs-0`. If nothing else uses them: `rm -rf /var/tmp/.guestfs-0`, then
+  `apt remove libguestfs-tools && apt autoremove`. apt keeps the dependencies that another installed package
+  recommends or suggests, and their configuration files (`apt purge` removes those); the packages setup upgraded stay
+  at their new versions, and `apt clean` empties apt's download cache.
+- On the node: `nftables`, if it was there before setup (PVE 9 ships it): PVE's firewall uses it. If setup installed it
+  (`The node lacks ... nftables`, as on PVE 8.0 and 8.1), `apt remove nftables` once nothing else uses it.
+- On the node: PVE's SDN files in `/etc/pve/sdn` (empty once the zones are gone), its IPAM state, which keeps an empty
+  entry for each zone name a run used (`csZone1`, `csZone2` …), and `/etc/network/interfaces.d/sdn`, which PVE writes
+  at each SDN apply. They are PVE's own bookkeeping and harmless.
+- On the node: `/etc/pve/storage.cfg` as PVE rewrote it when setup added the overlay storage and step 3 removed it.
+  Other storages' `content` lists may be in another order; the content is the same.
+- On the controller: the setup directory, empty, and `~/.config/certistack`. Remove them if you like:
+  `sudo rmdir /secure/certistack` and `rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/certistack"`.
 - Delete when you like: `release-signing-key.gpg`, `release-signing-key.gpg~` and `~/certistack-download`; scripts
   `setup rbac` printed; `telemetry.json.lock`; the PBS host key in `~/.ssh/known_hosts`; secrets in your shell history.
 - After a setup by hand: the node's `certistack` account (`userdel -r certistack`) and `/etc/sudoers.d/certistack`, and

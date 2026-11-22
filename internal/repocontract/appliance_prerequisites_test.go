@@ -88,3 +88,93 @@ func TestApplianceUpgradeSaysTheWrapperBelongsToTheTemplate(t *testing.T) {
 		}
 	}
 }
+
+// buildSection is the guide's "Build a PVE VM template" up to its inputs.
+func buildSection(t *testing.T) string {
+	t.Helper()
+	readme := applianceReadme(t)
+	start, end := strings.Index(readme, "## Build a PVE VM template"), strings.Index(readme, "### Inputs")
+	if start < 0 || end < start {
+		t.Fatal("the guide has no Build a PVE VM template section before its inputs")
+	}
+	return readme[start:end]
+}
+
+// A build machine needs Packer, a private directory, the node's CA (the API
+// certificate is signed by it, and insecure_skip_tls_verify stays off), a key
+// without a passphrase (Packer cannot use one) and an address for the build
+// VM, which Packer learns from the guest agent. The guide says each before the
+// build, and checks the registry tag without Docker.
+func TestApplianceReadmeStatesWhatABuildMachineNeeds(t *testing.T) {
+	section := flat(buildSection(t))
+	for _, want := range []string{
+		"https://developer.hashicorp.com/packer/install",
+		`sudo install -d -m 0700 -o "$USER" /secure/certistack`,
+		"/etc/pve/pve-root-ca.pem",
+		"openssl x509 -noout -fingerprint -sha256 -in /secure/certistack/pve-root-ca.pem",
+		"SSL_CERT_FILE=/secure/certistack/pve-root-ca.pem packer build -var-file=/secure/certistack/packer.pkrvars.hcl .",
+		"ssh-keygen -t ed25519 -N '' -C packer-build -f /secure/certistack/packer-build",
+		"without a passphrase",
+		"DHCP on the bridge",
+		"`build_ip`",
+		"a cloud-init drive",
+		"skopeo inspect --format '{{.Digest}}' docker://ghcr.io/cliftcloud/certistack-controller:<version>",
+		"`sudo apt install skopeo`",
+	} {
+		if !strings.Contains(section, want) {
+			t.Errorf("the build section does not say %q", want)
+		}
+	}
+	if strings.Contains(section, "docker buildx") {
+		t.Error("the build section needs Docker for a registry check")
+	}
+}
+
+// The guide's variable file is one the recipe takes: every name is a recipe
+// variable, every required variable is there, the endpoint has its API path,
+// the source template is a name, and the files are where the build command and
+// the cleanup look for them.
+func TestApplianceReadmeVariableFileMatchesTheRecipe(t *testing.T) {
+	recipe := packerRecipe(t)
+	var example string
+	for _, block := range codeBlocks(t, repoFile("deploy", "appliance", "README.md")) {
+		if block.heading == "Build a PVE VM template" && block.lang == "hcl" {
+			example = block.body
+		}
+	}
+	if example == "" {
+		t.Fatal("the build section has no hcl variable file")
+	}
+	values := map[string]string{}
+	for _, m := range regexp.MustCompile(`(?m)^([a-z0-9_]+)\s*=\s*"([^"]*)"\s*$`).FindAllStringSubmatch(example, -1) {
+		values[m[1]] = m[2]
+	}
+	for name := range values {
+		if _, ok := packerVariable(recipe, name); !ok {
+			t.Errorf("the variable file sets %s, which the recipe does not declare", name)
+		}
+	}
+	for _, name := range packerVariableNames(recipe) {
+		body, _ := packerVariable(recipe, name)
+		if _, set := values[name]; !set && !regexp.MustCompile(`(?m)^\s*default\s*=`).MatchString(body) {
+			t.Errorf("the variable file leaves out the required %s", name)
+		}
+	}
+	body, _ := packerVariable(recipe, "proxmox_url")
+	if !hclRegex(t, body).MatchString(values["proxmox_url"]) {
+		t.Errorf("the example endpoint %q fails the recipe's validation", values["proxmox_url"])
+	}
+	body, _ = packerVariable(recipe, "source_template")
+	if hclRegex(t, body).MatchString(values["source_template"]) {
+		t.Errorf("the example source_template %q is a VM ID", values["source_template"])
+	}
+	section := flat(buildSection(t))
+	for _, name := range []string{"ssh_private_key_file", "ssh_build_public_key_file"} {
+		if !strings.Contains(section, values[name]) || !strings.HasPrefix(values[name], "/secure/certistack/") {
+			t.Errorf("%s = %q is not the key pair the guide makes in /secure/certistack", name, values[name])
+		}
+	}
+	if !strings.Contains(section, "Write the inputs to `/secure/certistack/packer.pkrvars.hcl`") {
+		t.Error("the guide does not say where the variable file goes")
+	}
+}

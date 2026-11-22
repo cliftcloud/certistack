@@ -27,7 +27,7 @@ func TestVersionCheckLine(t *testing.T) {
 		support                string
 	}{
 		{"tested", "9.1.1", "4.2.7", "4.2.5", "passed", true, []string{"PVE 9.1.1", "PBS 4.2.7", "proxmox-backup-client 4.2.5", "tested"}, "tested"},
-		{"untested", "8.3.0", "3.4.0", "3.3.7", "warning", true, []string{"PVE 8.3.0", "PBS 3.4.0", "proxmox-backup-client 3.3.7", "untested", "not covered by the release evidence"}, "untested"},
+		{"untested", "10.0.1", "3.4.0", "3.3.7", "warning", true, []string{"PVE 10.0.1", "PBS 3.4.0", "proxmox-backup-client 3.3.7", "untested", "not covered by the release evidence"}, "untested"},
 		{"unknown", "9.1.1", "", "4.2.5", "warning", true, []string{"PVE 9.1.1", "PBS unknown", "could not be read", "not covered by the release evidence"}, "unknown"},
 		{"nothing read", "", "", "", "warning", true, []string{"PVE unknown", "PBS unknown", "proxmox-backup-client unknown"}, "unknown"},
 		{"unsupported PVE", "7.4-20", "4.2.7", "4.2.5", "failed", false, []string{"PVE 7.4-20", "PBS 4.2.7", "unsupported", "older than PVE 8"}, "unsupported"},

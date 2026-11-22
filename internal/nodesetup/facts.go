@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/cliftcloud/certistack/internal/nodeidentity"
+	"github.com/cliftcloud/certistack/pkg/pbs"
+	"github.com/cliftcloud/certistack/pkg/sdn"
 )
 
 // NodeTools are the commands a run needs on the node, and the Debian package
@@ -31,6 +33,11 @@ var NodeTools = []struct {
 // NodeFactsScript is the read-only script `certistack setup` runs on the node
 // first. It changes nothing; it prints one key=value line per fact, and the
 // node's storage.cfg in base64 so that no line of it can be taken for a fact.
+// It asks proxmox-backup-client for its own version with an empty environment,
+// so with no repository and no server contacted, as check's node layer does,
+// and reads the SDN zones with pvesh as root (sdn.PveshZonesCall), which
+// fails with "No 'get' handler defined" on a PVE without the SDN API. Neither
+// command's error output reaches the operator.
 const NodeFactsScript = `export LC_ALL=C
 echo "pve_local=$(readlink /etc/pve/local 2>/dev/null)"
 echo "pve_version=$(pveversion 2>/dev/null | head -n 1)"
@@ -48,6 +55,8 @@ cert=/etc/pve/local/pveproxy-ssl.pem
 [ -r "$cert" ] || cert=/etc/pve/local/pve-ssl.pem
 echo "cert_names=$(openssl x509 -in "$cert" -noout -ext subjectAltName 2>/dev/null | tail -n +2 | tr -d ' ')"
 if openssl verify -CAfile /etc/pve/pve-root-ca.pem "$cert" >/dev/null 2>&1; then echo cert_cluster_ca=1; else echo cert_cluster_ca=0; fi
+if command -v proxmox-backup-client >/dev/null 2>&1; then timeout 30 env -i PATH="$PATH" proxmox-backup-client version </dev/null 2>/dev/null | head -n 20 | sed 's/^/pbs_client_out=/'; fi
+if command -v pvesh >/dev/null 2>&1; then if sdn_err=$(timeout 60 ` + sdn.PveshZonesCall + ` --output-format json </dev/null 2>&1 >/dev/null); then echo sdn_zones=read; else echo "sdn_zones_error=$(printf '%s\n' "$sdn_err" | head -n 1 | cut -c 1-200)"; fi; fi
 echo facts_end=1
 `
 
@@ -74,6 +83,35 @@ type NodeFacts struct {
 	// certificate. One an administrator installed (ACME, a company CA) is not:
 	// the cluster CA must then not be the one CertiStack trusts for it.
 	CertByClusterCA bool
+	// ClientVersion is the version proxmox-backup-client reports of itself; ""
+	// when it was not read.
+	ClientVersion string
+	// SDNRead reports whether pvesh read the SDN zones; when it did not,
+	// SDNError is the first line of its error ("" when it was not run).
+	SDNRead  bool
+	SDNError string
+}
+
+// PVERelease is the Proxmox VE version in PVEVersion, the one the PVE API
+// reports ("8.0.3" of "pve-manager/8.0.3/bbf39933... (running kernel: ...)");
+// "" when the line is not pveversion's.
+func (f NodeFacts) PVERelease() string {
+	rest, ok := strings.CutPrefix(f.PVEVersion, "pve-manager/")
+	if !ok {
+		return ""
+	}
+	version, _, _ := strings.Cut(rest, "/")
+	return strings.TrimSpace(version)
+}
+
+// SDNMissing is the MissingError of a node whose PVE has no SDN API, as pvesh's
+// read of the zones showed; nil when the read worked, was not made, or failed
+// for another reason.
+func (f NodeFacts) SDNMissing() *sdn.MissingError {
+	if f.SDNRead || f.SDNError == "" {
+		return nil
+	}
+	return sdn.MissingFromPvesh(f.SDNError)
 }
 
 // VZOnRootDisk reports whether /var/lib/vz is on the root disk.
@@ -133,6 +171,7 @@ func (f NodeFacts) MissingTools() []string {
 func ParseNodeFacts(output []byte) (NodeFacts, error) {
 	facts := NodeFacts{Tools: map[string]bool{}, VZAvail: -1}
 	ended := false
+	var clientOutput []string
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	scanner.Buffer(make([]byte, 64*1024), 2*maxStorageConfigBytes)
 	for scanner.Scan() {
@@ -185,6 +224,12 @@ func ParseNodeFacts(output []byte) (NodeFacts, error) {
 			facts.CertNames = parseCertNames(value)
 		case "cert_cluster_ca":
 			facts.CertByClusterCA = value == "1"
+		case "pbs_client_out":
+			clientOutput = append(clientOutput, value)
+		case "sdn_zones":
+			facts.SDNRead = value == "read"
+		case "sdn_zones_error":
+			facts.SDNError = value
 		case "facts_end":
 			ended = true
 		}
@@ -195,6 +240,7 @@ func ParseNodeFacts(output []byte) (NodeFacts, error) {
 	if !ended {
 		return NodeFacts{}, fmt.Errorf("the node's facts ended early: the script did not finish")
 	}
+	facts.ClientVersion, _ = pbs.ParseVersionOutput([]byte(strings.Join(clientOutput, "\n")))
 	if facts.Name == "" {
 		return NodeFacts{}, fmt.Errorf("the host has no /etc/pve/local: it is not a Proxmox VE node, or its cluster file system is not mounted")
 	}

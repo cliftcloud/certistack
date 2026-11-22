@@ -238,7 +238,7 @@ func TestAMissingEnvironmentFileSendsInitPlanAndRunToTheSetup(t *testing.T) {
 			for _, want := range []string{
 				"open controller environment file: open " + missing + ": ",
 				"Run certistack setup (quickstart step 2): it asks for a directory and writes controller.env there.",
-				`Or write the file by hand (docs/manual-setup.md, "Set up by hand")`,
+				"Or write the file by hand (https://certistack.dev/docs/manual-setup/#set-up-by-hand)",
 			} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("%s: the error lacks %q: %v", name, want, err)
