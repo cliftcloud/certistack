@@ -29,7 +29,7 @@ expected and actual behaviour, and the relevant `--debug` output.
 
 ## Development
 
-You need Go 1.26.11, the version in `go.mod`, and Linux (or Windows with WSL). Integration testing needs a Proxmox VE
+You need Go 1.27.4, the version in `go.mod`, and Linux (or Windows with WSL). Integration testing needs a Proxmox VE
 test cluster.
 
 ```bash

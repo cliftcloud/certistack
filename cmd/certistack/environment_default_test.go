@@ -15,7 +15,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -473,7 +472,7 @@ func TestPrintedCommandsLeaveTheRecordedFileOut(t *testing.T) {
 		if err := recordEnvFile(pointer, c.env); err != nil {
 			t.Fatal(err)
 		}
-		withNodeCA(t, pveTestCA(t, time.Date(2035, 10, 1, 0, 0, 0, 0, time.UTC), true), nil)
+		withNodeCA(t, pveTestCA(t, neverExpires, true), nil)
 		out, err := runRootWithInput(t, "", "setup", "pve-ca")
 		if err != nil {
 			t.Fatalf("%v\n%s", err, out)

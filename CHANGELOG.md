@@ -8,6 +8,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-24
+
+### Fixed
+
+- The verification scan of a mapped backup no longer reads part of the image a second time. A read-ahead worker held
+  up on a busy controller could read a part the scan had already hashed and released, again from PBS, and leave it in
+  the page cache; it now skips what the scan has passed, and the scan releases the whole image once more at the end.
+
+### Changed
+
+- Built with Go 1.27.4 (the release binary and the controller image's build stage).
+- Terraform module: `bpg/proxmox` 0.123.1 (`~> 0.123.1`), which refuses an API redirect to plain http. An existing
+  state needs no change: the plan after the upgrade is empty.
+- `init`'s next step says the plan is valid as written and that the probes marked `CHANGE` are where to check the
+  service a VM provides; `plan`'s version line reads `tested: the pair the release evidence covers`.
+- Documentation: that installing setup's packages rebuilds the node's initramfs and boot menu, how to remove them
+  with their configuration, the PBS host keys and `/secure` that stay after a removal, and how long a first run takes.
+
+### Privacy
+
+- The opt-in usage statistics are unchanged: off by default; `certistack telemetry show` prints exactly what would be
+  sent.
+
 ## [0.1.2] - 2026-11-22
 
 ### Fixed
@@ -132,6 +155,7 @@ most once a day after a completed run and never from the PVE node. Clusters are 
 
 The full list is in [Compatibility](https://certistack.dev/docs/compatibility/#known-limits).
 
-[Unreleased]: https://github.com/cliftcloud/certistack/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/cliftcloud/certistack/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/cliftcloud/certistack/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/cliftcloud/certistack/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cliftcloud/certistack/releases/tag/v0.1.1

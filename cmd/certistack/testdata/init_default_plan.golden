@@ -5,8 +5,8 @@
 # report (unsigned in the Community Edition), and removes the sandbox. Backups
 # and source VMs are only read.
 # A VM counts as verified only when a probe that asserts something in the
-# guest passed. The plan is valid as it stands. Change each probe marked
-# CHANGE to the service its VM exists for, then:
+# guest passed. The plan is valid as it stands. To check the service a VM
+# exists for instead, change its probes marked CHANGE. Then:
 #   certistack plan <this file>   shows what a run would do, and changes nothing
 #   certistack run <this file>
 version: "v1"

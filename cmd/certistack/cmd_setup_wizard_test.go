@@ -250,7 +250,7 @@ func newWizardWorld(t *testing.T) (*fakeWizardWorld, string) {
 	t.Helper()
 	withHostKey(t, fixedHostKey(t, 7), nil)
 	dir := filepath.Join(t.TempDir(), "secure")
-	return &fakeWizardWorld{t: t, ca: pveTestCA(t, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC), true)}, dir
+	return &fakeWizardWorld{t: t, ca: pveTestCA(t, neverExpires, true)}, dir
 }
 
 func runWizard(t *testing.T, f *fakeWizardWorld, dir string, opts setupWizardOptions, answers ...string) (string, error) {

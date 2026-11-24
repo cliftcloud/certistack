@@ -65,7 +65,7 @@ func TestReadaheadOverlapsReadsAndStaysWithinItsWindow(t *testing.T) {
 		t.Fatalf("peak concurrent reads = %d, want between 2 and %d", peak, workers)
 	}
 	for i := 0; i < 30; i++ { // the scan advances
-		p.consumed()
+		p.consumed(int64(i+1) * chunk)
 		time.Sleep(10 * time.Millisecond)
 	}
 	if got := len(ra.read()); got <= window || got > window+30 {
@@ -96,7 +96,7 @@ func TestReadaheadNeverReadsPastTheEndAndStops(t *testing.T) {
 		t.Fatalf("read %d chunks, want all 11 once", len(offs))
 	}
 	before := len(ra.read())
-	p.consumed()
+	p.consumed(chunk)
 	time.Sleep(50 * time.Millisecond)
 	if len(ra.read()) != before {
 		t.Fatal("a stopped read-ahead went on reading")
@@ -116,7 +116,7 @@ func TestReadaheadIsOffWhenThereIsNothingToOverlap(t *testing.T) {
 		t.Fatal("no reader got a read-ahead")
 	}
 	var nilAhead *imageReadahead
-	nilAhead.consumed() // a nil read-ahead is a no-op
+	nilAhead.consumed(1 << 20) // a nil read-ahead is a no-op
 	nilAhead.stop()
 }
 
@@ -157,5 +157,64 @@ func TestScanDigestIsTheSameWithAndWithoutReadahead(t *testing.T) {
 		if err != nil || digest != want || total != int64(len(content)) || !bytes.Equal(onChunk.Bytes(), content) {
 			t.Fatalf("readahead workers=%s: digest %s total %d err %v, want %s / %d", workers, digest, total, err, want, len(content))
 		}
+	}
+}
+
+// gatedReaderAt records each read and holds it until the gate opens.
+type gatedReaderAt struct {
+	gate    chan struct{}
+	mu      sync.Mutex
+	offsets []int64
+}
+
+func (g *gatedReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	g.mu.Lock()
+	g.offsets = append(g.offsets, off)
+	g.mu.Unlock()
+	<-g.gate
+	return len(p), nil
+}
+
+func (g *gatedReaderAt) read() []int64 {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return append([]int64(nil), g.offsets...)
+}
+
+// A worker that falls behind the scan does not read a chunk the scan has
+// already passed: it would read it from PBS a second time and leave it cached
+// after the scan released it.
+func TestReadaheadSkipsChunksTheScanHasPassed(t *testing.T) {
+	const chunk, workers, window = 1 << 20, 2, 4
+	ra := &gatedReaderAt{gate: make(chan struct{})}
+	p := startReadahead(ra, 20*chunk, chunk, workers, window)
+	if p == nil {
+		t.Fatal("no read-ahead started")
+	}
+	defer p.stop()
+	// The scan reads and releases the first eight chunks itself while the
+	// workers are held in their first reads (or have not claimed one yet).
+	for i := 1; i <= 8; i++ {
+		p.consumed(int64(i) * chunk)
+	}
+	close(ra.gate)
+	deadline := time.Now().Add(5 * time.Second)
+	for len(ra.read()) < workers+1 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	p.stop()
+	behind := 0
+	for _, off := range ra.read() {
+		if off < 8*chunk {
+			behind++
+		}
+	}
+	// Only the reads claimed before the scan passed them (one per worker at
+	// most) may lie behind it.
+	if behind > workers {
+		t.Fatalf("read %d chunks the scan had passed (offsets %v), want at most %d", behind, ra.read(), workers)
+	}
+	if len(ra.read()) <= behind {
+		t.Fatalf("read nothing ahead of the scan (offsets %v)", ra.read())
 	}
 }

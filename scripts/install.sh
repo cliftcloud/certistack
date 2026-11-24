@@ -23,7 +23,7 @@ set -euo pipefail
 RELEASE_KEY_FINGERPRINT="C72ABBC9F3544A71FD5D27A9577480B530101FD2"
 SIGNING_SUBKEY_SUFFIX="F701B3B2C1836DDF"
 
-VERSION="${CERTISTACK_VERSION:-v0.1.2}"
+VERSION="${CERTISTACK_VERSION:-v0.1.3}"
 REPOSITORY="https://github.com/cliftcloud/certistack"
 RELEASE_URL="${CERTISTACK_RELEASE_URL:-$REPOSITORY/releases/download/$VERSION}"
 KEY_URL="${CERTISTACK_KEY_URL:-https://raw.githubusercontent.com/cliftcloud/certistack/$VERSION/release/release-public-key.asc}"

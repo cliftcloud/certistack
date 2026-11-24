@@ -7,7 +7,7 @@ Wrote <dir>/plan.yaml: 3 VM(s) from node pve1's backups.
   - Windows VMs checked through their guest agent (the Event Log service): 102 (dc-01). Add the service each one provides.
 
 Next:
-  1. Change each probe marked CHANGE to the service that VM provides. The plan is valid as it stands (compliance.frameworks is [NONE]: replace it only to name a standard).
+  1. The plan is valid as it stands: the notes above say what its probes check. To check the service a VM provides instead, change its probes marked CHANGE (compliance.frameworks is [NONE]: replace it only to name a standard).
   2. certistack plan <dir>/plan.yaml   (shows what a run would do; changes nothing)
   3. certistack run <dir>/plan.yaml
   Or run init again with --inspect: it looks inside each Linux VM's newest backup, read-only, and probes the services it finds instead of SSH.

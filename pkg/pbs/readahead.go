@@ -67,6 +67,8 @@ type imageReadahead struct {
 	done   chan struct{}
 	wg     sync.WaitGroup
 	once   sync.Once
+	// consumedTo is how far the scan has read and released the image.
+	consumedTo atomic.Int64
 }
 
 // startReadahead starts workers reading chunk-sized pieces of ra (size bytes)
@@ -98,6 +100,18 @@ func startReadahead(ra io.ReaderAt, size int64, chunk, workers, window int) *ima
 				if i >= chunks {
 					return
 				}
+				// A chunk the scan has already passed is not read: a worker
+				// held up between taking it and reading it would read it from
+				// PBS a second time and leave it cached after the scan
+				// released it. Its slot goes back, so the workers catch up
+				// with the scan instead of stalling behind it.
+				if (i+1)*int64(chunk) <= p.consumedTo.Load() {
+					select {
+					case p.tokens <- struct{}{}:
+					default:
+					}
+					continue
+				}
 				// The error is ignored: a chunk that cannot be read fails the
 				// scan itself, with its error, when the scan reaches it.
 				_, _ = ra.ReadAt(buf, i*int64(chunk))
@@ -107,10 +121,17 @@ func startReadahead(ra io.ReaderAt, size int64, chunk, workers, window int) *ima
 	return p
 }
 
-// consumed frees one slot: the scan has finished another chunk.
-func (p *imageReadahead) consumed() {
+// consumed frees one slot: the scan has finished another chunk, and has read
+// and released the image up to upTo.
+func (p *imageReadahead) consumed(upTo int64) {
 	if p == nil {
 		return
+	}
+	for {
+		at := p.consumedTo.Load()
+		if upTo <= at || p.consumedTo.CompareAndSwap(at, upTo) {
+			break
+		}
 	}
 	select {
 	case p.tokens <- struct{}{}:

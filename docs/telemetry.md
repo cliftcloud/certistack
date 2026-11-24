@@ -9,7 +9,7 @@ Five fields, as `certistack telemetry show` prints them:
 ```json
 {
   "install_id": "3f0c8a5e-6b1d-4e2a-9c47-0d5e1b7a92f4",
-  "version": "v0.1.2",
+  "version": "v0.1.3",
   "cluster_count": 2,
   "last_test_run": "2026-10-01",
   "business_use": false

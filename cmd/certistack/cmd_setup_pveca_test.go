@@ -25,6 +25,11 @@ import (
 
 // pveTestCA is a deterministic PVE-style cluster CA: an Ed25519 key, a fixed
 // serial and fixed times, so its fingerprint is the same on every run.
+// neverExpires is a test certificate's NotAfter that no clock reaches: RFC 5280's
+// 99991231235959Z, for a certificate with no well-defined expiration. A fixed
+// date keeps a test CA's DER, and so its fingerprint, the same in every run.
+var neverExpires = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+
 func pveTestCA(t *testing.T, notAfter time.Time, isCA bool) []byte {
 	t.Helper()
 	private := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{3}, ed25519.SeedSize))
@@ -95,7 +100,7 @@ func withNodeCA(t *testing.T, data []byte, err error) *[]controller.SSHConfig {
 
 func TestSetupPVECAWritesTheCANextToTheEnvironmentFile(t *testing.T) {
 	c := newControllerDir(t)
-	ca := pveTestCA(t, time.Date(2035, 10, 1, 0, 0, 0, 0, time.UTC), true)
+	ca := pveTestCA(t, neverExpires, true)
 	used := withNodeCA(t, append([]byte("junk before\n"), ca...), nil)
 	envBefore, _ := os.ReadFile(c.env)
 
@@ -126,7 +131,7 @@ func TestSetupPVECAWritesTheCANextToTheEnvironmentFile(t *testing.T) {
 }
 
 func TestSetupPVECAOutAndEnvironmentNotes(t *testing.T) {
-	ca := pveTestCA(t, time.Date(2035, 10, 1, 0, 0, 0, 0, time.UTC), true)
+	ca := pveTestCA(t, neverExpires, true)
 
 	// --out, and a line in the environment file that names another file.
 	other := filepath.Join(t.TempDir(), "old-ca.pem")
@@ -157,7 +162,7 @@ func TestSetupPVECAOutAndEnvironmentNotes(t *testing.T) {
 }
 
 func TestSetupPVECAWritesNothingForAFileThatIsNotACA(t *testing.T) {
-	future := time.Date(2035, 10, 1, 0, 0, 0, 0, time.UTC)
+	future := neverExpires
 	ca := pveTestCA(t, future, true)
 	key := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("secret")})
 	for name, c := range map[string]struct {
@@ -182,7 +187,7 @@ func TestSetupPVECAWritesNothingForAFileThatIsNotACA(t *testing.T) {
 }
 
 func TestSetupPVECANeverReplacesTheEnvironmentFileOrOtherFiles(t *testing.T) {
-	ca := pveTestCA(t, time.Date(2035, 10, 1, 0, 0, 0, 0, time.UTC), true)
+	ca := pveTestCA(t, neverExpires, true)
 	c := newControllerDir(t)
 	withNodeCA(t, ca, nil)
 	before, _ := os.ReadFile(c.env)

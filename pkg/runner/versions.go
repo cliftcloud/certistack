@@ -132,7 +132,7 @@ func (r *versionRecord) addToPlan(plan *orchestrator.RunPlan) {
 		Action: orchestrator.PlanCheck,
 		Kind:   "versions",
 		Target: "PVE " + status.PVE.String() + ", PBS " + status.PBS.String() + ", proxmox-backup-client " + status.Client.String(),
-		Detail: status.Verdict() + " (" + status.Reason + ")",
+		Detail: status.Verdict() + ": " + status.Reason,
 		Status: orchestrator.StatusOK,
 	}
 	if status.Level != support.Tested {

@@ -9,11 +9,11 @@ Your backups and source VMs are never changed. Setup asks before each change.
 | Where | What | Why |
 | --- | --- | --- |
 | Node | The controller's SSH key in `/root/.ssh/authorized_keys` | The controller runs a short-lived worker as root. On a cluster the file is shared, so the key is root on every node: use a dedicated controller. |
-| Node | `libguestfs-tools` and `nftables`, each if missing (stock PVE 9 has `nftables`), with about 110 dependencies (about 225 MB on a stock PVE 9.2); the first run adds libguestfs's cache, `/var/tmp/.guestfs-0` (about 1.3 GB). apt may also upgrade a few installed packages they need, such as `util-linux` and `mount`, and on PVE 8 it replaces `fuse` with `fuse3`: setup lists them and asks first | Preparing the guest's network offline; network probes |
+| Node | `libguestfs-tools` and `nftables`, each if missing (stock PVE 9 has `nftables`), with about 110 dependencies (about 225 MB on a stock PVE 9.2); the first run adds libguestfs's cache, `/var/tmp/.guestfs-0` (about 1.3 GB). apt may also upgrade a few installed packages they need, such as `util-linux` and `mount`, and on PVE 8 it replaces `fuse` with `fuse3`: setup lists them and asks first. One dependency, `mdadm`, makes apt rebuild the node's initramfs and boot menu; removing them rebuilds the initramfs again | Preparing the guest's network offline; network probes |
 | Node | A directory storage `certistack-scratch` | The sandbox VM's overlays |
 | PVE | Role `CertiStackRole`, user `certistack-svc@pve`, token `certistack-svc@pve!automation` | Creating and removing the sandbox VM and network. The token could do this to any VM or zone: keep `controller.env` private. |
 | PBS | User `certistack-ro@pbs` and its token, with `DatastoreReader` | Reading the whole datastore, or only the namespace you give setup |
-| Controller | In `/secure/certistack`: SSH key, host key, PVE CA, `controller.env` and its `.bak-*` copies, and if used `pbs-access.sh` and an encryption key (`<ID>.enc`); the PBS host key in `~/.ssh/known_hosts`; `controller.env`'s path in `~/.config/certistack/env-file` | The credentials a run uses. The encryption key decrypts every backup in its storage; setup copies it only if you say yes. |
+| Controller | In `/secure/certistack`: SSH key, host key, PVE CA, `controller.env` and its `.bak-*` copies, and if used `pbs-access.sh` and an encryption key (`<ID>.enc`); the PBS's host keys in `~/.ssh/known_hosts`; `controller.env`'s path in `~/.config/certistack/env-file` | The credentials a run uses. The encryption key decrypts every backup in its storage; setup copies it only if you say yes. |
 | Node, during a run | A worker, read-only backup maps with overlays, the sandbox VM (a VM ID from 9100 up; an existing ID is refused), and an SDN zone and VNet with no uplink | Booting the backup in isolation. The run removes each and checks it is gone. |
 | Node, between runs | `/var/lib/certistack` | The journal that `recover` uses after an interrupted run |
 
@@ -281,10 +281,10 @@ and a bootstrap token you remove afterwards (`pveum user token add root@pam terr
 
 ## Build from source
 
-You need `make` and Go 1.26.11 or later.
+You need `make` and Go 1.27.4 or later.
 
 ```bash
-git clone --depth 1 --branch v0.1.2 https://github.com/cliftcloud/certistack.git certistack-src
+git clone --depth 1 --branch v0.1.3 https://github.com/cliftcloud/certistack.git certistack-src
 cd certistack-src
 make build-linux          # bin/certistack-linux-amd64
 make build-linux-arm64    # bin/certistack-linux-arm64 (offline commands only)
@@ -298,7 +298,7 @@ To keep versions side by side, run this in the download directory of
 [Install by hand](quickstart.md#install-by-hand):
 
 ```bash
-version=v0.1.2
+version=v0.1.3
 sudo install -d -m 0755 "/opt/certistack/releases/$version"
 sudo install -m 0755 certistack-linux-amd64 "/opt/certistack/releases/$version/certistack"
 sudo ln -sfn "/opt/certistack/releases/$version/certistack" /usr/local/bin/certistack
@@ -463,9 +463,11 @@ sudo rm -f /usr/local/bin/certistack /usr/local/bin/certistack.prev
 - Your reports and plans.
 - On the node: `libguestfs-tools` and its dependencies, if setup installed them (`The node lacks libguestfs-tools`),
   and libguestfs's cache, `/var/tmp/.guestfs-0`. If nothing else uses them: `rm -rf /var/tmp/.guestfs-0`, then
-  `apt remove libguestfs-tools && apt autoremove`. apt keeps the dependencies that another installed package
-  recommends or suggests, and their configuration files (`apt purge` removes those); the packages setup upgraded stay
-  at their new versions, and `apt clean` empties apt's download cache.
+  `apt purge libguestfs-tools && apt autoremove --purge` (purging also removes their configuration files, such as
+  `/etc/mdadm/mdadm.conf`). apt keeps the dependencies that another installed package recommends or suggests: on a
+  stock PVE 9.2 about 40 of the 110 stay, and they are harmless. The packages setup upgraded stay at their new
+  versions, and `apt clean` empties apt's download cache. To see exactly what setup added, compare `dpkg-query -W`
+  with a list you took before setup.
 - On the node: `nftables`, if it was there before setup (PVE 9 ships it): PVE's firewall uses it. If setup installed it
   (`The node lacks ... nftables`, as on PVE 8.0 and 8.1), `apt remove nftables` once nothing else uses it.
 - On the node: PVE's SDN files in `/etc/pve/sdn` (empty once the zones are gone), its IPAM state, which keeps an empty
@@ -474,8 +476,12 @@ sudo rm -f /usr/local/bin/certistack /usr/local/bin/certistack.prev
 - On the node: `/etc/pve/storage.cfg` as PVE rewrote it when setup added the overlay storage and step 3 removed it.
   Other storages' `content` lists may be in another order; the content is the same.
 - On the controller: the setup directory, empty, and `~/.config/certistack`. Remove them if you like:
-  `sudo rmdir /secure/certistack` and `rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/certistack"`.
+  `sudo rmdir /secure/certistack /secure` (the second fails, harmlessly, if something else is in `/secure`) and
+  `rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/certistack"`.
 - Delete when you like: `release-signing-key.gpg`, `release-signing-key.gpg~` and `~/certistack-download`; scripts
-  `setup rbac` printed; `telemetry.json.lock`; the PBS host key in `~/.ssh/known_hosts`; secrets in your shell history.
+  `setup rbac` printed; `telemetry.json.lock`; the PBS's host keys in `~/.ssh/known_hosts` (ssh adds every key the PBS
+  offers, under a hashed name): `ssh-keygen -R <PBS address>` removes them, and keeps the file before as
+  `known_hosts.old`, which you can delete; secrets in your shell history. `~/.ssh` and `~/.config` stay, empty if
+  nothing else uses them.
 - After a setup by hand: the node's `certistack` account (`userdel -r certistack`) and `/etc/sudoers.d/certistack`, and
   the controller's `/opt/certistack/releases/<version>`.

@@ -630,7 +630,7 @@ func readMappedImage(ctx context.Context, f *os.File, progress func(bytesVerifie
 					}
 					dropScannedPages(f, total, int64(c.n))
 					total += int64(c.n)
-					ahead.consumed()
+					ahead.consumed(total)
 					reportVerificationProgress(total, &nextProgress, progress)
 					return nil
 				}(); err != nil {
@@ -691,6 +691,14 @@ func readMappedImage(ctx context.Context, f *os.File, progress func(bytesVerifie
 	}
 	if err := finish(); err != nil {
 		return "", 0, err
+	}
+	if ahead != nil {
+		// A read-ahead worker held up between its check and its read can still
+		// read a chunk the scan has just released. Once the workers are done,
+		// the whole image is released once more, so the scan leaves none of
+		// it cached.
+		ahead.stop()
+		dropDevicePages(f, 0, total)
 	}
 	return hex.EncodeToString(h.Sum(nil)), total, nil
 }

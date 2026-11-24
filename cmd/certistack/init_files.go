@@ -270,13 +270,13 @@ func finishInit(w io.Writer, output string, res *initplan.Result, node string, i
 	for _, n := range res.Notes {
 		fmt.Fprintf(out, "  - %s\n", n)
 	}
-	step := "Change each probe marked CHANGE to the service that VM provides"
+	step := "The plan is valid as it stands: the notes above say what its probes check. To check the service a VM provides instead, change its probes marked CHANGE"
 	if inspected {
-		step = "Check each probe marked CHANGE: confirm the probes init --inspect wrote, and change the SSH ones to the service that VM provides"
+		step = "Check each probe marked CHANGE: confirm the probes init --inspect wrote, and change the SSH ones to the service that VM provides. The plan is valid as it stands"
 	}
 	// The commands are printed as they must be typed: plan and run need the
 	// environment file that init was given, unless it is the default.
-	fmt.Fprintf(out, "\nNext:\n  1. %s. The plan is valid as it stands (compliance.frameworks is [NONE]: replace it only to name a standard).\n  2. certistack plan %s%s   (shows what a run would do; changes nothing)\n  3. certistack run %s%s\n", step, output, withEnv, output, withEnv)
+	fmt.Fprintf(out, "\nNext:\n  1. %s (compliance.frameworks is [NONE]: replace it only to name a standard).\n  2. certistack plan %s%s   (shows what a run would do; changes nothing)\n  3. certistack run %s%s\n", step, output, withEnv, output, withEnv)
 	if res.InspectHint {
 		fmt.Fprintf(out, "  Or run init again with --inspect: it looks inside each Linux VM's newest backup, read-only, and probes the services it finds instead of SSH.\n")
 	}

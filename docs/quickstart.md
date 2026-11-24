@@ -1,7 +1,7 @@
 # Quickstart
 
 From nothing to your first restore-test report on one standalone Proxmox VE node. A first run on a small VM takes about
-6 to 20 minutes, mostly reading the backup from PBS.
+5 to 20 minutes: the restored VM's network is prepared offline (a few minutes), and the whole backup is read from PBS.
 
 ## Before you start
 
@@ -65,8 +65,8 @@ You answer, in this order:
    `ssh`. Or answer `n`: setup writes the script for you to paste into the PBS web shell, then asks for the token
    secret it printed (the string after `"value":`).
 
-Setup also asks before each change it makes: installing packages (it lists what apt will install, upgrade and
-remove), adding the overlay storage, creating the PVE role, user and token, and running the PBS script. Enter accepts
+Setup also asks before each change it makes: refreshing the package lists and installing packages (it lists what apt
+will install, upgrade and remove), adding the overlay storage, creating the PVE role, user and token, and running the PBS script. Enter accepts
 each, except a removal (default No): on PVE 8, apt replaces `fuse` with `fuse3`, which is
 [safe](manual-setup.md#1-prepare-the-node), so answer `y`.
 
@@ -96,7 +96,9 @@ certistack init --vm 102 -o my-first-plan.yaml
 
 `init -o` refuses to overwrite an existing plan file: use another name or `--force`.
 
-`init` estimates the run's time and RAM (the VM's memory plus 256 MiB). The plan needs no edit: its probe checks that SSH answers on port 22. `init` also asks once about
+`init` estimates the run's time and RAM (the VM's memory plus 256 MiB). The plan is valid as it is: its probe checks that SSH answers on port 22. To check the service the VM provides
+instead (an HTTP check for a web server), change the probe marked `CHANGE`; the [plan reference](plan-reference.md)
+lists the probes. `init` also asks once about
 [usage statistics](telemetry.md); Enter keeps them off.
 
 ## 4. Run it
@@ -148,10 +150,10 @@ On the controller (a minimal Debian or Ubuntu needs `sudo apt install gnupg git 
 ```bash
 mkdir -p ~/certistack-download && cd ~/certistack-download
 for f in certistack-linux-amd64 CONTAINER-IMAGE.txt SHA256SUMS-bin.txt SHA256SUMS-bin.txt.asc; do
-  curl -fLO "https://github.com/cliftcloud/certistack/releases/download/v0.1.2/$f"
+  curl -fLO "https://github.com/cliftcloud/certistack/releases/download/v0.1.3/$f"
 done
 sudo install -d -m 0700 -o "$USER" /secure/certistack /var/lib/certistack/reports
-git clone --depth 1 --branch v0.1.2 https://github.com/cliftcloud/certistack.git
+git clone --depth 1 --branch v0.1.3 https://github.com/cliftcloud/certistack.git
 gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg \
   --import certistack/release/release-public-key.asc
 gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --fingerprint
@@ -188,7 +190,7 @@ Either way, use your directory for `/secure/certistack` in every command.
 ## Upgrade
 
 Finish or recover every run first. Run the installer again; it keeps the current binary as
-`/usr/local/bin/certistack.prev` (to pick a release, put `CERTISTACK_VERSION=v0.1.2` before `bash`). Then run
+`/usr/local/bin/certistack.prev` (to pick a release, put `CERTISTACK_VERSION=v0.1.3` before `bash`). Then run
 `certistack check` and one plan. To roll back:
 `sudo install -m 0755 /usr/local/bin/certistack.prev /usr/local/bin/certistack`.
 

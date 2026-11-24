@@ -55,6 +55,20 @@ func alive(pid int) bool {
 	return err == nil && !strings.Contains(string(data), ") Z ")
 }
 
+// endsAfterStop reports whether a worker its stop called stopped ends. The
+// stop script counts a worker as stopped once the kernel has released its
+// program (its exe link is gone), when it can run nothing more; on a loaded
+// machine the rest of its exit, to a zombie, can take a while longer. A
+// process that is still alive well after that was not stopped.
+func endsAfterStop(pid int) bool {
+	for deadline := time.Now().Add(10 * time.Second); alive(pid); time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			return false
+		}
+	}
+	return true
+}
+
 // The stop script tells a gone worker (dead, or its PID now another
 // program's, which must not be signalled) from its own running binary.
 func TestWorkerStopScriptOnRealProcesses(t *testing.T) {
@@ -97,7 +111,7 @@ func TestWorkerStopScriptOnRealProcesses(t *testing.T) {
 	own := startDetached(t, worker+" 30")
 	running(t, own, worker)
 	record(own)
-	if got := stop(); got != "stopped" || alive(own) {
+	if got := stop(); got != "stopped" || !endsAfterStop(own) {
 		t.Fatalf("the worker: %q, still alive %v", got, alive(own))
 	}
 
@@ -107,7 +121,7 @@ func TestWorkerStopScriptOnRealProcesses(t *testing.T) {
 	if err := os.Remove(worker); err != nil {
 		t.Fatal(err)
 	}
-	if got := stop(); got != "stopped" || alive(deleted) {
+	if got := stop(); got != "stopped" || !endsAfterStop(deleted) {
 		t.Fatalf("the worker with its binary deleted: %q, still alive %v", got, alive(deleted))
 	}
 }

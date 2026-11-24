@@ -112,7 +112,11 @@ func TestWorkerStopComparesTheBootTheSupervisorRecorded(t *testing.T) {
 				}
 			}
 			got := stop()
-			if got != tc.want || alive(pid) == tc.wantKilled {
+			ended := !alive(pid)
+			if tc.wantKilled {
+				ended = endsAfterStop(pid)
+			}
+			if got != tc.want || ended != tc.wantKilled {
 				t.Fatalf("boot record %q: the stop script said %q and the worker is alive %v; want %q and alive %v",
 					strings.TrimSpace(tc.record), got, alive(pid), tc.want, !tc.wantKilled)
 			}

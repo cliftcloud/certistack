@@ -84,7 +84,7 @@ curl -fsSL https://certistack.dev/install.sh | bash   # checks the release's sig
 certistack setup                                       # connects to your node and PBS, asking before each change
 certistack init                                        # lists the VMs that have a backup
 certistack init --vm 102 -o my-first-plan.yaml         # a plan for one small VM from that list
-certistack run my-first-plan.yaml                      # about 6 to 20 minutes for a small VM
+certistack run my-first-plan.yaml                      # about 5 to 20 minutes for a small VM
 certistack report show
 ```
 

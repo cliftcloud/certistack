@@ -33,7 +33,7 @@ func telemetryTestCA(t *testing.T, seed byte, isCA bool) (pemData []byte, finger
 		SerialNumber:          big.NewInt(int64(seed)),
 		Subject:               pkix.Name{CommonName: "Proxmox Virtual Environment", Organization: []string{"PVE Cluster Manager CA"}, OrganizationalUnit: []string{"cluster-" + string('a'+rune(seed))}},
 		NotBefore:             time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
-		NotAfter:              time.Date(2045, 1, 1, 0, 0, 0, 0, time.UTC),
+		NotAfter:              neverExpires,
 		BasicConstraintsValid: true,
 		IsCA:                  isCA,
 		KeyUsage:              x509.KeyUsageCertSign,

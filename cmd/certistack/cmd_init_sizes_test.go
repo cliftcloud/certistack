@@ -173,7 +173,7 @@ func TestInitWritesAPlanThatValidatesAsWritten(t *testing.T) {
 			t.Errorf("init still says %q", forbidden)
 		}
 	}
-	if !strings.Contains(stdout, "The plan is valid as it stands (compliance.frameworks is [NONE]") || !strings.Contains(stdout, "probe marked CHANGE") && !strings.Contains(stdout, "probes marked CHANGE") {
+	if !strings.Contains(stdout, "The plan is valid as it stands") || !strings.Contains(stdout, "(compliance.frameworks is [NONE]") || !strings.Contains(stdout, "probes marked CHANGE") {
 		t.Errorf("the account does not say what is left to do:\n%s", stdout)
 	}
 	if !strings.Contains(string(plan), "# CHANGE: check the service this VM is for") {

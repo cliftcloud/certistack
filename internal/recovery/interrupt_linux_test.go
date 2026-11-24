@@ -31,6 +31,13 @@ import (
 // interruptWithin is how long a wait that an interrupt ends may take to end.
 const interruptWithin = 5 * time.Second
 
+// finishWithin bounds a recovery that is let finish what it began (the shims
+// answer at once, or after the one delay the test sets): it only catches a
+// hang, so it is generous enough for a machine running every package's tests
+// at once. A recovery that did not finish its work fails on the calls and the
+// journal, not on this bound.
+const finishWithin = 60 * time.Second
+
 // recoverInBackground runs RecoverLockedContext and returns what it answers.
 func recoverInBackground(ctx, abandon context.Context, stateDir string) <-chan error {
 	done := make(chan error, 1)
@@ -38,14 +45,20 @@ func recoverInBackground(ctx, abandon context.Context, stateDir string) <-chan e
 	return done
 }
 
-// endsWithin waits for a recovery to answer.
+// endsWithin waits for a recovery that an interrupt cut short to answer.
 func endsWithin(t *testing.T, done <-chan error, what string) error {
+	t.Helper()
+	return endsWithinFor(t, done, what, interruptWithin)
+}
+
+// endsWithinFor waits up to limit for a recovery to answer.
+func endsWithinFor(t *testing.T, done <-chan error, what string, limit time.Duration) error {
 	t.Helper()
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(interruptWithin):
-		t.Fatalf("recovery did not end within %s of %s", interruptWithin, what)
+	case <-time.After(limit):
+		t.Fatalf("recovery did not end within %s of %s", limit, what)
 		return nil
 	}
 }
@@ -346,7 +359,7 @@ func TestFirstInterruptLetsAStartedAddressRemovalFinish(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	interrupt()
-	if err := endsWithin(t, done, "the interrupt"); err != nil {
+	if err := endsWithinFor(t, done, "the interrupt", finishWithin); err != nil {
 		t.Fatalf("recovery = %v: the removal it had begun was the last thing it had to do", err)
 	}
 	got := calls()

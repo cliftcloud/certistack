@@ -2,8 +2,8 @@ Fetched /etc/pve/pve-root-ca.pem from pve-node-01.example.com over the pinned SS
 
 Certificate authority to trust:
   Subject:      CN=Proxmox Virtual Environment,OU=0c7e3d1a-5b2f-4e6a-9d84-2f1b6c0a9e37,O=PVE Cluster Manager CA
-  SHA-256:      10:62:34:F8:6B:90:B0:1A:15:FE:4D:0E:B2:C2:CA:CA:81:D3:62:17:02:2B:D6:9B:4D:5F:3E:9A:8B:E3:E2:E5
-  Valid until:  2035-10-01
+  SHA-256:      0D:7C:AF:E0:63:7F:C1:9E:41:89:A0:E0:69:8B:A9:BF:5D:4A:EE:3E:12:E1:FF:9E:B5:9F:7B:4D:34:7C:4A:E7
+  Valid until:  9999-12-31
 
 Wrote <dir>/pve-root-ca.pem (mode 0644).
 
