@@ -124,7 +124,7 @@ func TestLockRequestWhoseAnswerIsLostStaysUnresolved(t *testing.T) {
 		"connection closed after the lock was made": {Lose: true},
 		"truncated reply":                  {Truncate: true},
 		"reply after the client's timeout": {Delay: 300 * time.Millisecond},
-		"caller cancelled":                 {Delay: 300 * time.Millisecond},
+		"caller canceled":                  {Delay: 300 * time.Millisecond},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fake := sdntest.New()
@@ -135,7 +135,7 @@ func TestLockRequestWhoseAnswerIsLostStaysUnresolved(t *testing.T) {
 			switch name {
 			case "reply after the client's timeout":
 				timeout = 100 * time.Millisecond
-			case "caller cancelled":
+			case "caller canceled":
 				fake.OnRequest = func(string, string, map[string]string) {
 					go func() { time.Sleep(100 * time.Millisecond); cancel() }()
 				}

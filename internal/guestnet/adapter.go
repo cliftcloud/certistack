@@ -107,14 +107,14 @@ type Config struct {
 	Progress func(string)
 }
 
-// FirewallPort is an explicitly configured Stage 2 transport that may be
+// FirewallPort is a port a network probe uses, named in the plan, that may be
 // admitted from the temporary host-side probe address in a COW guest.
 type FirewallPort struct {
 	Protocol string
 	Port     int
 }
 
-// Result is included in the signed VM record so an operator can see exactly
+// Result is included in the VM record so an operator can see exactly
 // what was adapted during the recovery test.
 type Result struct {
 	Strategy string
@@ -417,9 +417,9 @@ func (a *Adapter) firewallMutations(ctx context.Context, overlays []string, stag
 		return nil, nil, err
 	}
 	// Keep what each guest zone allows (services, ports, rich rules,
-	// target) and only add the probe rules. Replacing the zone cut
-	// member-to-member traffic of multi-tier applications inside the
-	// sandbox: a mesh member refused its peers on 8088.
+	// target) and only add the probe rules: replacing a zone would cut the
+	// traffic between the members of a multi-tier application inside the
+	// sandbox.
 	var files []string
 	commands := [][]string{{"mkdir-p", firewalldZoneDir}}
 	for _, zone := range probeZones(defaultZone, zones, probe) {
@@ -1111,7 +1111,7 @@ func virtualInterfaceName(name string) bool {
 // the list-extending forms of the key. NetworkManager's manual says
 // the keyfile plugin is always active, but an EL7 template kept its own address
 // with a keyfile profile and no keyfile plugin listed, so the observed
-// behaviour is what decides.
+// behavior is what decides.
 func (a *Adapter) networkManagerIgnoresKeyfiles(ctx context.Context, guest *detection) (bool, error) {
 	release, err := a.readOptionalFile(ctx, guest.overlays, osReleaseFile)
 	if err == nil && release == "" {
@@ -1131,9 +1131,8 @@ func (a *Adapter) networkManagerIgnoresKeyfiles(ctx context.Context, guest *dete
 }
 
 // readOptionalFile reads a guest file, "" when it is absent. It follows
-// symlinks inside the guest: CentOS 7's /etc/os-release links to
-// ../usr/lib/os-release, and reading it as absent made auto recovery miss
-// EL7.
+// symlinks inside the guest (CentOS 7's /etc/os-release links to
+// ../usr/lib/os-release).
 func (a *Adapter) readOptionalFile(ctx context.Context, overlays []string, file string) (string, error) {
 	output, err := a.run(ctx, guestfishReadArgs(overlays, "is-file", file, "followsymlinks:true")...)
 	exists := strings.EqualFold(strings.TrimSpace(output), "true")
@@ -1150,7 +1149,7 @@ func (a *Adapter) readOptionalFile(ctx context.Context, overlays []string, file 
 	return contents, nil
 }
 
-// enterpriseLinux7 recognises RHEL 7 and its rebuilds (CentOS, Oracle Linux,
+// enterpriseLinux7 recognizes RHEL 7 and its rebuilds (CentOS, Oracle Linux,
 // Scientific Linux) from /etc/os-release.
 func enterpriseLinux7(osRelease string) bool {
 	values := map[string]string{}
@@ -1517,7 +1516,7 @@ func runGuestfish(ctx context.Context, args ...string) (string, error) {
 
 // guestfishReason condenses guestfish stderr to its first error line so a
 // failure says why ("no operating system was found on this disk") instead of
-// only "exit status 1". It is bounded and single-line for signed evidence.
+// only "exit status 1". It is bounded and single-line for the report.
 func guestfishReason(stderr []byte) string {
 	const maximum = 240
 	var fallback string

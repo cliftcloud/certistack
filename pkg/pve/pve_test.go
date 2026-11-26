@@ -53,7 +53,7 @@ func TestClient_Do_RejectsInvalidTLSConfigurationBeforeRequest(t *testing.T) {
 	}
 }
 
-// Every caller that honours PVE_TLS_INSECURE (preflight, doctor, recovery, the
+// Every caller that honors PVE_TLS_INSECURE (preflight, doctor, recovery, the
 // runner) builds its client here, so the lab opt-in must stop the token from
 // leaving the process before any connection is made.
 func TestClient_Do_InsecureTLSRequiresLabOptInBeforeRequest(t *testing.T) {
@@ -112,7 +112,7 @@ func TestClientRejectsUnsafePVEBaseURL(t *testing.T) {
 
 func TestClient_IsCertiStackRunOwnedRequiresExactMarkers(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(APIResponse{Data: json.RawMessage(`{"tags":"certistack,run-123","description":"CertiStack Ephemeral DR VM; owner=certistack; run_id=run-123"}`)})
+		_ = json.NewEncoder(w).Encode(APIResponse{Data: json.RawMessage(`{"tags":"certistack,run-123","description":"CertiStack sandbox VM; owner=certistack; run_id=run-123"}`)})
 	}))
 	defer server.Close()
 
@@ -318,15 +318,15 @@ func TestClient_Do_APIErrorKeysAreSanitizedAndBounded(t *testing.T) {
 			t.Fatalf("the error carries a control character: %q", text)
 		}
 		if strings.Contains(text, "STOLEN LINE") || strings.Contains(text, "token=not-for-reports") || strings.Contains(text, "pve.example.internal") || strings.Contains(text, server.URL) {
-			t.Fatalf("the error carries what a key's sanitising should drop: %q", text)
+			t.Fatalf("the error carries what a key's sanitizing should drop: %q", text)
 		}
 		for key, value := range apiErr.Errors {
 			if hasControl(key) || len(key) > maxAPIErrorMessage || len(value) > maxAPIErrorMessage {
-				t.Errorf("details key %q (%d bytes) or its value (%d bytes) is not sanitised and bounded", key, len(key), len(value))
+				t.Errorf("details key %q (%d bytes) or its value (%d bytes) is not sanitized and bounded", key, len(key), len(value))
 			}
 		}
 		if apiErr.Errors["vm"] != "first value" || apiErr.Errors["vmid"] != "VM 9001 already exists" || apiErr.Errors["[REDACTED_ENDPOINT]"] != "fourth value" {
-			t.Fatalf("details = %v, want the sanitised keys with their values", apiErr.Errors)
+			t.Fatalf("details = %v, want the sanitized keys with their values", apiErr.Errors)
 		}
 	})
 
@@ -354,7 +354,7 @@ func TestClient_Do_APIErrorKeysAreSanitizedAndBounded(t *testing.T) {
 		}
 	})
 
-	t.Run("keys that collide after sanitising are merged", func(t *testing.T) {
+	t.Run("keys that collide after sanitizing are merged", func(t *testing.T) {
 		apiErr, _, _ := respond(t, map[string]string{
 			"net0\nfirst":  "value one",
 			"net0\nsecond": "value two",

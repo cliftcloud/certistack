@@ -4,8 +4,9 @@
 // Package controller runs CertiStack validations from a management host.
 //
 // It uses the PVE API for normal control-plane operations through the node
-// worker and SSH only to bootstrap a short-lived worker in /run. No daemon,
-// database, credential, or report is installed persistently on a hypervisor.
+// worker and SSH only to bootstrap a short-lived worker in
+// <state-dir>/workers/<uuid>. No daemon, database, credential, or report is
+// installed persistently on a hypervisor.
 package controller
 
 import (
@@ -42,14 +43,13 @@ import (
 
 const (
 	// maxWorkerJSON bounds a worker's result. A failing VM's record carries a
-	// screenshot of its framebuffer, about 0.5 MB as base64 (a test report of
-	// 8 failing Windows VMs is 5 MB), so the result of a large fleet that
-	// fails grows with it, and losing it would lose the evidence of the very
-	// run that failed. 64 MiB holds about a hundred failing VMs. The bound is
-	// there to protect the controller's memory from a runaway or hostile worker,
-	// which needs about four times the result at once (the bytes, the decoded
-	// report, the signed and the saved copies); a fleet of more failing VMs
-	// than that should be split into plans, or its failures fetched from the
+	// screenshot of its framebuffer, about 0.5 MB as base64, so the result of a
+	// large fleet that fails grows with it, and losing it would lose the
+	// evidence of the very run that failed. 64 MiB holds about a hundred failing
+	// VMs. The bound protects the controller's memory from a runaway or hostile
+	// worker, which needs about four times the result at once (the bytes, the
+	// decoded report, the signed and the saved copies); a fleet of more failing
+	// VMs than that should be split into plans, or its failures fetched from the
 	// node's log, not held in memory as one document.
 	maxWorkerJSON = 64 << 20
 	// maxWorkerStderr bounds the copy of a worker's stderr kept for errors.
@@ -61,17 +61,15 @@ const (
 	// command.
 	maxPendingProgressBytes = 1 << 20
 	// maxWorkerProgressBytes is what the controller shows of a worker's
-	// progress in all: the lines it renders, time stamps included. Test runs
-	// show 0.15 MB typically and 0.4 MB at most (a fleet),
-	// while each event may carry 4 KiB, so a worker that goes on past this is
-	// not reporting progress. What it says after that is not shown,
-	// and the run's report and the node's log keep the detail.
+	// progress in all: the lines it renders, time stamps included. Each event
+	// may carry 4 KiB, so a worker that goes on past this is not reporting
+	// progress. What it says after that is not shown, and the run's report and
+	// the node's log keep the detail.
 	maxWorkerProgressBytes = 16 << 20
 	// A PVE stop/destroy task can take a few minutes, especially when a large
-	// recovery tier is unwinding.  Cancellation therefore remains attached to
-	// cleanup long enough for the worker's normal LIFO teardown to finish.  We
-	// only use the journal-recovery fallback after that graceful window has
-	// actually been exhausted.
+	// recovery tier is unwinding. Cancellation therefore remains attached to
+	// cleanup long enough for the worker's normal teardown to finish. The
+	// journal-recovery fallback runs only after that window has been used up.
 	interruptionCleanupTimeout = 20 * time.Minute
 	// unverifiedCleanupReason is the failure_reason of a report whose cleanup
 	// the controller could not verify; the worker's own words for its own
@@ -300,8 +298,7 @@ func runCommandOutput(ctx context.Context, name string, args []string, progress 
 // streamedErrorDetail is what an error keeps of a streamed command's
 // stderr. The operator has seen its progress events already, so they are
 // dropped. When ssh lost the connection, only ssh's own reason, the last
-// line, is kept: the rest is the run's earlier output, not the cause
-// (one run ended with a 10 KB error line).
+// line, is kept: the rest is the run's earlier output, not the cause.
 func streamedErrorDetail(stderr string, transportFailed bool) string {
 	var lines []string
 	for _, line := range strings.Split(stderr, "\n") {
@@ -609,10 +606,10 @@ func NewExecutor() *Executor {
 }
 
 // Run uploads the controller binary and a narrowly scoped runtime environment
-// to a mode-0700 /run directory, executes node-run, collects only its JSON
-// evidence, then removes the temporary workspace. The report is signed and
-// stored on the controller, so its private key never leaves the management
-// host.
+// to a mode-0700 directory under <state-dir>/workers, executes node-run,
+// collects only its JSON evidence, then removes the temporary workspace. The
+// report is stored on the controller, and a signing key (Enterprise Edition)
+// stays there too: it is never sent to the node.
 func (e *Executor) Run(ctx context.Context, opts RunOptions) (result *Result, retErr error) {
 	if e == nil || e.runner == nil {
 		return nil, errors.New("controller executor is not initialized")
@@ -967,12 +964,11 @@ func (e *Executor) Run(ctx context.Context, opts RunOptions) (result *Result, re
 			progress.failure("Some temporary resources could not be removed%s. The protected node workspace is kept so they can be recovered: on node %s, run: %s. Once this controller has been gone for %d s, the node retries the recovery by itself, then removes the workspace, or, if the recovery fails again, the workspace's credentials. The node's next CertiStack run tries this recovery first and refuses to start if it fails. The report's cleanup errors and the node's %s have the details.",
 				leftoverSteps(evidence.CleanupErrors), opts.NodeName, strings.Join(e.recoverCommand(opts.SSH, workspace, opts.StateDir), " "), workerLeaseDurationSeconds, path.Join(opts.StateDir, "logs", path.Base(workspace)+".log"))
 		}
-		// The signed report must reflect what the controller could verify,
-		// never what the worker merely claimed: overwrite any all_cleaned:
-		// true the worker may have reported, so that a faulty, replayed or
-		// mismatched worker report does not become a signed "clean teardown"
-		// attestation the controller was unable to confirm against the
-		// node's journal.
+		// The report must reflect what the controller could verify, never what
+		// the worker merely claimed: overwrite any all_cleaned: true the worker
+		// may have reported, so that a faulty, replayed or mismatched worker
+		// report does not record a clean teardown the controller was unable to
+		// confirm against the node's journal.
 		evidence.AllCleaned = false
 		evidence.OrphanSweepClean = false
 		evidence.JournalRecoveryVerified = false
@@ -1050,7 +1046,7 @@ func (e *Executor) Run(ctx context.Context, opts RunOptions) (result *Result, re
 		// The error's detail is the recovery's whole output; its last line
 		// is what failed, and the report and the node's log keep the rest.
 		progress.failure("Report saved at %s; temporary resource cleanup could not be verified: %s", reportPath, lastErrorLine(teardownErr))
-		return &Result{Report: nodeResult.Report, ReportPath: reportPath}, fmt.Errorf("DR validation ended with unverified temporary resource cleanup: %s", lastErrorLine(teardownErr))
+		return &Result{Report: nodeResult.Report, ReportPath: reportPath}, fmt.Errorf("the run ended with unverified temporary resource cleanup: %s", lastErrorLine(teardownErr))
 	}
 	if nodeResult.Error == "" && !nodeResult.Report.AllPassed {
 		// Never announce or return success for a report that does not claim
@@ -1069,13 +1065,13 @@ func (e *Executor) Run(ctx context.Context, opts RunOptions) (result *Result, re
 	}
 	if nodeResult.Error != "" {
 		progress.failure("Report saved at %s; validation failed: %s", reportPath, nodeResult.Error)
-		return &Result{Report: nodeResult.Report, ReportPath: reportPath}, fmt.Errorf("DR validation failed: %s", nodeResult.Error)
+		return &Result{Report: nodeResult.Report, ReportPath: reportPath}, fmt.Errorf("the run failed: %s", nodeResult.Error)
 	}
 	if nodeResult.Report.ValidationMode == attest.ValidationModeTestSkipIntegrity {
 		progress.status("Test-only mode skipped full mapped-PBS integrity verification; this report is not production compliance evidence.")
 		progress.success("Service recovery smoke test passed | duration: %.1fs | report: %s", nodeResult.Report.RTOSeconds, reportPath)
 	} else {
-		progress.success("DR validation plan passed | duration: %.1fs | report: %s", nodeResult.Report.RTOSeconds, reportPath)
+		progress.success("Run passed | duration: %.1fs | report: %s", nodeResult.Report.RTOSeconds, reportPath)
 	}
 	return &Result{Report: nodeResult.Report, ReportPath: reportPath}, nil
 }
@@ -1312,10 +1308,6 @@ func refuseSharedTemporaryDirectory(what, p string) error {
 
 func safeRemoteAbsolutePath(p string) bool {
 	return strings.HasPrefix(p, "/") && path.Clean(p) == p && !strings.Contains(p, "..") && !strings.ContainsAny(p, "\x00\r\n\\") && p != "/"
-}
-
-func safeLocalAbsolutePath(p string) bool {
-	return filepath.IsAbs(p) && filepath.Clean(p) == p && !strings.Contains(p, "..") && !strings.ContainsAny(p, "\x00\r\n") && p != "/" && p != `\`
 }
 
 func buildNodeRunCommand(workspace string, opts RunOptions) []string {
@@ -1640,8 +1632,7 @@ func shellQuote(arg string) string {
 
 // setupRetries are the waits between tries of an idempotent setup step
 // whose connection to the node failed. A busy sshd (MaxStartups) or a
-// network blip should not cost a run before it starts: in testing, one scp of
-// the worker lost its connection and failed a run in 30 s.
+// network blip should not cost a run before it starts.
 var setupRetries = []time.Duration{2 * time.Second, 5 * time.Second}
 
 // connectionFailed reports whether ssh or scp lost, or could not make, its
@@ -1689,8 +1680,8 @@ func retrySetup(ctx context.Context, step func() error) error {
 // setupInterrupted is the error of a setup step whose retry the context ended:
 // the connection failure that made it retry, and the context's error, so that
 // an interrupt during the wait is the interruption it is (exit status 130) and
-// not the connection failure that preceded it. A
-// failure that already is the context's error is not wrapped again.
+// not the connection failure that preceded it. A failure that already is the
+// context's error is not wrapped again.
 func setupInterrupted(ctx context.Context, last error) error {
 	cause := ctx.Err()
 	if cause == nil || errors.Is(last, cause) {
@@ -1755,14 +1746,13 @@ func (e *Executor) privilegePrefix(cfg SSHConfig) []string {
 // tails progress while the controller is connected, and emits exactly the
 // result JSON when the worker completes, or fails when it cannot read it.
 //
-// Nothing it does depends on the controller surviving. A worker that fails
-// or is killed before it finishes has its journal recovered at once,
-// whatever it wrote. A worker that ends before its lease expires
-// leaves a lease watch behind (leaseWatchScript), which cleans up after a
-// controller that is gone: the run's resources, and then its workspace or
-// at least the credentials in it. The lease and the
-// cleanup grace are measured on the boot clock, so a wall-clock step
-// neither expires nor extends them.
+// Nothing it does depends on the controller surviving. A worker that fails or
+// is killed before it finishes has its journal recovered at once, whatever it
+// wrote. A worker that ends before its lease expires leaves a lease watch
+// behind (leaseWatchScript), which cleans up after a controller that is gone:
+// the run's resources, and then its workspace or at least the credentials in
+// it. The lease and the cleanup grace are measured on the boot clock, so a
+// wall-clock step neither expires nor extends them.
 func (e *Executor) supervisedWorkerCommand(cfg SSHConfig, unitName, workspaceRoot, workspace, pidPath, leasePath, stateDir, envPath, resultPath, progressPath string, nodeRunCommand []string) []string {
 	if len(nodeRunCommand) == 0 || !safeRemoteAbsolutePath(workspaceRoot) || path.Dir(workspace) != workspaceRoot || uuid.Validate(path.Base(workspace)) != nil {
 		return nil
@@ -2106,19 +2096,19 @@ func leaseWatchUnitName(workspace string) string {
 }
 
 // leaseWatchScript is the lease watch a supervisor leaves behind when its
-// worker ends before the controller's lease expires. It
-// gets the supervisor's last renewal time on the boot clock and the lease
-// stamp then as $1 and $2, and the worker's PID and start time as $3 and $4,
-// and ends as soon as the workspace is gone: a live controller removes it
-// once it has the result and a clean journal.
-// When the lease has not been renewed for workerLeaseDurationSeconds, or
-// the controller has had workerCollectionSeconds, the controller is taken
-// to be gone. The watch then recovers the run's journal and removes the
-// workspace, keeping the log; when recovery fails it removes only the
-// credentials, and the journal keeps what is left for the node's next run.
-// It starts no recovery while the worker still runs, which a worker that
-// survived SIGKILL does: it waits up to survivorWaitSeconds for that
-// process to end, and then removes only the credentials and ends.
+// worker ends before the controller's lease expires. It gets the supervisor's
+// last renewal time on the boot clock and the lease stamp then as $1 and $2,
+// and the worker's PID and start time as $3 and $4, and ends as soon as the
+// workspace is gone: a live controller removes it once it has the result and a
+// clean journal. When the lease has not been renewed for
+// workerLeaseDurationSeconds, or the controller has had
+// workerCollectionSeconds, the controller is taken to be gone. The watch then
+// recovers the run's journal and removes the workspace, keeping the log; when
+// recovery fails it removes only the credentials, and the journal keeps what is
+// left for the node's next run. It starts no recovery while the worker still
+// runs, which a worker that survived SIGKILL does: it waits up to
+// survivorWaitSeconds for that process to end, and then removes only the
+// credentials and ends.
 func leaseWatchScript(variables string) string {
 	return fmt.Sprintf(`umask 077
 %s
@@ -2491,7 +2481,7 @@ func (e *Executor) renewWorkerLease(ctx context.Context, cfg SSHConfig, workspac
 // fail-safe. It signals only the PID recorded by this workspace after proving
 // /proc identifies the exact staged binary, waits for graceful LIFO teardown,
 // then invokes journal recovery with the same literal environment file. A
-// worker that no longer runs is not signalled, and its journal is recovered
+// worker that no longer runs is not signaled, and its journal is recovered
 // at once. If recovery cannot be verified, the protected workspace remains
 // available for investigation instead of guessing at customer resources.
 //
@@ -2539,7 +2529,7 @@ func (e *Executor) reconcileInterruptedWorker(ctx context.Context, cfg SSHConfig
 		// The recorded worker no longer runs: its process is gone (killed,
 		// or dead with its SSH session), or its PID now belongs to another
 		// program. There is nothing to stop, and nothing unrelated is
-		// signalled. Its journal is reconciled below all the same, now
+		// signaled. Its journal is reconciled below all the same, now
 		// rather than at the node's next run: recovery takes the host lock,
 		// which a live worker would hold, and acts only on the identities
 		// the journal recorded.
@@ -2690,16 +2680,15 @@ func (e *Executor) recoverCommand(cfg SSHConfig, workspace, stateDir string) []s
 // workerStopScript stops the worker recorded in pidPath, if it is still the
 // workspace's own binary, and prints the outcome: absent (never started),
 // gone (no longer running, or the PID now belongs to another program, which
-// is never signalled), stopped, or still-running.
+// is never signaled), stopped, or still-running.
 //
-// The worker is identified once, by its binary and its start time, and
-// every later signal and liveness check uses an open /proc directory of that
-// process, the boot ID its supervisor recorded when it started it (the PID
-// of an earlier boot is nobody's), and its start time and executable. The
-// open directory retains the kernel's process identity even if its PID is
-// reused in the same start tick. Shell signalling still has a
-// check-to-signal interval; atomic signalling would require a pidfd rather
-// than a numeric PID.
+// The worker is identified once, by its binary and its start time, and every
+// later signal and liveness check uses an open /proc directory of that process,
+// the boot ID its supervisor recorded when it started it (the PID of an earlier
+// boot is nobody's), and its start time and executable. The open directory
+// retains the kernel's process identity even if its PID is reused in the same
+// start tick. Shell signaling still has a check-to-signal interval; atomic
+// signaling would require a pidfd rather than a numeric PID.
 func workerStopScript(pidPath, workerPath string) string {
 	return workerStopScriptWithin(pidPath, workerPath, gracefulWorkerStopTimeout)
 }

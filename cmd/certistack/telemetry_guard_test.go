@@ -16,7 +16,7 @@ import (
 // question, read the answer they gave on their own machine, or send them
 // anywhere: by default every test sees a process with no terminal and a
 // manager that is forced off, with its state in a directory nothing writes.
-// A test that wants the real behaviour takes a newTelemetryRig, which
+// A test that wants the real behavior takes a newTelemetryRig, which
 // replaces both. (TestMain is taken by process_test.go, and the process tests
 // run this binary's main, which inherits the guard.)
 func init() {

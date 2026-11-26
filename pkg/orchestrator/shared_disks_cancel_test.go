@@ -16,7 +16,7 @@ import (
 )
 
 // The topology checks (a ZFS pool is listed by a subprocess) take the
-// caller's context, so cancelling a plan, or interrupting a run at its first
+// caller's context, so canceling a plan, or interrupting a run at its first
 // check, does not wait for the subprocess, and the failure the cancellation
 // causes is not turned into an "unknown topology" warning. The fakes below
 // behave as the production check does: they block until the caller's context
@@ -52,10 +52,10 @@ func (b *blockingDiskCheck) waitStarted(t *testing.T) {
 	}
 }
 
-// Plan is cancelled while the check runs. It must
+// Plan is canceled while the check runs. It must
 // return the context's error at once, not a plan whose copy decision rests on
 // an "unknown" answer the cancellation made.
-func TestPlanReturnsTheContextErrorWhenCancelledDuringTheCopyDecision(t *testing.T) {
+func TestPlanReturnsTheContextErrorWhenCanceledDuringTheCopyDecision(t *testing.T) {
 	o := planOrchestrator(t, planTestPlan(), planPVE(t, ""))
 	check := newBlockingDiskCheck()
 	o.sharedDisksFn = check.fn
@@ -75,15 +75,15 @@ func TestPlanReturnsTheContextErrorWhenCancelledDuringTheCopyDecision(t *testing
 	select {
 	case got := <-done:
 		if !errors.Is(got.err, context.Canceled) || got.plan != nil {
-			t.Fatalf("Plan = %+v, %v; want no plan and the context's error: a cancelled plan is not a plan", got.plan, got.err)
+			t.Fatalf("Plan = %+v, %v; want no plan and the context's error: a canceled plan is not a plan", got.plan, got.err)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("Plan was still waiting for the shared-disk check 3 s after it was cancelled")
+		t.Fatal("Plan was still waiting for the shared-disk check 3 s after it was canceled")
 	}
 }
 
 // The overlay storage check of Plan reads the same topology.
-func TestPlanReturnsTheContextErrorWhenCancelledDuringTheOverlayStorageCheck(t *testing.T) {
+func TestPlanReturnsTheContextErrorWhenCanceledDuringTheOverlayStorageCheck(t *testing.T) {
 	o := planOrchestrator(t, planTestPlan(), planPVE(t, ""))
 	o.opts.OverlayStorage = "certistack-scratch"
 	o.validateOverlayStorageFn = func(context.Context) error { return nil }
@@ -114,13 +114,13 @@ func TestPlanReturnsTheContextErrorWhenCancelledDuringTheOverlayStorageCheck(t *
 			t.Fatalf("Plan = %v, want the context's error", err)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("Plan was still waiting for the shared-disk check 3 s after it was cancelled")
+		t.Fatal("Plan was still waiting for the shared-disk check 3 s after it was canceled")
 	}
 }
 
 // Over-correction guard: a topology that really cannot be determined is still
 // a warning and an "unknown", and the plan is still made.
-func TestPlanStillWarnsWhenTheTopologyIsUnknownAndNobodyCancelled(t *testing.T) {
+func TestPlanStillWarnsWhenTheTopologyIsUnknownAndNobodyCanceled(t *testing.T) {
 	o := planOrchestrator(t, planTestPlan(), planPVE(t, ""))
 	o.sharedDisksFn = func(context.Context, string, string) ([]string, error) {
 		return nil, errors.New("cannot resolve cluster disk")
@@ -138,7 +138,7 @@ func TestPlanStillWarnsWhenTheTopologyIsUnknownAndNobodyCancelled(t *testing.T) 
 }
 
 // The run's own checks answer a cancellation with the context's error too.
-func TestRunSideDiskChecksReturnTheContextErrorWhenCancelled(t *testing.T) {
+func TestRunSideDiskChecksReturnTheContextErrorWhenCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	check := newBlockingDiskCheck()
 	o := &Orchestrator{sharedDisksFn: check.fn}

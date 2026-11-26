@@ -70,7 +70,7 @@ func endsAfterStop(pid int) bool {
 }
 
 // The stop script tells a gone worker (dead, or its PID now another
-// program's, which must not be signalled) from its own running binary.
+// program's, which must not be signaled) from its own running binary.
 func TestWorkerStopScriptOnRealProcesses(t *testing.T) {
 	dir := t.TempDir()
 	worker := standInWorker(t, dir)

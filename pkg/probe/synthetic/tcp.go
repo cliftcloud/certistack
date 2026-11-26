@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package synthetic implements in-band wire-level network probers for Stage 2 verification.
+// Package synthetic implements the network probes: TCP, HTTP, DNS, LDAP, SQL
+// Server and SMB checks that the worker makes through the sandbox network.
 package synthetic
 
 import (

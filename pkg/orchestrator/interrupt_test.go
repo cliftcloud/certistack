@@ -43,7 +43,7 @@ func TestWithInterruption(t *testing.T) {
 func TestInterruptContextWithoutASignal(t *testing.T) {
 	ctx, stop, interrupted := interruptContext(context.Background())
 	if ctx.Err() != nil {
-		t.Fatal("cancelled at once")
+		t.Fatal("canceled at once")
 	}
 	if got := interrupted(); got != nil {
 		t.Fatalf("interrupted = %v", got)

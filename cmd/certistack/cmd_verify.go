@@ -128,8 +128,7 @@ func summarizeTimestamp(status attest.TimestampStatus) reportTimestampSummary {
 
 // configuredTimestampVerifiers are the timestamp verifiers this build was
 // given. Community has none: a token of any authority but the stub test double
-// is reported present and not verified. The real RFC 3161 verifier and the
-// hosted timestamp service are later work; a build that has one returns it
+// is reported present and not verified. A build that has a verifier returns it
 // here, and a token it accepts is then reported verified. Tests replace it.
 var configuredTimestampVerifiers = func() []attest.TimestampVerifier { return nil }
 
@@ -143,7 +142,7 @@ type failedProbeSummary struct {
 	Detail string `json:"detail,omitempty"`
 }
 
-// sanitizeVerifyText makes a value of a signed report safe to print on one line
+// sanitizeVerifyText makes a value of a report safe to print on one line
 // of a terminal. A signature says who wrote a value, not that it is harmless to
 // show: it drops the control characters and the Unicode format characters
 // (among them all twelve bidi controls, which reorder the text around them) and
@@ -229,8 +228,7 @@ const maxExpectedPlanBytes = 16 << 20
 var expectationFlags = []string{"expect-plan", "expect-node", "expect-version", "expect-commit", "expect-build-date", "expect-worker-sha256", "expect-validation-mode", "expect-version-support", "expect-outcome"}
 
 // workerSHA256Pattern is the form of an --expect-worker-sha256 value: the
-// 64 lowercase hex digits sha256sum prints, as the release registry and
-// campaign.meta write them.
+// 64 lowercase hex digits sha256sum prints.
 var workerSHA256Pattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // readReportExpectations validates the --expect-* flags and loads the
@@ -332,7 +330,7 @@ func verifyReportCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "verify-report <report.json>",
-		Short: "Verify a signed DR report against a signer you trust, or judge an unsigned one",
+		Short: "Verify a signed report against a signer you trust, or judge an unsigned one",
 		Long: `Verifies a report's Ed25519 signature against an explicitly trusted signer,
 then evaluates whether the signed contents are acceptable evidence. The
 Enterprise Edition signs its reports; this command, in the Community Edition,
@@ -363,7 +361,7 @@ signature (a SHA-256 imprint of the signature bytes) that is not itself signed.
 The command prints a "Sig timestamp" line: none, a stub timestamp (a test token
 that anyone can forge, reported as NOT evidence), a token this build cannot
 verify, or one verified at a time by an authority. Community has no timestamp
-authority; the hosted one is not part of this release. A timestamp never makes
+authority. A timestamp never makes
 an invalid signature valid, and one that does not cover the report's signature
 is refused.
 
@@ -590,7 +588,7 @@ misused command.`,
 			if unsigned {
 				// Nothing is authenticated: the output says so where a signed report
 				// says whose signature it is, and prints the signer lines of neither.
-				fmt.Fprintln(out, "! Audit Certificate NOT SIGNED (--unsigned)")
+				fmt.Fprintln(out, "! Report NOT SIGNED (--unsigned)")
 				fmt.Fprintf(out, "  Trust Source: %s\n", sanitizeVerifyText(trustSource))
 				fmt.Fprintf(out, "  Sig timestamp: %s\n", sanitizeVerifyText(boundTimestampStatus(timestamp).Describe()))
 			} else {
@@ -599,7 +597,7 @@ misused command.`,
 					fp = attest.FingerprintFromHex(report.PublicKey)
 				}
 
-				fmt.Fprintln(out, "✓ Audit Certificate Signature VALID")
+				fmt.Fprintln(out, "✓ Report signature VALID")
 				fmt.Fprintf(out, "  Trust Source: %s\n", sanitizeVerifyText(trustSource))
 				fmt.Fprintf(out, "✓ Signer identity verified against %s\n", trustDescription)
 
@@ -667,20 +665,10 @@ misused command.`,
 			if report.PhaseTimings != nil {
 				pt := report.PhaseTimings
 				fmt.Fprintln(out, "\n  Phase Timings Breakdown:")
-				fmt.Fprintf(out, "    - Host Admission:        %.2fs\n", pt.AdmissionCheckSec)
-				fmt.Fprintf(out, "    - SDN Sandbox Setup:     %.2fs\n", pt.SDNProvisioningSec)
-				fmt.Fprintf(out, "    - PBS Chunk Mapping:     %.2fs\n", pt.PBSMappingSec)
-				fmt.Fprintf(out, "    - Delta Overlay Create:  %.2fs\n", pt.OverlayCreationSec)
-				fmt.Fprintf(out, "    - COW Guest Network Prep: %.2fs\n", pt.COWGuestNetworkRecoverySec)
-				fmt.Fprintf(out, "    - Image Integrity Scan:  %.2fs\n", pt.IntegrityVerificationSec)
-				fmt.Fprintf(out, "    - VM Registration:       %.2fs\n", pt.VMRegistrationSec)
-				fmt.Fprintf(out, "    - QEMU Launch & Boot:    %.2fs\n", pt.VMStartSec)
-				fmt.Fprintf(out, "    - Stage 1 QMP Wait:      %.2fs\n", pt.QMPRunningWaitSec)
-				fmt.Fprintf(out, "    - Startup Soak Grace:    %.2fs\n", pt.StartupGracePeriodSec)
-				fmt.Fprintf(out, "    - Probes Execution:      %.2fs\n", pt.ProbesExecutionSec)
-				fmt.Fprintf(out, "    - Tier Soak Hold:        %.2fs\n", pt.SoakTimeSec)
-				fmt.Fprintf(out, "    - Post-Test Teardown:    %.2fs\n", pt.TeardownSec)
-				fmt.Fprintf(out, "    - Total RTO Time:        %.2fs\n", pt.TotalRTOSec)
+				// The same labels report show prints, so the two commands name a phase alike.
+				for _, phase := range reportPhases(pt) {
+					fmt.Fprintf(out, "    - %-27s %.2fs\n", phase.Label+":", phase.Seconds)
+				}
 			}
 
 			if report.TeardownEvidence != nil {

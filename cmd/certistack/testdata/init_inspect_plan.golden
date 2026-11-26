@@ -16,11 +16,12 @@ name: "Recovery check of 3 VM(s) on pve1"
 use_backup_config: true
 
 compliance:
-  # The standards the report is labelled with: DORA, SOC2, HIPAA, ISO27001,
+  # The standards the report is labeled with: DORA, SOC2, HIPAA, ISO27001,
   # CIS_V8 (a label, not a certification). NONE names none and stands alone;
   # replace it to name one or more. It is valid as it stands.
   frameworks: [NONE]
-  # Your choice: the days you keep each report (1 to 36500; 2555 is seven years).
+  # Your choice: the retention period in days (1 to 36500; 2555 is seven
+  # years). It is recorded in each report; CertiStack deletes nothing.
   # 90 is valid as it stands.
   retention_days: 90
 

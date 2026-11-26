@@ -9,7 +9,7 @@ import (
 )
 
 func TestEncodeDecodeLine(t *testing.T) {
-	encoded, err := Encode(Event{Level: "INFO", Stage: "Stage 1", Message: "QMP verified"})
+	encoded, err := Encode(Event{Level: "INFO", Stage: "QMP check", Message: "QMP verified"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -17,7 +17,7 @@ func TestEncodeDecodeLine(t *testing.T) {
 	if !ok {
 		t.Fatal("encoded event was not decoded")
 	}
-	if event.Level != "INFO" || event.Stage != "Stage 1" || event.Message != "QMP verified" {
+	if event.Level != "INFO" || event.Stage != "QMP check" || event.Message != "QMP verified" {
 		t.Fatalf("unexpected event: %#v", event)
 	}
 }
@@ -36,7 +36,7 @@ func TestDecodeLineRejectsEmbeddedNewline(t *testing.T) {
 }
 
 func TestDecodeLineStripsANSIEscapeSequences(t *testing.T) {
-	line := EventPrefix + `{"level":"SUCCESS","message":"DR validation plan passed\u001b[1A\u001b[2Khidden"}`
+	line := EventPrefix + `{"level":"SUCCESS","message":"restore test passed\u001b[1A\u001b[2Khidden"}`
 	event, ok := DecodeLine(line)
 	if !ok {
 		t.Fatal("event with an ANSI escape sequence was rejected outright, want stripped and accepted")
@@ -44,7 +44,7 @@ func TestDecodeLineStripsANSIEscapeSequences(t *testing.T) {
 	if strings.ContainsRune(event.Message, '\x1b') {
 		t.Fatalf("decoded message still contains an ANSI escape byte: %q", event.Message)
 	}
-	if event.Message != "DR validation plan passed[1A[2Khidden" {
+	if event.Message != "restore test passed[1A[2Khidden" {
 		t.Fatalf("decoded message = %q, want escape bytes stripped with surrounding text preserved", event.Message)
 	}
 }
@@ -117,7 +117,7 @@ func TestSingleLineFlattensWhatCouldForgeALine(t *testing.T) {
 		"CRLF and CR":          {"a\r\nb\rc", "a; b; c"},
 		"a run of breaks":      {"a\n\n\r\nb", "a; b"},
 		"leading and trailing": {"\n\na\n\n", "a"},
-		"other line breaks":    {"a\u0085b c d\ve\ff", "a; b; c; d; e; f"},
+		"other line breaks":    {"a\u0085b\u2028c\u2029d\ve\ff", "a; b; c; d; e; f"},
 		"a tab":                {"a\tb", "a b"},
 		"an escape sequence":   {"passed\x1b[1A\x1b[2Khidden", "passed[1A[2Khidden"},
 		"NUL and DEL":          {"a\x00b\x7fc", "abc"},

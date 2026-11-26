@@ -14,7 +14,7 @@ func envOf(pairs ...string) func(string) string {
 }
 
 // Strongest first: DO_NOT_TRACK, then CERTISTACK_TELEMETRY off, then on. An
-// unrecognised value never turns anything on.
+// unrecognized value never turns anything on.
 func TestEnvControlPrecedenceMatrix(t *testing.T) {
 	for _, tc := range []struct {
 		name string

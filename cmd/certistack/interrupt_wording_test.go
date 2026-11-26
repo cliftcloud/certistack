@@ -66,6 +66,7 @@ func TestInterruptWordingFollowsWhetherTheCommandHasCleanup(t *testing.T) {
 		{"inspect", false}, {"node-plan", false}, {"node-discover", false},
 		{"report", false}, {"show", false}, {"schema", false},
 		{"setup", false}, {"trust-node", false}, {"pve-ca", false}, {"rbac", false}, {"node-check", false},
+		{"help", false}, {"completion", false}, {"bash", false}, {"zsh", false}, {"fish", false}, {"powershell", false},
 		{"plan", false}, {"init", false}, {"check", false}, // locally; remotely they stage a worker (below)
 	} {
 		t.Run(tc.command, func(t *testing.T) {
@@ -98,6 +99,137 @@ func TestInterruptWordingFollowsWhetherTheCommandHasCleanup(t *testing.T) {
 				t.Errorf("a stop signal printed %q", stopped)
 			}
 		})
+	}
+}
+
+// A command that writes without a cleanup to wait for does not say it changes
+// nothing: it says what stays, and the commands that only read keep saying
+// that they change nothing.
+func TestInterruptWordingSaysWhatTheWritingCommandsLeave(t *testing.T) {
+	for _, tc := range []struct {
+		command string
+		want    []string
+	}{
+		{"trust-node", []string{"Nothing is written until you confirm the key", "a known_hosts line already written stays"}},
+		{"pve-ca", []string{"written whole or not at all", "one already written stays"}},
+	} {
+		t.Run(tc.command, func(t *testing.T) {
+			for _, signal := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
+				first, _ := interruptedOutput(t, tc.command, signal)
+				if !strings.Contains(first, "stopping.") || strings.Contains(first, "changes nothing") || strings.Contains(first, "waiting for CertiStack cleanup") {
+					t.Errorf("%s for %s printed %q", signal, tc.command, first)
+				}
+				for _, want := range tc.want {
+					if !strings.Contains(strings.ToLower(first), strings.ToLower(want)) {
+						t.Errorf("%s for %s printed %q, want it to contain %q", signal, tc.command, first, want)
+					}
+				}
+			}
+		})
+	}
+	for _, command := range []string{"version", "doctor", "rbac", "help", "bash"} {
+		first, _ := interruptedOutput(t, command, os.Interrupt)
+		if want := "Interrupt received; stopping. This command changes nothing, so there is nothing to clean up.\n"; first != want {
+			t.Errorf("%s printed %q, want %q", command, first, want)
+		}
+	}
+}
+
+// setup's notice says what it had done when it was stopped: nothing yet (at its
+// first question), changes that stay, or changes and the file that keeps the
+// secrets of the tokens it created. It never names that file when there is none.
+func TestInterruptWordingForSetupSaysWhatItHadDone(t *testing.T) {
+	t.Cleanup(func() { setupChanging.Store(false); setupPartial.Store("") })
+	partial := filepath.Join(t.TempDir(), "controller.env.partial")
+	for _, tc := range []struct {
+		name     string
+		changing bool
+		partial  string
+		want     string
+	}{
+		{"at the first question", false, "", "Interrupt received; stopping. Setup had not changed anything yet. Run certistack setup again to start over.\n"},
+		{"after a change", true, "", "Interrupt received; stopping. Setup undoes nothing: what it has already changed on this controller, the node and the PBS stays. Run certistack setup again; it reuses what exists.\n"},
+		{"with a token's secret kept", true, partial, "Interrupt received; stopping. Setup undoes nothing: what it has already changed on this controller, the node and the PBS stays, and the secret of each token setup created is kept in " + partial + " (mode 0600). Run certistack setup again; it reuses what exists and offers those secrets.\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupChanging.Store(tc.changing)
+			setupPartial.Store(tc.partial)
+			first, _ := interruptedOutput(t, "setup", os.Interrupt)
+			if first != tc.want {
+				t.Errorf("printed %q, want %q", first, tc.want)
+			}
+			if tc.partial == "" && strings.Contains(first, "partial") {
+				t.Errorf("named a partial file that does not exist: %q", first)
+			}
+		})
+	}
+}
+
+// setup records what it has done as it goes: nothing before its first
+// question, a change once it makes its directory, and the partial file once
+// it keeps a token's secret there.
+func TestSetupRecordsWhatAnInterruptWouldLeave(t *testing.T) {
+	t.Cleanup(func() { setupChanging.Store(false); setupPartial.Store("") })
+	dir := filepath.Join(t.TempDir(), "secure")
+	u := &wizardUI{ctx: context.Background(), out: io.Discard, in: newLineReader(strings.NewReader("")), yes: true}
+	w := &setupWizardContext{}
+	setupChanging.Store(false) // as runSetupWizard starts
+	setupPartial.Store("")
+	if err := wizardDirectory(u, w, setupWizardOptions{Dir: dir, Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+	if !setupChanging.Load() {
+		t.Error("the directory step did not record a change")
+	}
+	if got, _ := setupPartial.Load().(string); got != "" {
+		t.Errorf("no secret was kept, but the partial file is recorded as %q", got)
+	}
+	if err := w.keepPartial(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := setupPartial.Load().(string); got != filepath.Join(dir, partialEnvName) {
+		t.Errorf("the partial file is recorded as %q, want %q", got, filepath.Join(dir, partialEnvName))
+	}
+}
+
+// After an interrupt whose notice said it all, main prints no "Error:" line
+// for a bare cancellation or setup's; an error that says more is still
+// printed, and so is a cancellation no signal caused.
+func TestErrorLineAfterAnInterrupt(t *testing.T) {
+	for _, tc := range []struct {
+		err      error
+		signaled bool
+		want     string
+	}{
+		{context.Canceled, true, ""},
+		{interruptNoticed{}, true, ""},
+		{interruptedRunError{"validation interrupted after CertiStack verified cleanup of its temporary node resources"}, true, "Error: validation interrupted after CertiStack verified cleanup of its temporary node resources"},
+		{errors.New("read the node's facts: context canceled"), true, "Error: read the node's facts: context canceled"},
+		{context.Canceled, false, "Error: context canceled"},
+		{errors.New("no plan file"), true, "Error: no plan file"},
+	} {
+		if got := errorLine(tc.err, tc.signaled); got != tc.want {
+			t.Errorf("errorLine(%q, %v) = %q, want %q", tc.err, tc.signaled, got, tc.want)
+		}
+		if tc.signaled && errors.Is(tc.err, context.Canceled) && exitCodeForError(tc.err) != exitCodeInterrupted {
+			t.Errorf("%q: exit code %d, want the interrupt's", tc.err, exitCodeForError(tc.err))
+		}
+	}
+}
+
+// help and the completion commands are named for what cobra calls them: the
+// shell's name for a completion script. Their interrupt is the read-only one.
+func TestInterruptWordingKnowsHelpAndCompletion(t *testing.T) {
+	t.Cleanup(func() { activeCommand.Store(""); remoteWorkerStaged.Store(false) })
+	for _, args := range [][]string{{"help"}, {"completion", "bash"}, {"completion", "zsh"}, {"completion", "fish"}, {"completion", "powershell"}} {
+		activeCommand.Store("")
+		if err := runRoot(t, io.Discard, args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if interruptHasCleanup() {
+			name, _ := activeCommand.Load().(string)
+			t.Errorf("%v ran as %q, which is said to have cleanup", args, name)
+		}
 	}
 }
 

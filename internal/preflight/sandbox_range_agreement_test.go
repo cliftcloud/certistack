@@ -14,13 +14,13 @@ import (
 	"github.com/cliftcloud/certistack/pkg/config"
 )
 
-// Plan validation, the node-side overlap judgement and the engine's use of
+// Plan validation, the node-side overlap judgment and the engine's use of
 // network.ip_range read the same text. Two parsers can disagree over a prefix
 // length with leading zeros (10.0.0.0/08): net.ParseCIDR accepts it and
 // netip.ParsePrefix does not, so validation could pass a range the overlap
 // check cannot read ("nothing to judge") while the engine puts 10.x.x.x/8 on
 // the sandbox bridge. These tests hold the three together: whatever validation
-// accepts, the overlap judgement reads as the same network.
+// accepts, the overlap judgment reads as the same network.
 
 var (
 	exampleOnce sync.Once
@@ -53,7 +53,7 @@ func validationAccepts(t *testing.T, ipRange string) bool {
 	return true
 }
 
-// agreement fails when validation accepts ipRange yet the overlap judgement
+// agreement fails when validation accepts ipRange yet the overlap judgment
 // reads it as another network (or cannot read it), or when the engine's probe
 // address would not sit in that same network.
 func agreement(t *testing.T, ipRange string) {
@@ -88,8 +88,8 @@ func agreement(t *testing.T, ipRange string) {
 		return
 	}
 
-	// A node route for exactly that network must be refused: the judgement is
-	// made on the network validation accepted, not on a neighbour of it.
+	// A node route for exactly that network must be refused: the judgment is
+	// made on the network validation accepted, not on a neighbor of it.
 	if wantPrefix.Bits() > 0 {
 		node := NodeNetworks{Routes: []NodeRoute{{Destination: wantPrefix, Interface: "vmbr9"}}}
 		if err := CheckSandboxNetwork(network, "", node); err == nil {
@@ -138,7 +138,7 @@ func TestValidationAndTheOverlapCheckAgreeOnEverySpelling(t *testing.T) {
 }
 
 // Fuzzed: nothing validation accepts may be read differently by the overlap
-// judgement or the engine.
+// judgment or the engine.
 func FuzzSandboxRangeAgreement(f *testing.F) {
 	for _, text := range spellings {
 		f.Add(text)
@@ -151,7 +151,7 @@ func FuzzSandboxRangeAgreement(f *testing.F) {
 	})
 }
 
-// Each of these spellings fails validation, and the overlap judgement
+// Each of these spellings fails validation, and the overlap judgment
 // fails closed on them too: a non-empty range it cannot read is an error, never
 // "nothing to judge".
 func TestAnUnreadableSandboxRangeIsNeverAPass(t *testing.T) {

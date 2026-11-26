@@ -17,11 +17,11 @@ import (
 // The rules in this file and in planrules_evidence.go hold a report's VM
 // records to the plan they were requested from: the probes and disks they
 // record, the backup they name, and the policy their probes ran under. The
-// controller applies them before it signs a worker's report, and verify-report
-// applies them to a report it is given: one implementation, so what one
-// refuses the other refuses. What needs the report's schema or only the
-// verifier's expectations (the plan's digest, the build, the outcome) stays in
-// cmd/certistack.
+// controller applies them to a worker's report before it writes it, and
+// verify-report applies them to a report it is given: one implementation, so
+// what one refuses the other refuses. What needs the report's schema or only
+// the verifier's expectations (the plan's digest, the build, the outcome) is
+// in pkg/acceptance.
 
 // ProbeIsGuestLevel reports whether a probe type asserts something about the
 // guest: a wire probe from the worker to a service in it, or a guest-agent

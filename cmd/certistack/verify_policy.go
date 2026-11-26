@@ -33,7 +33,7 @@ func writeRTOTarget(out io.Writer, report *attest.Report) {
 // writeAdmissionPolicy prints the host admission limits a report was held to,
 // the recovery memory it reserved and what the last admission check measured.
 // Every number is the report's own; the decision is a name from a fixed list,
-// printed through the same sanitizer as everything else a signed report
+// printed through the same sanitizer as everything else a report
 // supplies.
 func writeAdmissionPolicy(out io.Writer, report *attest.Report) {
 	if accept.SchemaMinor(report.ReportSchemaVersion) < accept.PolicyEvidenceSchemaMinor {

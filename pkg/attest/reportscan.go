@@ -25,11 +25,6 @@ import (
 // bytes that allocates nothing for values, before a byte is decoded or
 // canonicalized.
 //
-// What real reports weigh: across 1,773 reports written by test runs
-// (schema 1.5) the largest was 5.0 MiB (8 failing Windows VMs, each with a
-// base64 screenshot of the console), nesting reached 6 levels, an object held
-// at most 26 members, an array at most 132 elements, a member name at most 30
-// bytes, a string at most 0.97 MiB and a whole report at most 6,470 values.
 // The largest report the controller can produce is bound by what it accepts
 // from a worker, 64 MiB of JSON, about a hundred failing VMs.
 const (
@@ -117,7 +112,7 @@ var keyringLimits = &jsonLimits{
 // document (RFC 8259, the grammar encoding/json applies: any byte from 0x80 is
 // allowed inside a string, a control character or a bad escape is not), within
 // limits, in which no object repeats a member name (names compared as
-// encoding/json reads them, so "a" and "a" are one name), and, for a
+// encoding/json reads them, so "a" and "\u0061" are one name), and, for a
 // report, no integer of 2^53 or more. Errors carry the path of the offending
 // value, or its byte offset for a fault of grammar. The check stops at the first
 // fault, so a document is never scanned past the point it is refused.

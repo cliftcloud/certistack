@@ -269,6 +269,41 @@ func TestRBACScriptSaysWhereTheSecretsAppear(t *testing.T) {
 	}
 }
 
+// When certistack setup holds the secret of an existing token, the script says
+// the token was found and its secret is kept, and gives none of the advice for
+// a lost secret. Without SecretKept, the script setup runs (capture) says that
+// setup holds no secret and stops before any grant; a printed script stops
+// unless CERTISTACK_KEEP_TOKEN=yes, and says how to replace a lost secret.
+func TestRBACScriptKeptSecretGivesNoLostSecretAdvice(t *testing.T) {
+	for _, part := range []string{PartPVE, PartPBS} {
+		for _, capture := range []bool{true, false} {
+			p := RBACParams{Node: "pve1", OverlayStorage: "certistack-scratch", PBSDatastore: "datastore1", Part: part, Capture: capture, Command: "certistack setup"}
+			unheld := scriptFor(t, p)
+			p.SecretKept = true
+			kept := scriptFor(t, p)
+			wantUnheld := []string{"cannot be shown again", "certistack setup does not hold its secret, so nothing was granted to it.", "exit 0"}
+			if !capture {
+				wantUnheld = []string{"cannot be shown again", "Nothing was granted to it", "CERTISTACK_KEEP_TOKEN=yes", "If you lost it", "exit 3"}
+			}
+			for _, want := range wantUnheld {
+				if !strings.Contains(unheld, want) {
+					t.Errorf("%s part (capture %v) without SecretKept lacks %q", part, capture, want)
+				}
+			}
+			for _, lost := range []string{"If you lost it", "cannot be shown again", "CERTISTACK_KEEP_TOKEN=yes:", "Nothing was granted", "nothing was granted"} {
+				if strings.Contains(kept, lost) {
+					t.Errorf("%s part (capture %v) with SecretKept still says %q", part, capture, lost)
+				}
+			}
+			for _, want := range []string{"it exists already, so it was not created again", "certistack setup holds the secret of this token and keeps using it."} {
+				if !strings.Contains(kept, want) {
+					t.Errorf("%s part (capture %v) with SecretKept lacks %q", part, capture, want)
+				}
+			}
+		}
+	}
+}
+
 // A script a shell cannot parse would only be found out on the node.
 func TestRBACScriptIsValidShell(t *testing.T) {
 	shell, err := exec.LookPath("sh")
@@ -278,6 +313,8 @@ func TestRBACScriptIsValidShell(t *testing.T) {
 	for _, p := range []RBACParams{
 		{Node: "pve1", OverlayStorage: "certistack-scratch"},
 		{Node: "pve1", OverlayStorage: "certistack-scratch", Zones: []string{"csSb01"}, PBSDatastore: "datastore1", PBSNamespace: "a/b"},
+		{Node: "pve1", OverlayStorage: "certistack-scratch", Part: PartPVE, Capture: true, SecretKept: true},
+		{Node: "pve1", OverlayStorage: "certistack-scratch", PBSDatastore: "datastore1", Part: PartPBS, Capture: true, SecretKept: true},
 	} {
 		command := exec.Command(shell, "-n")
 		command.Stdin = strings.NewReader(scriptFor(t, p))

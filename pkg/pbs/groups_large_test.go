@@ -151,16 +151,16 @@ func TestListVMBackupsByGroupNeverReturnsAPartialList(t *testing.T) {
 		t.Fatalf("ListVMBackups = %+v, %v; want the oversized group list refused", got, err)
 	}
 
-	// A cancelled listing stops between groups.
+	// A canceled listing stops between groups.
 	largeRepository(t, true, largeGroups)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if got, err := client.ListVMBackups(ctx); err == nil || got != nil {
-		t.Fatalf("ListVMBackups with a cancelled context = %+v, %v", got, err)
+		t.Fatalf("ListVMBackups with a canceled context = %+v, %v", got, err)
 	}
 }
 
-// The ListVMBackups follow-up: two defences of the listing by VM that its
+// The ListVMBackups follow-up: two defenses of the listing by VM that its
 // report called tested were not. A client that answers a request for one VM's
 // snapshots with another VM's must be refused, not merged, or one VM's backups
 // would be listed under another's number; and a listing whose context ends

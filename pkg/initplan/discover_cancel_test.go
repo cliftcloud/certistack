@@ -42,9 +42,9 @@ func (g *gateBackups) loads() int {
 }
 
 // readVMs runs a fixed pool of readers and looks at the context before it
-// makes anything for a backup, so once the run is cancelled no queued backup
+// makes anything for a backup, so once the run is canceled no queued backup
 // gets a private scratch directory or a question to the repository.
-func TestReadVMsMakesNothingMoreOnceTheRunIsCancelled(t *testing.T) {
+func TestReadVMsMakesNothingMoreOnceTheRunIsCanceled(t *testing.T) {
 	const backups = 40
 	chosen := make([]pbs.VMBackups, backups)
 	for i := range chosen {
@@ -91,7 +91,7 @@ func TestReadVMsMakesNothingMoreOnceTheRunIsCancelled(t *testing.T) {
 	}
 	for _, vm := range vms {
 		if vm.Error == "" {
-			t.Errorf("VM %d has no error after the run was cancelled", vm.SourceVMID)
+			t.Errorf("VM %d has no error after the run was canceled", vm.SourceVMID)
 		}
 		if vm.SourceVMID == 0 || vm.Snapshot != "vm/snapshot" {
 			t.Errorf("a VM lost what was known of its backup: %+v", vm)

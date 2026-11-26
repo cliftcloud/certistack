@@ -4,20 +4,13 @@ dist/
 *.deb
 *.tar.gz
 
-# Private keys, secrets and customer license keys
+# Private keys and secrets
 *.key
-*.lic
 *.ed25519
-master.key
 private.key
-keyring.json
 .env
 .env.*
 *.env
-# Local campaign material (runs, credentials, reports, generated cases).
-.lab/
-# Local Ansible state.
-.ansible/
 *.tfstate
 *.tfstate.*
 *.tfvars
@@ -38,7 +31,6 @@ reports/
 *.qcow2
 *.ppm
 *.png
-!website/*.png
 !docs/assets/*.png
 
 # Go test and coverage
@@ -58,4 +50,3 @@ Thumbs.db
 # Locally built binaries.
 /certistack.exe
 /certistack
-/bin/

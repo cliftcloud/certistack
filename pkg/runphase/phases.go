@@ -49,15 +49,16 @@ const (
 	Soak
 	// Teardown removes what the run created and verifies that it is gone.
 	Teardown
-	// Signing is the controller's check of the node's journal and the writing
-	// and saving of the report.
+	// Signing is the report phase, the last: the controller's check of the
+	// node's journal, and the writing and saving of the report. Kind.String
+	// calls it "report".
 	Signing
 )
 
 var kindNames = map[Kind]string{
 	Admission: "admission", Network: "network", Restore: "restore", GuestNetwork: "guest-network",
 	Integrity: "integrity", Boot: "boot", Grace: "grace", Probes: "probes", Soak: "soak",
-	Teardown: "teardown", Signing: "signing",
+	Teardown: "teardown", Signing: "report",
 }
 
 func (k Kind) String() string {
@@ -111,7 +112,7 @@ type Options struct {
 // for each tier, by level, each VM's restore, guest network preparation (when
 // the VM has one), integrity scan (when the run has one) and boot, the tier's
 // grace period (when it has one), each VM's probes and the tier's soak (when it
-// has one), and last the teardown and the signing. The order is the one the
+// has one), and last the teardown and the report. The order is the one the
 // node worker goes through.
 func Steps(plan *config.Plan, opts Options) []Step {
 	steps := []Step{{Kind: Admission}, {Kind: Network}}

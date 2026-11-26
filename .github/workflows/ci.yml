@@ -4,9 +4,9 @@ name: CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ main ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
       # a missing generator fails them instead.
       CERTISTACK_REQUIRE_NETPLAN: "1"
     steps:
-      - name: Checkout Code
+      - name: Check out the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -52,15 +52,15 @@ jobs:
       # and no go.work; GOWORK=off ignores a developer's workspace file, so the
       # build proves nothing here needs the proprietary product (see
       # internal/repocontract/standalone_test.go).
-      - name: Build Community with no Enterprise and no workspace
+      - name: Build with no workspace file
         env:
           GOWORK: "off"
         run: go build ./...
 
-      - name: Run Tests
+      - name: Run tests
         run: make test
 
-      - name: Run Race Detector
+      - name: Run the race detector
         run: go test -race ./...
 
       - name: Check reachable Go vulnerabilities
@@ -88,19 +88,19 @@ jobs:
           terraform_version: '1.16.4'
           terraform_wrapper: false
 
-      - name: Validate Terraform
+      - name: Validate the Terraform module
         run: |
           terraform fmt -check -recursive
           terraform -chdir=terraform init -backend=false
           terraform -chdir=terraform validate
           terraform -chdir=terraform test
 
-      - name: Compile Community CLI
+      - name: Compile the CLI
         run: |
           make build-linux
           make build-linux-arm64
 
-      - name: Upload Community CLI artifact
+      - name: Upload the CLI
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: certistack-cli
@@ -117,7 +117,7 @@ jobs:
     name: Controller Container
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout Code
+      - name: Check out the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -127,7 +127,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Build controller image
+      - name: Build the controller image
         run: make container IMAGE=certistack-controller:ci
 
       - name: Start a run under the published restrictions
@@ -146,7 +146,7 @@ jobs:
     name: Documentation
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout Code
+      - name: Check out the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

@@ -15,3 +15,4 @@ and every link works. Read them there.
 | [Tested and supported](https://certistack.dev/docs/compatibility/) | Versions, guests and what was tested |
 | [Editions](https://certistack.dev/docs/editions/) | Community and Enterprise |
 | [Usage statistics](https://certistack.dev/docs/telemetry/) | What is sent when you opt in |
+| [Changelog](https://certistack.dev/docs/changelog/) | What changed in each release |

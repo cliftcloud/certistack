@@ -272,15 +272,15 @@ func TestVerify_TrustedKeyring(t *testing.T) {
 	}
 }
 
-func TestReport_WithSourceChunkHashes_Gate5(t *testing.T) {
+func TestReportKeepsSourceChunkHashesThroughSigning(t *testing.T) {
 	_, privKey, err := GenerateKeyPair()
 	if err != nil {
 		t.Fatalf("GenerateKeyPair failed: %v", err)
 	}
 
 	plan := &config.Plan{
-		PlanID: "gate5-compliance-audit",
-		Name:   "Gate 5 Compliance Attestation",
+		PlanID: "chunk-hash-report",
+		Name:   "Chunk hash report",
 		Compliance: config.Compliance{
 			Frameworks:    []string{"DORA-Article-12", "SOC2-Type2-CC7.4", "HIPAA-164.308"},
 			RetentionDays: 365,
@@ -345,9 +345,9 @@ func TestReport_WithSourceChunkHashes_Gate5(t *testing.T) {
 }
 
 func TestKeyring_JSON_And_Fingerprint(t *testing.T) {
-	labKeyHex := "9225debfa3c6555722d4d74c8ccdab065817e8fb373f05b92b28da5f0b0cd779"
-	fp := FingerprintFromHex(labKeyHex)
-	t.Logf("Computed fingerprint for lab key %s: %s", labKeyHex, fp)
+	keyHex := "9225debfa3c6555722d4d74c8ccdab065817e8fb373f05b92b28da5f0b0cd779"
+	fp := FingerprintFromHex(keyHex)
+	t.Logf("Computed fingerprint for key %s: %s", keyHex, fp)
 	if fp == "" || !strings.HasPrefix(fp, "SHA256:") {
 		t.Fatalf("expected valid SHA-256 fingerprint, got %s", fp)
 	}
@@ -360,7 +360,7 @@ func TestKeyring_JSON_And_Fingerprint(t *testing.T) {
       "node": "pve-node-01"
     }
   ]
-}`, labKeyHex)
+}`, keyHex)
 
 	tmpKeyring := filepath.Join(t.TempDir(), "keyring.json")
 	if err := os.WriteFile(tmpKeyring, []byte(keyringJSON), 0644); err != nil {
@@ -376,7 +376,7 @@ func TestKeyring_JSON_And_Fingerprint(t *testing.T) {
 		t.Fatalf("expected 1 trusted signer, got %d", len(kr.TrustedSigners))
 	}
 
-	signer := kr.FindSigner(labKeyHex)
+	signer := kr.FindSigner(keyHex)
 	if signer == nil {
 		t.Fatalf("signer not found in keyring")
 	}

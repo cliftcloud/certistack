@@ -72,7 +72,7 @@ func TestFetchHostKeyReturnsTheEd25519KeyAndItsFingerprint(t *testing.T) {
 		t.Fatal(err)
 	}
 	if requested != "pve-node-01.example.com:2222" {
-		t.Errorf("dialled %q", requested)
+		t.Errorf("dialed %q", requested)
 	}
 	if want := ssh.FingerprintSHA256(signer.PublicKey()); got.Fingerprint != want || !strings.HasPrefix(want, "SHA256:") {
 		t.Errorf("fingerprint %q, want %q", got.Fingerprint, want)
@@ -116,10 +116,10 @@ func TestFetchHostKeyNamesTheMissingEd25519Key(t *testing.T) {
 	}
 }
 
-func TestFetchHostKeyRefusesWhatCouldNameManyHostsBeforeDialling(t *testing.T) {
-	dialled := false
+func TestFetchHostKeyRefusesWhatCouldNameManyHostsBeforeDialing(t *testing.T) {
+	dialed := false
 	dial := func(context.Context, string, string) (net.Conn, error) {
-		dialled = true
+		dialed = true
 		return nil, errors.New("no network in tests")
 	}
 	for _, host := range []string{"", "pve,other", "*.example.com", "pve example", "!pve", "|1|abc", "root@pve", "pve/x", "#pve", "-pve"} {
@@ -132,8 +132,8 @@ func TestFetchHostKeyRefusesWhatCouldNameManyHostsBeforeDialling(t *testing.T) {
 			t.Errorf("accepted port %d", port)
 		}
 	}
-	if dialled {
-		t.Error("a refused host or port was dialled")
+	if dialed {
+		t.Error("a refused host or port was dialed")
 	}
 }
 

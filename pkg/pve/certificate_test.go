@@ -54,7 +54,7 @@ func TestCertificateProblemNamesTheCauseAndTheRemedy(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got, ok := certificateProblem(tc.err)
 			if !ok {
-				t.Fatalf("certificateProblem(%v) did not recognise a refused certificate", tc.err)
+				t.Fatalf("certificateProblem(%v) did not recognize a refused certificate", tc.err)
 			}
 			for _, want := range append(tc.want, "It was not retried") {
 				if !strings.Contains(got, want) {

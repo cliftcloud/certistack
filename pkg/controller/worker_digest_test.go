@@ -19,11 +19,11 @@ import (
 )
 
 // Three build labels stamped into the executable are a build identity any
-// binary can claim. The controller also signs the
-// SHA-256 of the executable it uploaded to run as the worker, taken from the
-// staged copy, so a report can be checked against the digest published for a
-// release. A digest the caller supplies is replaced, and tampering with the
-// recorded digest breaks the signature.
+// binary can claim. The controller also signs the SHA-256 of the executable it
+// uploaded to run as the worker, taken from the staged copy, so a report can be
+// checked against the digest published for a release. A digest the caller
+// supplies is replaced, and tampering with the recorded digest breaks the
+// signature.
 func TestSignedReportRecordsTheDigestOfTheUploadedWorker(t *testing.T) {
 	t.Setenv("PVE_URL", "https://pve.example:8006")
 	t.Setenv("PVE_TOKEN_ID", "certistack@pve!automation")

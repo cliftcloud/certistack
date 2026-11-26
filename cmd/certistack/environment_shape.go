@@ -15,15 +15,14 @@ import (
 	"github.com/cliftcloud/certistack/pkg/controller"
 )
 
-// The shape of a value, which the controller environment file is checked for
-// when it is read. A name, a mode and the syntax of a line were checked; a
-// value was not, so a PVE_URL without a scheme, a token with a pasted prefix or
-// a repository in URL form passed layer 1 of check and failed the layers that
-// follow, after the newcomer had done the SSH steps, as "exit status 255 (client
-// output withheld)" or a bare 401. Each refusal names the variable and its
-// line, what is expected and the exact fix, in words a person who has never
-// seen Proxmox VE can act on. It never prints a value, or a part of one: a
-// secret pasted into the wrong variable would be printed with it.
+// The shape of a value is checked when the controller environment file is read,
+// so a PVE_URL without a scheme, a token with a pasted prefix or a repository
+// in URL form is refused at once and not later, in a layer of check that fails
+// as "exit status 255 (client output withheld)" or a bare 401. Each refusal
+// names the variable and its line, what is expected and the exact fix, in words
+// a person who has never seen Proxmox VE can act on. It never prints a value,
+// or a part of one: a secret pasted into the wrong variable would be printed
+// with it.
 
 // shapeProblem is a value of the controller file that has the wrong shape.
 type shapeProblem struct {

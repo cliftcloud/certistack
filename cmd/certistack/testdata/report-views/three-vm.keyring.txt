@@ -12,7 +12,7 @@ Outcome:       PASS
 Plan:          acme-erp-full-stack-dr "ACME ERP Full Stack Disaster Recovery Test"
 Node:          node-a
 When:          2026-09-29T12:00:00Z
-Engine:        v0.1.0-campaign-fixture, commit 0123456789ab, built 2026-09-29T00:00:00Z
+Engine:        v0.1.0-fixture, commit 0123456789ab, built 2026-09-29T00:00:00Z
 Validation:    full_integrity: every mapped disk image was read back and checksummed
 Frameworks:    DORA-Article-12, SOC2-Type2-CC7.4 (labels, not a certification; retention 2555 days)
 Schema:        1.7

@@ -43,7 +43,7 @@ Fill `known_hosts` with a host key approved through your change process. Never u
 ## Use the published image
 
 Each release publishes `ghcr.io/cliftcloud/certistack-controller:<version>` (the release tag without its `v`, such as
-`0.1.3`) and records its digest in the release asset `CONTAINER-IMAGE.txt`. Download that file,
+`0.1.4`) and records its digest in the release asset `CONTAINER-IMAGE.txt`. Download that file,
 `certistack-linux-amd64`, `SHA256SUMS-bin.txt` and `SHA256SUMS-bin.txt.asc` from the same release, import the release
 key as described in [Verifying release integrity](../../SECURITY.md#verifying-release-integrity), and verify the
 signature and both checksums before you use the image reference:

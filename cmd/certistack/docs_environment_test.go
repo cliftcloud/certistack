@@ -117,13 +117,12 @@ func TestEnvironmentFileVariablesAndConfigurationReferenceAgree(t *testing.T) {
 func sourceNamesOf(t *testing.T) map[string]bool {
 	t.Helper()
 	names := map[string]bool{}
-	skipDir := map[string]bool{".git": true, ".lab": true, "node_modules": true, "site": true, "bin": true, "dist": true}
 	err := filepath.WalkDir(docRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
-			if skipDir[d.Name()] {
+			if skippedTreeDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil

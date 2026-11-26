@@ -38,7 +38,7 @@ func stillRunning(child *exec.Cmd) bool {
 
 // A PID and its start ticks name a process only within one boot: after a
 // reboot another process can have both. A record made in another boot is of a
-// process that is gone, and the process now at that PID is not signalled.
+// process that is gone, and the process now at that PID is not signaled.
 func TestStopRecordedLeavesAProcessThatCarriesAnotherBootsIdentity(t *testing.T) {
 	child, identity := startDisposable(t)
 	identity.BootID = "00000000-0000-0000-0000-00000000dead"
@@ -46,7 +46,7 @@ func TestStopRecordedLeavesAProcessThatCarriesAnotherBootsIdentity(t *testing.T)
 		t.Fatalf("StopRecorded of a process of an earlier boot = %v, want it taken as gone", err)
 	}
 	if !stillRunning(child) {
-		t.Fatal("a process with the recorded PID and start ticks was signalled although the record is of another boot")
+		t.Fatal("a process with the recorded PID and start ticks was signaled although the record is of another boot")
 	}
 }
 
@@ -77,7 +77,7 @@ func TestStopRecordedStillHandlesARecordWithoutABootIdentity(t *testing.T) {
 		t.Fatalf("mismatched start ticks = %v, want ErrPIDReused", err)
 	}
 	if !stillRunning(child) {
-		t.Fatal("a process with other start ticks was signalled")
+		t.Fatal("a process with other start ticks was signaled")
 	}
 	if err := StopRecorded(identity); err != nil {
 		t.Fatalf("StopRecorded = %v", err)
@@ -86,7 +86,7 @@ func TestStopRecordedStillHandlesARecordWithoutABootIdentity(t *testing.T) {
 
 // A record of a boot that cannot be compared with this one, because this
 // boot's identity cannot be read, is neither known gone nor known to be the
-// recorded process: it is not signalled, and the error says why.
+// recorded process: it is not signaled, and the error says why.
 func TestStopRecordedDoesNotSignalWhenThisBootCannotBeRead(t *testing.T) {
 	for name, read := range map[string]func() (string, error){
 		"unreadable": func() (string, error) { return "", errors.New("permission denied") },
@@ -103,7 +103,7 @@ func TestStopRecordedDoesNotSignalWhenThisBootCannotBeRead(t *testing.T) {
 				t.Fatalf("StopRecorded = %v, want ErrBootUnreadable", err)
 			}
 			if !stillRunning(child) {
-				t.Fatal("a process whose boot could not be compared was signalled")
+				t.Fatal("a process whose boot could not be compared was signaled")
 			}
 		})
 	}

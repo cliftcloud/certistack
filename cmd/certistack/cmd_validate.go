@@ -24,9 +24,9 @@ func validateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "validate [plan.yaml | plan-directory]",
-		Short: "Parse and validate one or more disaster recovery test plans",
+		Short: "Validate one or more plans against the CertiStack schema",
 		Args:  cobra.MaximumNArgs(1),
-		Long: `Validates one YAML test plan, or every immediate .yaml/.yml file in a directory,
+		Long: `Validates one YAML plan, or every immediate .yaml/.yml file in a directory,
 against the CertiStack v1 schema.
 Checks all field constraints, CIDR validity, probe requirements,
 VMID uniqueness, and framework compliance references.
@@ -111,7 +111,7 @@ local-lvm, and a max_host_ram_percent above 95.`,
 		},
 	}
 
-	cmd.Flags().StringVarP(&planFlag, "plan", "p", "", "path to disaster recovery plan YAML or directory")
+	cmd.Flags().StringVarP(&planFlag, "plan", "p", "", "path to a plan YAML or a directory of plans")
 	cmd.Flags().StringVar(&envFile, "env-file", "", "allowlisted controller environment file to read and check (none of its values changes the plan's validation); values are parsed literally, never shell-sourced (default: the file certistack setup recorded)")
 	return cmd
 }
@@ -204,7 +204,7 @@ func writePlanSummary(writer interface{ Write([]byte) (int, error) }, path strin
 		fmt.Fprintf(writer, "  Environment:    %s\n", plan.Environment)
 	}
 	fmt.Fprintf(writer, "  Tiers:          %d\n", len(plan.Tiers))
-	fmt.Fprintf(writer, "  Ephemeral VMs:  %d\n", totalVMs)
+	fmt.Fprintf(writer, "  Sandbox VMs:    %d\n", totalVMs)
 	fmt.Fprintf(writer, "  Probes:         %d\n", totalProbes)
 	fmt.Fprintf(writer, "  Network:        %s (zone=%s, vnet=%s)\n", plan.Network.Mode, plan.Network.ZoneID, plan.Network.VNetID)
 	fmt.Fprintf(writer, "  Frameworks:     %v\n", plan.Compliance.Frameworks)

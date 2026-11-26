@@ -1,7 +1,7 @@
 # Reports
 
-Every run writes one JSON report: which backup was restored, what the probes found, and whether the cleanup was
-verified. Community reports are unsigned.
+A run that creates evidence writes one JSON report: which backup was restored, what the probes found, and whether the
+cleanup was verified. Community reports are unsigned.
 
 ## Where reports go
 
@@ -13,8 +13,8 @@ verified. Community reports are unsigned.
 
 - The output directory is `/var/lib/certistack/reports` unless you set `--output` or `CERTISTACK_OUTPUT_DIR`. A run
   refuses one that group or other users can write: its permissions are what keep an unsigned report as written.
-- A failed validation still writes a report. A run that never created evidence (an SSH failure, a busy node) writes
-  none.
+- A run whose probes failed still writes a report. A run that never created evidence (an SSH failure, a busy node)
+  writes none.
 - A run refused before any restore, for capacity or for its Proxmox versions, writes a report with no VM, an
   `rto_seconds` of `0` and no memory reserved; `report show` says so.
 - If the report cannot be saved, `run` exits `2` and prints it between `-----BEGIN CERTISTACK REPORT-----` and
@@ -37,8 +37,9 @@ restored, probes, and any network diagnostic) and the teardown. A good report sh
 - every probe `PASS`
 - `cleanup verified` under `Teardown`
 
-With no file named, `certistack report show` shows the newest report. No run yet? In a clone of the repository,
-`certistack report show examples/sample-report-unsigned.json` shows one.
+With no file named, `certistack report show` shows the newest report in the reports directory: `CERTISTACK_OUTPUT_DIR`
+in the environment file `setup` recorded, else `/var/lib/certistack/reports`. `--reports-dir` names another. No run
+yet? In a clone of the repository, `certistack report show examples/sample-report-unsigned.json` shows one.
 
 ## Verify a report
 
@@ -65,7 +66,7 @@ anyone can write a file that says anything. For the outcome `pass` (the default)
 | `1` | An `--expect-*` flag was given and the report is not accepted |
 | `2` | The report cannot be trusted or read |
 
-Without an `--expect-*` flag, a failed validation still exits `0`. Pass `--expect-outcome pass`, or read
+Without an `--expect-*` flag, a report of a failed run still exits `0`. Pass `--expect-outcome pass`, or read
 `acceptance.verdict` from `--format json`.
 
 ### Bind the verdict to your plan
@@ -127,7 +128,7 @@ write-once storage or a change ticket:
 sha256sum /var/lib/certistack/reports/<plan_id>/<report_id>.json
 ```
 
-Never edit a report; run the validation again instead.
+Never edit a report; run again instead.
 
 ## Signed reports (Enterprise)
 

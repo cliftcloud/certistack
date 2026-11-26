@@ -6,11 +6,8 @@ package orchestrator
 import "time"
 
 // phaseTimer adds the time a phase took to its field of the report's phase
-// timings, whichever way the phase ends. A phase whose time was added only
-// after it succeeded left a failed run's report with zero for the work that
-// failed or stalled and the time unexplained: a run that spent two seconds
-// waiting for admission showed no admission time, and one whose SDN setup
-// failed after a quarter of a second showed no SDN time.
+// timings, whichever way the phase ends, so a phase that failed or stalled
+// still shows its time.
 //
 // The first stop counts and later ones do nothing, so a phase can be stopped
 // where it ends and also deferred, to cover every early return between.

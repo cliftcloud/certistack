@@ -22,7 +22,7 @@ import (
 // The tests of stopMapDaemon run real processes against the host's
 // real /proc, except the ones that need a PID to change hands between two reads,
 // which run a fake /proc tree and give the reaper a pidfd of a real process
-// that must not be signalled.
+// that must not be signaled.
 
 // pidFileOf writes the pid file of a map file in a directory of its own, with
 // content, and returns the map file's path.
@@ -48,7 +48,7 @@ func recordingDaemon(t *testing.T, mode string) (*fakeClient, string) {
 
 // pidfdStandIn is what a reaper whose /proc is a fake tree opens a pidfd of: a
 // fake PID has no pidfd, and a real process that happens to have the number
-// must never be signalled, so the reaper is given the pidfd of a real process
+// must never be signaled, so the reaper is given the pidfd of a real process
 // of the test's own that stands for the process under the PID, and records the
 // signal it gets (and exits on it, which the stop sees through the pidfd).
 type pidfdStandIn struct {
@@ -69,11 +69,11 @@ func (s *pidfdStandIn) open(_, flags int) (int, error) {
 	return unix.PidfdOpen(s.proc.id.PID, flags)
 }
 
-// signalled is the signal the stand-in received, "" if none.
-func (s *pidfdStandIn) signalled() string { return signalled(s.signalFile) }
+// signaled is the signal the stand-in received, "" if none.
+func (s *pidfdStandIn) signaled() string { return signaled(s.signalFile) }
 
-// signalled is the signal a recording daemon received, "" if none.
-func signalled(file string) string {
+// signaled is the signal a recording daemon received, "" if none.
+func signaled(file string) string {
 	data, _ := os.ReadFile(file)
 	return string(data)
 }
@@ -94,12 +94,12 @@ func TestStopMapDaemonSignalsTheVerifiedDaemonWithSIGINT(t *testing.T) {
 	if r.alive(daemon.id) {
 		t.Fatal("stopMapDaemon returned before the daemon exited")
 	}
-	if got := signalled(signalFile); got != "interrupt" {
+	if got := signaled(signalFile); got != "interrupt" {
 		t.Fatalf("the daemon received %q, want SIGINT (\"interrupt\")", got)
 	}
 }
 
-// A process the pid file names that is not the run's daemon is not signalled,
+// A process the pid file names that is not the run's daemon is not signaled,
 // whatever it is: another operation's map, another namespace's, a map without
 // the run's token, a restore into a file named map, another program. The
 // answer says why, and the caller detaches the loop alone.
@@ -132,13 +132,13 @@ func TestStopMapDaemonSignalsNothingThatIsNotTheRunsDaemon(t *testing.T) {
 			r.daemonWait = 5 * time.Second
 			note, err := r.stopMapDaemon(backing, intent)
 			if err != nil || note == "" {
-				t.Fatalf("stopMapDaemon = %q, %v; want a note saying nothing was signalled", note, err)
+				t.Fatalf("stopMapDaemon = %q, %v; want a note saying nothing was signaled", note, err)
 			}
 			if other.exited(300 * time.Millisecond) {
-				t.Fatalf("the process under the pid file was signalled: %s", note)
+				t.Fatalf("the process under the pid file was signaled: %s", note)
 			}
-			if signalled(ownSignal) != "" {
-				t.Fatal("the run's own daemon was signalled, though the pid file names another process")
+			if signaled(ownSignal) != "" {
+				t.Fatal("the run's own daemon was signaled, though the pid file names another process")
 			}
 		})
 	}
@@ -177,7 +177,7 @@ func TestStopMapDaemonReportsADaemonThatIgnoresSIGINTAndDoesNotKillIt(t *testing
 }
 
 // A missing pid file has no daemon to stop; one that cannot be read is
-// unknown (an error, nothing signalled); one that names no process, or that
+// unknown (an error, nothing signaled); one that names no process, or that
 // names a PID nobody has, signals nothing.
 func TestStopMapDaemonOfAMissingUnreadableOrEmptyPidFile(t *testing.T) {
 	daemon, signalFile := recordingDaemon(t, "record")
@@ -206,8 +206,8 @@ func TestStopMapDaemonOfAMissingUnreadableOrEmptyPidFile(t *testing.T) {
 	if note, err := r.stopMapDaemon(pidFileOf(t, "4194000\n"), intent); err != nil || note != "" {
 		t.Errorf("a PID nobody has: %q, %v; want nothing to stop", note, err)
 	}
-	if daemon.exited(200*time.Millisecond) || signalled(signalFile) != "" {
-		t.Fatal("a process was signalled though no pid file named it")
+	if daemon.exited(200*time.Millisecond) || signaled(signalFile) != "" {
+		t.Fatal("a process was signaled though no pid file named it")
 	}
 }
 
@@ -216,7 +216,7 @@ func TestStopMapDaemonOfAMissingUnreadableOrEmptyPidFile(t *testing.T) {
 // changed, a command line that is no longer the daemon's, or a process that is
 // gone, signals nothing. The fake /proc tree holds the daemon that was first
 // seen; the pidfd opener, which runs between the two looks, changes the tree
-// and hands over the pidfd of a real process that must not be signalled.
+// and hands over the pidfd of a real process that must not be signaled.
 func TestStopMapDaemonSignalsNothingWhenThePIDChangesHandsAfterTheCheck(t *testing.T) {
 	at := reaperBoot.Add(10 * time.Hour)
 	for name, tc := range map[string]struct {
@@ -255,8 +255,8 @@ func TestStopMapDaemonSignalsNothingWhenThePIDChangesHandsAfterTheCheck(t *testi
 			if opened != 1 {
 				t.Fatalf("pidfd opened %d times, want once", opened)
 			}
-			if bystander.exited(300*time.Millisecond) || signalled(signalFile) != "" {
-				t.Fatal("the process that has the PID now was signalled")
+			if bystander.exited(300*time.Millisecond) || signaled(signalFile) != "" {
+				t.Fatal("the process that has the PID now was signaled")
 			}
 		})
 	}
@@ -264,7 +264,7 @@ func TestStopMapDaemonSignalsNothingWhenThePIDChangesHandsAfterTheCheck(t *testi
 
 // The daemon exits between the first look and the pidfd: nothing is left to
 // stop. A kernel without pidfd_open cannot bind the signal to what was looked
-// at: nothing is signalled, and the daemon is reported to the operator.
+// at: nothing is signaled, and the daemon is reported to the operator.
 func TestStopMapDaemonWhenThePidfdCannotBeOpened(t *testing.T) {
 	at := reaperBoot.Add(10 * time.Hour)
 	root := t.TempDir()
@@ -316,7 +316,7 @@ func TestStopMapDaemonCountsAZombieAsExited(t *testing.T) {
 
 // A daemon of an earlier boot is not the run's: the pid file is of a boot that
 // has gone, whatever runs under that PID now. A boot that cannot be read cannot
-// be compared, so nothing is signalled and the operator is told, as the map
+// be compared, so nothing is signaled and the operator is told, as the map
 // reaper does for the processes the journal names.
 func TestStopMapDaemonComparesTheBootTheIntentWasJournaledIn(t *testing.T) {
 	at := reaperBoot.Add(10 * time.Hour)

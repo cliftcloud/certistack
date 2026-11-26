@@ -35,7 +35,7 @@ func macPlan(secondMAC string) *Plan {
 
 // loadBothWays runs a plan through the controller loader and, as the
 // controller would hand it over, through the worker loader. The worker's input
-// is marshalled from the struct, not from the controller's result, so the
+// is marshaled from the struct, not from the controller's result, so the
 // worker loader is tested on its own even when the controller loader refuses.
 func loadBothWays(t *testing.T, plan *Plan) (controllerErr, workerErr error) {
 	t.Helper()

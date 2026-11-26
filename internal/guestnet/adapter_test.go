@@ -834,7 +834,7 @@ func TestValidate_RejectsUnsafeInterfaceName(t *testing.T) {
 
 // The adapter is the second validator of the name it writes into the
 // ifupdown stanza and the systemd .link file, so it refuses "." and ".." itself
-// (defence in depth behind the plan validator), writing nothing.
+// (defense in depth behind the plan validator), writing nothing.
 func TestAdapterRefusesKernelReservedInterfaceNames(t *testing.T) {
 	for _, name := range []string{".", ".."} {
 		t.Run(name, func(t *testing.T) {

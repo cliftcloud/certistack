@@ -258,7 +258,7 @@ func choose(list []pbs.VMBackups, req Request) ([]pbs.VMBackups, error) {
 // time: a fixed pool of profileReaders readers takes the backups one by one,
 // so a long list costs no more goroutines than that. A backup a run could not
 // read is kept with its error, and a backup the pool reaches after the run was
-// cancelled is not opened at all.
+// canceled is not opened at all.
 func readVMs(ctx context.Context, backups Backups, chosen []pbs.VMBackups, scratchDir string) []VM {
 	vms := make([]VM, len(chosen))
 	for i, b := range chosen {
@@ -284,7 +284,7 @@ func readVMs(ctx context.Context, backups Backups, chosen []pbs.VMBackups, scrat
 }
 
 // readVM reads one backup's configuration into a private scratch directory
-// that it removes again. It makes nothing once ctx is done: a cancelled run
+// that it removes again. It makes nothing once ctx is done: a canceled run
 // does not create a directory, or ask the repository, for the backups still
 // waiting.
 func readVM(ctx context.Context, backups Backups, vm *VM, scratchDir string) {

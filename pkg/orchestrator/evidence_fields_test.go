@@ -32,16 +32,16 @@ import (
 	"github.com/cliftcloud/certistack/pkg/pve"
 )
 
-// The signed report must say what a probe asserted and the policy it ran
+// The report must say what a probe asserted and the policy it ran
 // under. These tests run the real probe stage and the real report builder and
 // signer, and assert on the report a run would sign: two runs that differ in
 // one such property sign different bytes, and without the field under test
-// they would sign the same report, which shows the field is the only
+// they would give the same report, which shows the field is the only
 // difference.
 
 var evidenceKey = ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0x77}, ed25519.SeedSize))
 
-// evidenceReportJSON is the signed report of a plan and one VM record, with
+// evidenceReportJSON is the report of a plan and one VM record, with
 // its identity and time fixed so equal evidence gives equal bytes. It also
 // checks that the report verifies.
 func evidenceReportJSON(t *testing.T, record probe.VMValidationRecord) []byte {
@@ -95,7 +95,7 @@ func requireDistinctEvidence(t *testing.T, a, b probe.Result, normalize ...func(
 		apply(&b)
 	}
 	if bytes.Equal(evidenceReportJSON(t, resultRecord(a)), evidenceReportJSON(t, resultRecord(b))) {
-		t.Fatalf("the signed reports of %+v and %+v are byte-identical", a, b)
+		t.Fatalf("the reports of %+v and %+v are byte-identical", a, b)
 	}
 	if !bytes.Equal(evidenceReportJSON(t, resultRecord(withoutEvidenceFields(a))), evidenceReportJSON(t, resultRecord(withoutEvidenceFields(b)))) {
 		t.Fatalf("results differ in more than the recorded evidence fields: %+v vs %+v", withoutEvidenceFields(a), withoutEvidenceFields(b))
@@ -103,7 +103,7 @@ func requireDistinctEvidence(t *testing.T, a, b probe.Result, normalize ...func(
 }
 
 // Every setting CreateVM requests that shapes the guest is recorded
-// in the signed restored_hardware, the CPU weight included.
+// in the report's restored_hardware, the CPU weight included.
 func TestRestoredHardwareRecordsEverythingCreateVMRequests(t *testing.T) {
 	// Every pve.Hardware field has a RestoredHardware field of the same name
 	// and value, so a setting added to the request cannot be left out of the
@@ -142,7 +142,7 @@ func TestRestoredHardwareRecordsEverythingCreateVMRequests(t *testing.T) {
 }
 
 // Two VMs that differ only in CPU weight (50 and 500) get different create
-// requests, and their signed evidence differs too, carrying exactly the
+// requests, and their evidence differs too, carrying exactly the
 // weight that was sent.
 func TestDifferentCPUWeightsSignDifferentRestoredHardware(t *testing.T) {
 	o := &Orchestrator{plan: &config.Plan{Network: config.Network{VNetID: "csVn01"}}, runID: "run-cpu-weight"}
@@ -175,7 +175,7 @@ func TestDifferentCPUWeightsSignDifferentRestoredHardware(t *testing.T) {
 		t.Fatal("VMs created with CPU weights 50 and 500 sign byte-identical reports")
 	}
 	if !bytes.Contains(lowJSON, []byte(`"cpu_weight":50`)) || !bytes.Contains(highJSON, []byte(`"cpu_weight":500`)) {
-		t.Fatalf("the signed reports do not carry the weight: %s", highJSON)
+		t.Fatalf("the reports do not carry the weight: %s", highJSON)
 	}
 	if again := evidenceReportJSON(t, low); !bytes.Equal(lowJSON, again) {
 		t.Fatal("identical hardware does not sign deterministically")
@@ -269,7 +269,7 @@ func flakyQGA(t *testing.T, dir string, vmid, failures int) {
 }
 
 // A probe that passed on its third permitted execution and one that passed on
-// its first do not sign the same result.
+// its first do not give the same result.
 func TestAProbePassingOnItsThirdAttemptSignsItsAttempts(t *testing.T) {
 	ping := func(vmid, failures, retries int) probe.Result {
 		dir := shortSocketDir(t)
@@ -308,10 +308,10 @@ func TestQGAResultsRecordWhetherTheProbeWasRequired(t *testing.T) {
 	}
 	requireDistinctEvidence(t, required, optional)
 	if data := evidenceReportJSON(t, resultRecord(required)); !bytes.Contains(data, []byte(`"require_qga":true`)) {
-		t.Fatalf("the signed report of a required probe does not say so: %s", data)
+		t.Fatalf("the report of a required probe does not say so: %s", data)
 	}
 	if data := evidenceReportJSON(t, resultRecord(optional)); bytes.Contains(data, []byte("require_qga")) {
-		t.Fatalf("the signed report of an optional probe records a requirement: %s", data)
+		t.Fatalf("the report of an optional probe records a requirement: %s", data)
 	}
 
 	// Without an agent: required fails and optional skips, and the result
@@ -480,7 +480,7 @@ func TestScreendumpResultsRecordTheImageDigestAndKeepNoImage(t *testing.T) {
 	}
 	requireDistinctEvidence(t, black, white, func(result *probe.Result) { result.Target = "qmp" })
 	if data := evidenceReportJSON(t, resultRecord(black)); !bytes.Contains(data, []byte(`"image_sha256":"`+black.ImageSHA256+`"`)) {
-		t.Fatalf("the signed report does not carry the digest: %s", data)
+		t.Fatalf("the report does not carry the digest: %s", data)
 	}
 	// The digest identifies the image: the same frame gives the same digest.
 	again, _ := capture(9923, onePixelPPM(0))

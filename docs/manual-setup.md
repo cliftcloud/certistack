@@ -14,8 +14,8 @@ Your backups and source VMs are never changed. Setup asks before each change.
 | PVE | Role `CertiStackRole`, user `certistack-svc@pve`, token `certistack-svc@pve!automation` | Creating and removing the sandbox VM and network. The token could do this to any VM or zone: keep `controller.env` private. |
 | PBS | User `certistack-ro@pbs` and its token, with `DatastoreReader` | Reading the whole datastore, or only the namespace you give setup |
 | Controller | In `/secure/certistack`: SSH key, host key, PVE CA, `controller.env` and its `.bak-*` copies, and if used `pbs-access.sh` and an encryption key (`<ID>.enc`); the PBS's host keys in `~/.ssh/known_hosts`; `controller.env`'s path in `~/.config/certistack/env-file` | The credentials a run uses. The encryption key decrypts every backup in its storage; setup copies it only if you say yes. |
-| Node, during a run | A worker, read-only backup maps with overlays, the sandbox VM (a VM ID from 9100 up; an existing ID is refused), and an SDN zone and VNet with no uplink | Booting the backup in isolation. The run removes each and checks it is gone. |
-| Node, between runs | `/var/lib/certistack` | The journal that `recover` uses after an interrupted run |
+| Node, during a run | A worker, read-only backup maps with overlays, the sandbox VM (the plan's `vmid`, which `init` takes from 9100 up; an existing ID is refused), and an SDN zone and VNet with no uplink | Booting the backup in isolation. The run removes each and checks it is gone. |
+| Node, between runs | `/var/lib/certistack`, and what [stays](#what-stays) of libguestfs's cache and PVE's SDN bookkeeping | The journal that `recover` uses after an interrupted run |
 
 ### Plan around
 
@@ -24,7 +24,8 @@ Your backups and source VMs are never changed. Setup asks before each change.
   lost. A [pre-provisioned sandbox](plan-reference.md#use-a-pre-provisioned-sandbox) avoids the reload.
 - **Disk.** The overlay storage needs the VM's disk size plus 5 GiB free. Never put it on a cluster node's root disk:
   heavy I/O can delay corosync and cost the node its cluster membership.
-- **Memory.** A run needs the VM's memory plus 256 MiB free, and waits rather than push the node above 85% of its RAM.
+- **Memory.** A run needs the VM's memory plus 256 MiB free, and waits rather than push the node above the plan's
+  `max_host_ram_percent` of its RAM (`init` writes 85).
 - **Backup jobs.** A job that selects all VMs can back up a running sandbox VM: run outside your backup window, or
   select VMs by pool (sandbox VMs are in none).
 
@@ -71,7 +72,7 @@ ssh-keygen -t ed25519 -N '' -C certistack-controller -f /secure/certistack/id_ed
 ```
 
 ```bash
-certistack setup trust-node --host pve-node-01.example.com
+certistack setup trust-node --host pve-node-01.example.com --known-hosts /secure/certistack/known_hosts
 ```
 
 Before you type `yes`, check that its `SHA256:...` matches what this prints at the node's console:
@@ -121,9 +122,11 @@ Run `pbs-access.sh` as root on the PBS (`ssh root@pbs.example.com sh -s < pbs-ac
 `sh`, paste it, then `exit`. Do not authorize the controller's key on the PBS.
 
 Each script prints its secret once: for PVE, the long string in the `value` row, between the `│` characters
-(`PVE_TOKEN_SECRET`); for PBS, `PBS_PASSWORD`. Both scripts are safe to run again. To replace a lost secret, remove the
-token and rerun: `pveum user token remove certistack-svc@pve automation` on the node,
-`proxmox-backup-manager user delete-token certistack-ro@pbs ro` on the PBS.
+(`PVE_TOKEN_SECRET`); for PBS, `PBS_PASSWORD`. Both scripts are safe to run again. Run again, a script stops before
+any grant when its token exists, so a token made for another controller gains no access. If you hold that token's
+secret, put `CERTISTACK_KEEP_TOKEN=yes` in front of `sh` (`ssh root@pbs.example.com CERTISTACK_KEEP_TOKEN=yes sh -s <
+pbs-access.sh`). To replace a lost secret, remove the token and rerun: `pveum user token remove certistack-svc@pve
+automation` on the node, `proxmox-backup-manager user delete-token certistack-ro@pbs ro` on the PBS.
 
 ### 4. Write the controller environment file
 
@@ -250,7 +253,7 @@ The same with plain commands, as root on a PVE node (run again, they stop with "
 
 ```bash
 pveum role add CertiStackRole --privs "VM.Allocate VM.Audit VM.PowerMgmt VM.Console VM.Config.Disk VM.Config.CPU VM.Config.Memory VM.Config.Network VM.Config.Options VM.Config.HWType VM.Config.CDROM SDN.Allocate SDN.Audit SDN.Use Sys.Audit Datastore.AllocateSpace Datastore.Audit"
-pveum user add certistack-svc@pve --comment "CertiStack DR validation"
+pveum user add certistack-svc@pve --comment "CertiStack restore tests"
 pveum user token add certistack-svc@pve automation --privsep 1
 for path in /vms /sdn/zones /storage/certistack-scratch; do
   pveum acl modify "$path" --roles CertiStackRole \
@@ -284,7 +287,7 @@ and a bootstrap token you remove afterwards (`pveum user token add root@pam terr
 You need `make` and Go 1.27.4 or later.
 
 ```bash
-git clone --depth 1 --branch v0.1.3 https://github.com/cliftcloud/certistack.git certistack-src
+git clone --depth 1 --branch v0.1.4 https://github.com/cliftcloud/certistack.git certistack-src
 cd certistack-src
 make build-linux          # bin/certistack-linux-amd64
 make build-linux-arm64    # bin/certistack-linux-arm64 (offline commands only)
@@ -298,7 +301,7 @@ To keep versions side by side, run this in the download directory of
 [Install by hand](quickstart.md#install-by-hand):
 
 ```bash
-version=v0.1.3
+version=v0.1.4
 sudo install -d -m 0755 "/opt/certistack/releases/$version"
 sudo install -m 0755 certistack-linux-amd64 "/opt/certistack/releases/$version/certistack"
 sudo ln -sfn "/opt/certistack/releases/$version/certistack" /usr/local/bin/certistack
@@ -329,7 +332,8 @@ pgrep -af 'certistack [r]un'
 
 ### 2. Node: check that no run left anything
 
-As root on the node, look for a sandbox VM (from 9100 up) and a zone named `csZone…`, then recover any workspace:
+As root on the node, look for a sandbox VM (a `vmid` of your plans; `init` takes them from 9100 up) and a zone named
+`csZone…`, then recover any workspace:
 
 ```bash
 ls /var/lib/certistack/workers/
@@ -458,6 +462,9 @@ rm -f "${XDG_CONFIG_HOME:-$HOME/.config}/certistack/env-file"
 sudo rm -f /usr/local/bin/certistack /usr/local/bin/certistack.prev
 ```
 
+[Installed without sudo](quickstart.md#install-without-sudo), the binary is in your directory instead:
+`rm -f ~/bin/certistack ~/bin/certistack.prev`.
+
 ### What stays
 
 - Your reports and plans.
@@ -477,7 +484,8 @@ sudo rm -f /usr/local/bin/certistack /usr/local/bin/certistack.prev
   Other storages' `content` lists may be in another order; the content is the same.
 - On the controller: the setup directory, empty, and `~/.config/certistack`. Remove them if you like:
   `sudo rmdir /secure/certistack /secure` (the second fails, harmlessly, if something else is in `/secure`) and
-  `rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/certistack"`.
+  `rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/certistack"`. Without sudo: `rmdir ~/certistack/secure`;
+  `~/certistack/reports` holds your reports, and `~/bin` stays, empty if nothing else is in it.
 - Delete when you like: `release-signing-key.gpg`, `release-signing-key.gpg~` and `~/certistack-download`; scripts
   `setup rbac` printed; `telemetry.json.lock`; the PBS's host keys in `~/.ssh/known_hosts` (ssh adds every key the PBS
   offers, under a hashed name): `ssh-keygen -R <PBS address>` removes them, and keeps the file before as

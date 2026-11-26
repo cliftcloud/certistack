@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package admission provides a controller to evaluate host resource utilization.
+// Package admission checks the node's memory and CPU I/O wait against a plan's
+// limits before a run is admitted.
 package admission
 
 import (
@@ -16,7 +17,9 @@ import (
 	"github.com/cliftcloud/certistack/pkg/progress"
 )
 
-// Config holds admission control thresholds.
+// Config holds admission control thresholds. MaxDeferRetries is how many checks
+// may follow the first: a plan requires at least 1 (config.Validate), and 0 is
+// one check with no wait, as an inspection takes it.
 type Config struct {
 	MaxHostRAMPercent     float64
 	MaxHostIOWaitPercent  float64
@@ -24,8 +27,8 @@ type Config struct {
 	MaxDeferRetries       int
 }
 
-// Controller evaluates host resource utilization against configured
-// thresholds before permitting DR simulation execution.
+// Controller checks host memory and CPU I/O wait against the configured
+// thresholds before a run is admitted.
 type Controller struct {
 	cfg Config
 
@@ -33,9 +36,9 @@ type Controller struct {
 	last Evaluation
 }
 
-// The decisions an Evaluation records. They are the vocabulary a signed
-// report uses (attest.AdmissionEvaluation), so a verifier can tell a grant
-// from each way a run was refused.
+// The decisions an Evaluation records. They are the vocabulary a report uses
+// (attest.AdmissionEvaluation), so a verifier can tell a grant from each way a
+// run was refused.
 const (
 	// DecisionGranted: every limit held at the last check.
 	DecisionGranted = "granted"
@@ -217,7 +220,7 @@ func PreflightMemory(requiredMiB int, maxPercent float64) (Evaluation, error) {
 	}
 	if available < float64(requiredMiB) {
 		evaluation.Decision = DecisionPreflightDeniedMemory
-		return evaluation, fmt.Errorf("available RAM %.0f MB is below required %d MB", available, requiredMiB)
+		return evaluation, fmt.Errorf("available RAM %.0f MiB is below required %d MiB", available, requiredMiB)
 	}
 	// A successful preflight is not an admission grant. Its caller records only
 	// failures, and the orchestrator later performs the full admission check.

@@ -28,7 +28,7 @@ func batchDestinations(t *testing.T, batch []string) []string {
 	return destinations
 }
 
-// reportedPaths are the paths the signed list names; a link is listed as
+// reportedPaths are the paths the reported list names; a link is listed as
 // "path -> target".
 func reportedPaths(files []string) []string {
 	paths := make([]string, len(files))
@@ -55,13 +55,13 @@ func exactlyOnce(t *testing.T, what string, written, reported []string) {
 	got := append([]string(nil), reported...)
 	sort.Strings(got)
 	if strings.Join(want, "\n") != strings.Join(got, "\n") {
-		t.Fatalf("%s: the batch writes\n  %s\nbut the signed list names\n  %s", what, strings.Join(want, "\n  "), strings.Join(got, "\n  "))
+		t.Fatalf("%s: the batch writes\n  %s\nbut the reported list names\n  %s", what, strings.Join(want, "\n  "), strings.Join(got, "\n  "))
 	}
 }
 
 // The diagnostic batch writes six destinations (the script, the boot unit, the
 // late unit, the dispatcher and two enablement links), and the result lists
-// every one. The list is part of the signed VM record, so a reviewer can
+// every one. The list is part of the VM record, so a reader can
 // reconstruct what was written into the guest.
 func TestSignedFilesNameEveryDestinationTheBatchWrites(t *testing.T) {
 	cases := []struct {
@@ -99,7 +99,7 @@ func TestSignedFilesNameEveryDestinationTheBatchWrites(t *testing.T) {
 				diagnosticLateLink + " -> ../certistack-network-recovery-late.service",
 			} {
 				if !containsString(result.Files, want) {
-					t.Errorf("the signed list lacks %q: %v", want, result.Files)
+					t.Errorf("the reported list lacks %q: %v", want, result.Files)
 				}
 			}
 		})

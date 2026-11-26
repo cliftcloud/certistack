@@ -71,7 +71,7 @@ jobs:
           custom-pr-sign-comment: "I have read the CLA Document and I hereby sign the CLA"
           custom-notsigned-prcomment: >
             Thank you for the contribution! Before this can be merged, please
-            sign our [Contributor License Agreement](CLA.md) by commenting
+            sign our [Contributor License Agreement](https://github.com/cliftcloud/certistack/blob/main/CLA.md) by commenting
             below with the exact text: "I have read the CLA Document and I
             hereby sign the CLA"
           remote-organization-name: ""

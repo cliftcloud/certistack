@@ -30,7 +30,7 @@ import (
 	"github.com/cliftcloud/certistack/pkg/attest"
 )
 
-// SourceDrive is one backed-up SCSI image, addressed by the PVE slot it must
+// SourceDrive is one backed-up disk image, addressed by the PVE slot it must
 // occupy when the recovered VM boots.
 type SourceDrive struct {
 	Slot    string
@@ -1170,8 +1170,8 @@ var pveSize = regexp.MustCompile(`^([0-9]{1,20})(\.[0-9]{1,20})?([KkMmGgTt]?)$`)
 // diskSizeBytes reads a PVE drive's size= option ("size=40G"; K, M, G and T
 // are binary units, and a bare number is bytes). A size that is not in that
 // form, or is larger than any real disk, is unknown: it is reported as
-// absent, never as a number. strconv.ParseFloat alone accepted NaN, Inf and
-// exponents, whose conversion to int64 gave a negative size.
+// absent, never as a number. The form is matched first because
+// strconv.ParseFloat accepts NaN, Inf and exponents.
 func diskSizeBytes(value string) (int64, bool) {
 	for _, option := range strings.Split(value, ",") {
 		size, ok := strings.CutPrefix(strings.TrimSpace(option), "size=")

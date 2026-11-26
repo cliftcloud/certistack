@@ -79,10 +79,10 @@ type sharedResult struct {
 }
 
 // The topology check runs `zpool status` under the caller's context as well as
-// its own 15-second timeout, so a cancelled caller does not wait for the
+// its own 15-second timeout, so a canceled caller does not wait for the
 // subprocess, and a run interrupted at its first check can begin its teardown.
-// Here a zpool hangs, and the caller's context is cancelled while it does.
-func TestSharedDisksStopsWhenTheCallerIsCancelled(t *testing.T) {
+// Here a zpool hangs, and the caller's context is canceled while it does.
+func TestSharedDisksStopsWhenTheCallerIsCanceled(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		sameDevice bool
@@ -106,10 +106,10 @@ func TestSharedDisksStopsWhenTheCallerIsCancelled(t *testing.T) {
 			select {
 			case got := <-done:
 				if !errors.Is(got.err, context.Canceled) || errors.Is(got.err, ErrDisksUnknown) || got.shared != nil {
-					t.Fatalf("SharedDisks = %v, %v; want the context's error alone: a cancelled caller is not told the topology is unknown or shared", got.shared, got.err)
+					t.Fatalf("SharedDisks = %v, %v; want the context's error alone: a canceled caller is not told the topology is unknown or shared", got.shared, got.err)
 				}
 			case <-time.After(3 * time.Second):
-				t.Fatal("SharedDisks was still waiting for zpool 3 s after the caller was cancelled (it returns only when the check's own 15 s timeout kills it)")
+				t.Fatal("SharedDisks was still waiting for zpool 3 s after the caller was canceled (it returns only when the check's own 15 s timeout kills it)")
 			}
 		})
 	}
@@ -144,7 +144,7 @@ func TestSharedDisksWithAnEndedContextStartsNothing(t *testing.T) {
 		t.Fatalf("SharedDisks = %v, %v; want the context's error", shared, err)
 	}
 	if _, err := os.Stat(started); err == nil {
-		t.Fatal("zpool was started for a caller that had already been cancelled")
+		t.Fatal("zpool was started for a caller that had already been canceled")
 	}
 }
 

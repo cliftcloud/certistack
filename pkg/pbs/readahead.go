@@ -140,7 +140,7 @@ func (p *imageReadahead) consumed(upTo int64) {
 }
 
 // stop ends the workers. A worker waiting on PBS in a read cannot be
-// interrupted from here, so stop waits for them only as long as a cancelled
+// interrupted from here, so stop waits for them only as long as a canceled
 // scan waits for its own read, and then leaves them to finish on their own.
 func (p *imageReadahead) stop() {
 	if p == nil {

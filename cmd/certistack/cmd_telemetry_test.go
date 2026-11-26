@@ -152,8 +152,22 @@ func TestTelemetryCommandLifecycle(t *testing.T) {
 	if err != nil || !strings.Contains(out, "telemetry: off") || !strings.Contains(out, "not been asked") || !strings.Contains(out, rig.statePath) || !strings.Contains(out, "(missing)") {
 		t.Fatalf("status of a fresh install: %v\n%s", err, out)
 	}
-	if out, err = rig.execute("telemetry", "show"); err != nil || !strings.Contains(out, "nothing is sent: disabled") || strings.Contains(out, "install_id") {
+	if out, err = rig.execute("telemetry", "show"); err != nil || !strings.HasPrefix(out, "nothing is sent: disabled") {
 		t.Fatalf("show while off: %v\n%s", err, out)
+	}
+	// While off, show prints the five fields a report would hold, marked as an
+	// example: the first-run question sends the reader here before answering.
+	if !strings.Contains(out, "If you opt in, a report after a completed run holds these five fields and nothing else. The values are an example") {
+		t.Fatalf("show while off does not say the fields are an example:\n%s", out)
+	}
+	example := telemetry.Payload{}
+	exampleDec := json.NewDecoder(strings.NewReader(out[strings.Index(out, "{"):]))
+	exampleDec.DisallowUnknownFields()
+	if err := exampleDec.Decode(&example); err != nil {
+		t.Fatalf("show while off does not print the payload's fields: %v\n%s", err, out)
+	}
+	if example.InstallID == "" || example.Version != "9.9.9-test" || example.ClusterCount != 1 || example.LastTestRun == "" || example.BusinessUse {
+		t.Fatalf("the example while off = %+v", example)
 	}
 	if rig.hasState() {
 		t.Fatal("status and show created the state file")
@@ -585,8 +599,7 @@ func TestOnlyRunSendsAReport(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
-			switch d.Name() {
-			case ".git", ".lab", "node_modules", "site":
+			if skippedTreeDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -641,8 +654,7 @@ func TestOnlyTheCommandLineImportsTheTelemetryPackage(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
-			switch d.Name() {
-			case ".git", ".lab", "node_modules", "site":
+			if skippedTreeDir(d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -712,7 +724,7 @@ func TestARunWhoseUsageStateCannotBeWrittenSaysSoOnce(t *testing.T) {
 	}
 
 	// A failed validation keeps its exit status 1.
-	stubRun(t, finishedRun(false), errors.New("DR validation failed"))
+	stubRun(t, finishedRun(false), errors.New("restore test failed"))
 	if stderr, err := runWithStderr(); exitCodeForError(err) != exitCodeValidationFailed || strings.Count(stderr, warning) != 1 {
 		t.Errorf("a failed validation: exit %d, warnings %d", exitCodeForError(err), strings.Count(stderr, warning))
 	}
@@ -761,7 +773,7 @@ func TestTelemetryResetWithNoStateFileSaysThereWasNothingToReset(t *testing.T) {
 	}
 }
 
-// A scheduled unit sends statistics with CERTISTACK_TELEMETRY=1 and its own
+// A scheduled job sends statistics with CERTISTACK_TELEMETRY=1 and its own
 // configuration directory. status and show, run for the same account without
 // the variable, say that the state holds an install the environment opt-in
 // keeps, when it last sent, and that this shell does not set the variable;
@@ -779,7 +791,7 @@ func TestStatusAndShowSayWhatAnInstallKeptByTheEnvironmentDoes(t *testing.T) {
 	sent := kept.LastSent
 	rig.env["CERTISTACK_TELEMETRY"] = ""
 
-	want := "the state at " + rig.statePath + " holds an install kept by CERTISTACK_TELEMETRY=1 (last sent " + sent + "): reports are sent by runs that set it, such as the scheduled unit; this shell does not set it"
+	want := "the state at " + rig.statePath + " holds an install kept by CERTISTACK_TELEMETRY=1 (last sent " + sent + "): reports are sent by runs that set it, such as a scheduled job; this shell does not set it"
 	status, err := rig.execute("telemetry", "status")
 	if err != nil || !strings.Contains(status, want) || !strings.Contains(status, kept.InstallID) || strings.Contains(status, "not been asked") || strings.Contains(status, "not asked") {
 		t.Errorf("status: %v\n%s\nwant it to say: %s", err, status, want)

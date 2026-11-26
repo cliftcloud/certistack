@@ -135,7 +135,7 @@ func (o *Orchestrator) Plan(ctx context.Context) (*RunPlan, error) {
 	// The overlays' names carry the run's start time; this is a sample.
 	timestamp := time.Now().UnixNano()
 
-	// A plan that was cancelled is not a plan: its steps would be refusals
+	// A plan that was canceled is not a plan: its steps would be refusals
 	// that cancellation caused, and a lookup it interrupted must not be taken
 	// for an unknown answer.
 	o.planChecks(ctx, p)
@@ -519,7 +519,7 @@ func (o *Orchestrator) planVM(ctx context.Context, p *RunPlan, tier config.Tier,
 	v := &vmPlan{p: p, phase: fmt.Sprintf("VM %d (%s)", vmCfg.VMID, vmCfg.Name)}
 	target := fmt.Sprintf("VM %d", vmCfg.VMID)
 
-	// 0: the VMID guard.
+	// The VMID guard.
 	var err error
 	detail := "unused in the cluster"
 	if inUse, lookupErr := o.pveClient.IsVMIDInUse(ctx, vmCfg.VMID); lookupErr != nil {
@@ -562,7 +562,7 @@ func (o *Orchestrator) planVM(ctx context.Context, p *RunPlan, tier config.Tier,
 		v.check(PlanStep{Kind: "boot-disk", Target: target}, fmt.Errorf("VM %d: %w", vmCfg.VMID, err))
 	}
 
-	// A/B: each disk's map and overlay.
+	// Each disk's map and overlay.
 	pveDisks := make([]pve.DiskOverlay, 0, len(drives))
 	vmBytes := int64(0)
 	for i, drive := range drives {
@@ -596,7 +596,7 @@ func (o *Orchestrator) planVM(ctx context.Context, p *RunPlan, tier config.Tier,
 		v.add(PlanStep{Action: PlanCreate, Kind: "firmware-copy", Target: volume, Detail: disk.Slot + " restored whole from PBS as a disposable copy"})
 	}
 
-	// C: guest network recovery inside the disposable overlays of every
+	// Guest network recovery inside the disposable overlays of every
 	// restored disk: the guest's root need not be on the boot disk.
 	if address, configured, err := vmCfg.SandboxAddress(o.plan.Network); err != nil {
 		v.check(PlanStep{Kind: "guest-network", Target: target}, fmt.Errorf("VM %d: network recovery: %w", vmCfg.VMID, err))
@@ -630,7 +630,7 @@ func (o *Orchestrator) planVM(ctx context.Context, p *RunPlan, tier config.Tier,
 			if o.sharedDisksFn != nil {
 				if shared, err := o.sharedDisksFn(ctx, copyDir, sysutil.ClusterStateDir); err != nil {
 					if ctx.Err() != nil {
-						return false // cancelled: Plan returns the context's error
+						return false // canceled: Plan returns the context's error
 					}
 					in.sharedUnknown = err.Error()
 				} else if len(shared) > 0 {
@@ -679,7 +679,7 @@ func (o *Orchestrator) planVM(ctx context.Context, p *RunPlan, tier config.Tier,
 		}
 	}
 
-	// D: the sandbox VM, exactly as CreateVM sends it, and its start.
+	// The sandbox VM, exactly as CreateVM sends it, and its start.
 	cfg := o.sandboxVMConfig(vmCfg, pveDisks, bootSlot, firmwareVolumes)
 	o.pinWindowsMachine(ctx, vmCfg, &cfg)
 	params, err := cfg.CreateParams()

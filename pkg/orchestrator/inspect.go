@@ -121,7 +121,7 @@ func (o *Orchestrator) InspectBackups(ctx context.Context, targets []InspectTarg
 	return outcomes, cleanup, nil
 }
 
-// inspectBackup maps target's disks, has read read them, and releases the
+// inspectBackup maps target's disks, passes them to read, and releases the
 // maps again. readErr is why the map or the read failed; releaseErr (an
 // ErrMapsNotReleased) that a map could not be shown released.
 func (o *Orchestrator) inspectBackup(ctx context.Context, target InspectTarget, read func(context.Context, InspectTarget, []string) error) (readErr, releaseErr error) {

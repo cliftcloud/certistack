@@ -50,8 +50,8 @@ func TestDestroyVNetDeletesOnlyTheRunsOwnVNet(t *testing.T) {
 		"an administrator's alias":         {alias: "payroll", marker: marker, refused: true},
 		// A journal that names no marker, and a VNet with no alias: nothing
 		// separates it from a VNet made by hand since.
-		"no marker named, no alias (legacy)": {alias: "", marker: "", refused: true},
-		"no marker named, an alias":          {alias: "certistack run-b", marker: "", refused: true},
+		"no marker named, no alias": {alias: "", marker: "", refused: true},
+		"no marker named, an alias": {alias: "certistack run-b", marker: "", refused: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			fake := sdntest.New().Applied("csSb01", "csVn01", "csSb01-10.100.0.0-24")

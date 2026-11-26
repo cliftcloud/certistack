@@ -326,7 +326,7 @@ func TestBackupConsistencyUnknownCases(t *testing.T) {
 		if got.State != ConsistencyUnknown || !strings.Contains(got.Detail, tc.want) {
 			t.Fatalf("%s: %+v, want unknown with %q", tc.name, got, tc.want)
 		}
-		// The reason goes into the signed report; the server's address does not.
+		// The reason goes into the report; the server's address does not.
 		if strings.Contains(got.Detail, "127.0.0.1") {
 			t.Fatalf("%s: detail names the server: %q", tc.name, got.Detail)
 		}

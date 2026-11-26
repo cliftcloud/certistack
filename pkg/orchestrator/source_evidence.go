@@ -12,9 +12,9 @@ import (
 // everything the plan and the run's resolved inputs already say about the
 // backup it restores, before anything can go wrong. A restore that stops at
 // the first guard, on a lost map, or on a failed overlay returns this record,
-// and it is what the signed failure report holds, so two failures of different
+// and it is what the failure report holds, so two failures of different
 // backups (another snapshot, another disk layout, another crypt mode, other
-// tags) never sign the same evidence. Each later step adds only what
+// tags) never carry the same evidence. Each later step adds only what
 // it establishes. Nothing in bootAndVerifyVM sets these fields afterwards: a
 // test (TestTheSourceIdentityIsSeededOnceAtTheStart) keeps it that way.
 func newVMRecord(vmCfg config.VM) *probe.VMValidationRecord {

@@ -110,7 +110,7 @@ func TestTerraformModuleGrantsTheTokenWhatItGrantsTheUser(t *testing.T) {
 
 // `terraform test` is what binds the module to the grants the Go tests check,
 // so both the CI job and the release gate run it, after the module is
-// initialised and unconditionally.
+// initialized and unconditionally.
 func TestWorkflowsRunTheModulesOfflineTests(t *testing.T) {
 	for _, c := range []struct{ workflow, job string }{{"ci.yml", "test"}, {"release.yml", "verify"}} {
 		job, ok := readWorkflow(t, c.workflow).Jobs[c.job]
@@ -122,15 +122,15 @@ func TestWorkflowsRunTheModulesOfflineTests(t *testing.T) {
 		}
 		found := false
 		for _, step := range job.Steps {
-			initialised := false
+			initialized := false
 			for _, line := range strings.Split(step.Run, "\n") {
 				switch strings.TrimSpace(line) {
 				case "terraform -chdir=terraform init -backend=false":
-					initialised = true
+					initialized = true
 				case "terraform -chdir=terraform test":
 					found = true
-					if !initialised {
-						t.Errorf("%s %s: terraform test runs before the module is initialised in its step %q", c.workflow, c.job, step.Name)
+					if !initialized {
+						t.Errorf("%s %s: terraform test runs before the module is initialized in its step %q", c.workflow, c.job, step.Name)
 					}
 					if step.If != "" || step.ContinueOnError != nil {
 						t.Errorf("%s %s: the step %q running terraform test is conditional or may fail silently", c.workflow, c.job, step.Name)

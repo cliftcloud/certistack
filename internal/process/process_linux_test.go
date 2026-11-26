@@ -154,11 +154,11 @@ func TestStopRecordedWithoutPidfdNeverSignalsByPID(t *testing.T) {
 	t.Run("still the recorded process: error, and it keeps running", func(t *testing.T) {
 		_, identity := startDisposable(t)
 		err := stopRecorded(identity, noPidfd, ProcessIdentity)
-		if err == nil || !strings.Contains(err.Error(), "not signalling it by PID") {
+		if err == nil || !strings.Contains(err.Error(), "not signaling it by PID") {
 			t.Fatalf("stop = %v, want the refusal to signal by PID", err)
 		}
 		if !alive(identity) {
-			t.Fatal("the recorded process was signalled although no pidfd could bind the signal to it")
+			t.Fatal("the recorded process was signaled although no pidfd could bind the signal to it")
 		}
 	})
 	t.Run("already gone: nothing to stop", func(t *testing.T) {
@@ -169,7 +169,7 @@ func TestStopRecordedWithoutPidfdNeverSignalsByPID(t *testing.T) {
 			t.Fatalf("stop of a process that was already gone = %v", err)
 		}
 	})
-	t.Run("the PID now names another process: reused, not signalled", func(t *testing.T) {
+	t.Run("the PID now names another process: reused, not signaled", func(t *testing.T) {
 		child, identity := startDisposable(t)
 		recorded := identity
 		recorded.StartTicks = identity.StartTicks + "0" // the record is of an earlier holder of the PID

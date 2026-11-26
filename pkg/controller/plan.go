@@ -110,7 +110,7 @@ func (e *Executor) readOnNode(ctx context.Context, opts RunOptions, plan *config
 	workspace := path.Join(workspaceRoot, uuid.NewString())
 	staging := path.Join("/tmp", "certistack-controller-"+path.Base(workspace))
 	// The removal is bounded, and an operator's second interrupt (the cleanup
-	// context the caller gives, cancelled only then) abandons it, as it does a
+	// context the caller gives, canceled only then) abandons it, as it does a
 	// run's cleanup.
 	cleanupParent := opts.CleanupContext
 	if cleanupParent == nil {

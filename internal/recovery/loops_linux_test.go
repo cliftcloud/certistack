@@ -245,7 +245,7 @@ func TestRecoverLockedRechecksBeforeTheDetachThatFollowsTheDaemonsStop(t *testin
 // itself: the client's unmap, which signals the PID in the map's pid file
 // unchecked, is never run. A PID that another PBS client (a CT backup, a
 // restore, another operation's map) has now is not the run's daemon: nothing is
-// signalled, and the loop is only detached. The run's own daemon, by its token,
+// signaled, and the loop is only detached. The run's own daemon, by its token,
 // is sent SIGINT through a pidfd (the process that stands in for it here, as a
 // fake PID has none), then the loop is detached.
 func TestRecoverLockedStopsTheMapDaemonOnlyWhenItIsTheRunsOwn(t *testing.T) {
@@ -308,7 +308,7 @@ func TestRecoverLockedStopsTheMapDaemonOnlyWhenItIsTheRunsOwn(t *testing.T) {
 			err := RecoverLocked(stateDir)
 			if tc.wantError != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantError) || callsIn(log) != "" || standIn.opened != 0 {
-					t.Fatalf("recovery = %v, calls %q, pidfds %d; want it incomplete (%s), nothing run or signalled", err, callsIn(log), standIn.opened, tc.wantError)
+					t.Fatalf("recovery = %v, calls %q, pidfds %d; want it incomplete (%s), nothing run or signaled", err, callsIn(log), standIn.opened, tc.wantError)
 				}
 				return
 			}
@@ -322,7 +322,7 @@ func TestRecoverLockedStopsTheMapDaemonOnlyWhenItIsTheRunsOwn(t *testing.T) {
 			if tc.stops {
 				want = "interrupt"
 			}
-			if got := standIn.signalled(); got != want {
+			if got := standIn.signaled(); got != want {
 				t.Fatalf("the process under the PID received %q, want %q", got, want)
 			}
 			if (standIn.opened == 1) != tc.stops {
@@ -458,9 +458,9 @@ func TestRecoverLockedClaimsTheLoopOfTheRunsDaemonWhoseLatePidFile(t *testing.T)
 	root, stateDir := t.TempDir(), t.TempDir()
 	at := reaperBoot.Add(10 * time.Hour)
 	fakeMapProc(t, root, 100, mapArgv(ownRepo), at.Add(time.Second), ownRepo, "team-a", ownToken)
-	var signalled []int
+	var signaled []int
 	maps := hostWithProcs(t, root, func(p journal.Process, _ syscall.Signal) error {
-		signalled = append(signalled, p.PID)
+		signaled = append(signaled, p.PID)
 		return os.RemoveAll(filepath.Join(root, fmt.Sprint(p.PID))) // killed mid-cleanup: loop and pid file stay
 	})
 	log := fakeLoopTools(t, "exit 0")
@@ -470,8 +470,8 @@ func TestRecoverLockedClaimsTheLoopOfTheRunsDaemonWhoseLatePidFile(t *testing.T)
 	if err := RecoverLocked(stateDir); err != nil {
 		t.Fatalf("recovery: %v", err)
 	}
-	if fmt.Sprint(signalled) != "[100]" || callsIn(log) != "losetup -d /dev/loop7" {
-		t.Fatalf("signalled %v, calls:\n%s\nwant the daemon stopped and its loop released", signalled, callsIn(log))
+	if fmt.Sprint(signaled) != "[100]" || callsIn(log) != "losetup -d /dev/loop7" {
+		t.Fatalf("signaled %v, calls:\n%s\nwant the daemon stopped and its loop released", signaled, callsIn(log))
 	}
 	if phase := phaseOf(t, path); phase != "cleaned" {
 		t.Fatalf("phase = %q", phase)
@@ -488,9 +488,9 @@ func TestRecoverLockedStopsTheRunsTokenProcessOutsideTheWindow(t *testing.T) {
 			root, stateDir := t.TempDir(), t.TempDir()
 			at := reaperBoot.Add(10 * time.Hour)
 			fakeMapProc(t, root, 100, mapArgv(ownRepo), at.Add(started), ownRepo, "team-a", ownToken)
-			var signalled []int
+			var signaled []int
 			maps := hostWithProcs(t, root, func(p journal.Process, _ syscall.Signal) error {
-				signalled = append(signalled, p.PID)
+				signaled = append(signaled, p.PID)
 				return os.RemoveAll(filepath.Join(root, fmt.Sprint(p.PID)))
 			})
 			log := fakeLoopTools(t, "exit 0")
@@ -499,8 +499,8 @@ func TestRecoverLockedStopsTheRunsTokenProcessOutsideTheWindow(t *testing.T) {
 			if err := RecoverLocked(stateDir); err != nil {
 				t.Fatalf("recovery: %v", err)
 			}
-			if fmt.Sprint(signalled) != "[100]" || callsIn(log) != "losetup -d /dev/loop7" || phaseOf(t, path) != "cleaned" {
-				t.Fatalf("signalled %v, calls:\n%s\nphase %q; want the daemon stopped and its loop released", signalled, callsIn(log), phaseOf(t, path))
+			if fmt.Sprint(signaled) != "[100]" || callsIn(log) != "losetup -d /dev/loop7" || phaseOf(t, path) != "cleaned" {
+				t.Fatalf("signaled %v, calls:\n%s\nphase %q; want the daemon stopped and its loop released", signaled, callsIn(log), phaseOf(t, path))
 			}
 		})
 	}
@@ -659,7 +659,7 @@ func TestMapReaperIgnoresJournaledProcessesOfAnEarlierBoot(t *testing.T) {
 	}
 }
 
-// A journaled process whose command line cannot be read is still signalled:
+// A journaled process whose command line cannot be read is still signaled:
 // it may run, and the signal goes through a pidfd only after the PID and start
 // time are checked again. It is reported while it survives.
 func TestMapReaperSignalsAJournaledProcessWhoseCommandLineCannotBeRead(t *testing.T) {
@@ -692,7 +692,7 @@ func TestMapReaperSignalsAJournaledProcessWhoseCommandLineCannotBeRead(t *testin
 
 // With this boot's identity unreadable, a journaled process cannot be shown to
 // be of this boot, whatever runs under its PID and start time now: it is not
-// taken for the run's, not signalled, and recovery says so.
+// taken for the run's, not signaled, and recovery says so.
 func TestMapReaperTakesNoJournaledProcessForTheRunsWhenTheBootIsUnreadable(t *testing.T) {
 	root := t.TempDir() // no sys/kernel/random/boot_id: the boot identity cannot be read
 	at := reaperBoot.Add(10 * time.Hour)
@@ -708,7 +708,7 @@ func TestMapReaperTakesNoJournaledProcessForTheRunsWhenTheBootIsUnreadable(t *te
 
 	err = r.stop(&intent, nil)
 	if err == nil || !strings.Contains(err.Error(), "cannot read this boot's identity") {
-		t.Fatalf("stop = %v, want the unreadable boot identity reported and nothing signalled", err)
+		t.Fatalf("stop = %v, want the unreadable boot identity reported and nothing signaled", err)
 	}
 	if ev := r.evidence(intent, false); len(ev.ours) != 0 {
 		t.Fatalf("evidence names %v although the boot cannot be compared", ev.ours)

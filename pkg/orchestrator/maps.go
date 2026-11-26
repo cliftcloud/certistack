@@ -218,10 +218,8 @@ func (o *Orchestrator) unmapRecordedLoop(loop journal.TrackedLoop, intent journa
 	// It is either another operation's loop now, which the wait settles at once,
 	// or the run's own attachment on its way out of the kernel: the map sets
 	// autoclear, and whatever still has it open (the libguestfs appliance that
-	// read it, udev probing the device) lets go within seconds. A 16-VM run on a
-	// busy node had six such loops still attached a second after their unmap and
-	// gone four seconds later; a single look failed that run's teardown. They
-	// get the same wait as an unmap that ran.
+	// read it, udev probing the device) lets go within seconds. A single look
+	// would fail the teardown, so they get the same wait as an unmap that ran.
 	if err := sysutil.AwaitLoopReleased(loop, loopSettleAttempts, loopSettleInterval); err != nil {
 		return err
 	}

@@ -41,7 +41,7 @@ var (
 	runnerPlanRun = runner.PlanRun
 )
 
-// planCmdWithCleanupContext is plan; cleanupContext, when set, is cancelled by
+// planCmdWithCleanupContext is plan; cleanupContext, when set, is canceled by
 // the operator's second interrupt and abandons the removal of the temporary
 // worker's workspace on the node.
 func planCmdWithCleanupContext(cleanupContext context.Context) *cobra.Command {
@@ -286,7 +286,7 @@ func nodePlanCmd() *cobra.Command {
 // own work, then orchestrator.Plan. When the plan can't be resolved as a
 // run resolves it, that is the refusal the run would give. own is the
 // workspace running the plan, which is never counted as retained. A plan
-// that was cancelled is the context's error, not a refusal: an interrupted
+// that was canceled is the context's error, not a refusal: an interrupted
 // command is not a plan a run would refuse.
 func computePlan(cmd *cobra.Command, plan *config.Plan, nodeName, scratchDir, stateDir, overlayStorage, own string) (*orchestrator.RunPlan, error) {
 	before, recovered, stops := planBeforeChecked(stateDir, own, time.Now())

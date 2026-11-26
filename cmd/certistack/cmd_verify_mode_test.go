@@ -26,7 +26,7 @@ import (
 // by a trusted key: the verifier must judge the mode, not the signature.
 func signedModeReport(t *testing.T, dir, name string, key ed25519.PrivateKey, mode string, omit bool) string {
 	t.Helper()
-	report := campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass})
+	report := fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass})
 	report.ValidationMode = mode
 	raw, err := json.Marshal(report)
 	if err != nil {
@@ -169,7 +169,7 @@ func TestVerifyReportRefusesUnsupportedValidationModes(t *testing.T) {
 
 // sanitizeVerifyText drops every bidi control: the twelve code points of the
 // Unicode Bidi_Control property, from a signed report's text fields, where a
-// paired RLO and PDF reverse what sits between them on a terminal that honours
+// paired RLO and PDF reverse what sits between them on a terminal that honors
 // them. Text in a right-to-left script is not a control character and stays.
 func TestSanitizeVerifyTextDropsEveryBidiControl(t *testing.T) {
 	var controls []rune
@@ -220,7 +220,7 @@ func TestVerifyReportTextDropsBidiControlsFromEveryField(t *testing.T) {
 	}
 	all := "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
 	plan := mustLoadFixturePlan()
-	report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+	report := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 	report.PlanName = "name" + all + "end"
 	report.NodeFQDN = "node" + all + ".example"
 	report.Frameworks = []string{"SOC2" + all}
@@ -265,8 +265,8 @@ func TestVerifyReportSaysWhenTheExitStatusIsNotTheVerdict(t *testing.T) {
 	dir := t.TempDir()
 	trusted := hex.EncodeToString(public)
 	plan := mustLoadFixturePlan()
-	rejected := writeSignedFixture(t, dir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }}), private)
-	accepted := writeSignedFixture(t, dir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass}), private)
+	rejected := writeSignedFixture(t, dir, fixtureReport(plan, reportFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }}), private)
+	accepted := writeSignedFixture(t, dir, fixtureReport(plan, reportFixture{mode: accept.OutcomePass}), private)
 
 	run := func(args ...string) (stdout, stderr string, err error) {
 		cmd := verifyReportCmd()

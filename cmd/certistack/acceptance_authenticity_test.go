@@ -36,7 +36,7 @@ func TestAnUnsignedReportsAcceptanceSaysItRestsOnItsContentsOnly(t *testing.T) {
 	}
 
 	// A rejection says the same about what it rests on.
-	rejected := campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass})
+	rejected := fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass})
 	rejected.VMRecords = nil
 	path := writeReportFile(t, m.dir, rejected)
 	stdout, _, _ = runVerifyStreams("--unsigned", path)

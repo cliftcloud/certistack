@@ -47,11 +47,12 @@ type Options struct {
 	OverlayStorage         string
 }
 
+// Check runs no check off Linux and does not call the host ready.
 func Check(ctx context.Context, plan *config.Plan, opts Options) Result {
 	return Result{
-		Ready: true,
+		Ready: false,
 		Checks: []CheckItem{
-			{Name: "Platform", Status: "passed", Detail: "Non-Linux platform (development mode)"},
+			{Name: "Platform", Status: "skipped", Detail: "preflight checks run only on Linux"},
 		},
 	}
 }

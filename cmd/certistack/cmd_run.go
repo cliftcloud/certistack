@@ -21,10 +21,6 @@ var runController = func(ctx context.Context, opts controller.RunOptions) (*cont
 	return controller.NewExecutor().Run(ctx, opts)
 }
 
-func runCmd() *cobra.Command {
-	return runCmdWithCleanupContext(nil)
-}
-
 func runCmdWithCleanupContext(cleanupContext context.Context) *cobra.Command {
 	var (
 		planPath       string
@@ -45,13 +41,12 @@ func runCmdWithCleanupContext(cleanupContext context.Context) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "run [plan.yaml]",
-		Short: "Run a disaster recovery validation from a remote controller",
+		Short: "Run a restore test of a plan on a PVE node, from this controller",
 		Long: `Runs CertiStack from a management host. The controller authenticates
 to the selected PVE node with strict SSH host-key verification, uploads a
 temporary worker beneath its node state directory, and keeps the run's
 report locally, as JSON. The Community Edition writes the report unsigned;
-read it with "certistack report show". It never installs the controller,
-dashboard or database on PVE.`,
+read it with "certistack report show".`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := onePlanPath(args, planPath); err != nil {
@@ -128,7 +123,7 @@ dashboard or database on PVE.`,
 		},
 	}
 
-	cmd.Flags().StringVarP(&planPath, "plan", "p", "", "path to disaster recovery plan YAML")
+	cmd.Flags().StringVarP(&planPath, "plan", "p", "", "path to the plan YAML")
 	cmd.Flags().StringVar(&envFile, "env-file", "", "allowlisted controller environment file; values are parsed literally, never shell-sourced (default: the file certistack setup recorded)")
 	cmd.Flags().StringVar(&nodeName, "node", "", "Proxmox VE node name that will host the temporary worker")
 	cmd.Flags().StringVar(&scratchDir, "scratch", "", "remote private work directory (default: plan storage.scratch_dir, else /var/lib/certistack/scratch)")
@@ -189,10 +184,10 @@ func unsavedReportFallback(stdout io.Writer, result *controller.Result, err erro
 // controller run. A validation that failed with verified cleanup, and whose
 // report was saved, exits 1. A run whose credential-bearing controller
 // material was not verified removed, or whose report could not be
-// saved, exits 2 in every outcome, including a failed validation: a campaign
-// credits a failed-validation drill (a fault or a capacity guard) only on
-// status 1, so it never credits a run that left its credentials on the node or
-// whose evidence was not archived. The one exception is an interruption, which
+// saved, exits 2 in every outcome, including a failed validation, so a script
+// that reads status 1 as "the restore test failed" never reads it of a run
+// that left its credentials on the node or whose report was not archived. The
+// one exception is an interruption, which
 // exits 130 whatever else went wrong: exitCodeForError reads a cancellation
 // before any status an error carries.
 func runOutcomeError(result *controller.Result, err error) error {

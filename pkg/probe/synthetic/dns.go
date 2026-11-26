@@ -204,7 +204,7 @@ func (p *DNSProber) ask(ctx context.Context, addr, name string, qtype uint16) (d
 
 // maxReportedAnswers bounds how many server-supplied answers a probe result
 // lists. A 64 KiB reply can hold thousands of compressed records, each of
-// which would otherwise expand into the signed report.
+// which would otherwise expand into the report.
 const maxReportedAnswers = 8
 
 func listForReport(answers []string, separator string) string {
@@ -815,8 +815,8 @@ func (p *LDAPProber) Probe(ctx context.Context) (res probe.Result) {
 	if auto {
 		// "auto" is an explicit portable-directory policy, not a fallback for a
 		// configured DN. It validates a real directory object selected from the
-		// server's Root DSE, which is useful for MSP estates with different AD,
-		// OpenLDAP, and appliance naming contexts.
+		// server's Root DSE, which suits estates with different AD, OpenLDAP and
+		// appliance naming contexts.
 		contexts, discoveryErr := ldapRootDSENamingContexts(conn)
 		if discoveryErr != nil {
 			res.Duration = time.Since(start)
@@ -878,7 +878,7 @@ func (p *LDAPProber) Probe(ctx context.Context) (res probe.Result) {
 		detail := ldapResultDescription(searchResultCode)
 		if searchResultCode == 32 {
 			// A failed explicit base-DN assertion is never silently relaxed.
-			// Root DSE is queried only to make the signed failure actionable for
+			// Root DSE is queried only to make the failure actionable for
 			// heterogeneous directories: it can reveal the naming contexts the
 			// restored server advertises without modifying the guest or source.
 			if contexts, discoveryErr := ldapRootDSENamingContexts(conn); discoveryErr == nil && len(contexts) > 0 {

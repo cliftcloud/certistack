@@ -124,7 +124,7 @@ func TestVersionsStopsWithItsContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, _, err := New(Config{}).Versions(ctx); err == nil {
-		t.Fatal("a cancelled context was not an error")
+		t.Fatal("a canceled context was not an error")
 	}
 }
 

@@ -34,11 +34,11 @@ func (e *InterruptedError) Error() string {
 
 func (e *InterruptedError) Unwrap() error { return context.Canceled }
 
-// interruptContext is ctx, cancelled on SIGINT, SIGHUP or SIGTERM.
+// interruptContext is ctx, canceled on SIGINT, SIGHUP or SIGTERM.
 // interrupted says which signal stopped the run, and whether the node was
 // shutting down, or nil, so a report says more than "context canceled". The CLI's own handler can cancel the parent for
 // the same signal first, so the signal is kept apart from the context's
-// cause, and read for a moment after the parent is cancelled.
+// cause, and read for a moment after the parent is canceled.
 func interruptContext(parent context.Context) (ctx context.Context, stop func(), interrupted func() *InterruptedError) {
 	ctx, cancel := context.WithCancelCause(parent)
 	signals := make(chan os.Signal, 1)

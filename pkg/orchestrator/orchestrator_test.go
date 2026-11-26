@@ -216,7 +216,7 @@ func TestAnnotateReachableTargetRejection(t *testing.T) {
 
 func TestVMRecordFailureAndInterruptionEvidence(t *testing.T) {
 	failed := &probe.VMValidationRecord{VMID: 42, AllPassed: true}
-	markVMRecordFailed(failed, errors.New("Stage 1 QMP connection failed"))
+	markVMRecordFailed(failed, errors.New("QMP connection to VM 9001 failed"))
 	if failed.AllPassed || failed.VerificationStatus != "failed" || len(failed.ProbeResults) != 1 {
 		t.Fatalf("failed record did not preserve explicit bootstrap evidence: %+v", failed)
 	}
@@ -1271,7 +1271,7 @@ func TestRunProberWithRetryStopsImmediatelyOnCancellation(t *testing.T) {
 
 	_, gotAttempts := runProberWithRetry(ctx, prober, 3*time.Second, 10)
 	if attempts != 0 || gotAttempts != 0 {
-		t.Fatalf("cancelled retry loop made %d/%d attempts, want none", gotAttempts, attempts)
+		t.Fatalf("canceled retry loop made %d/%d attempts, want none", gotAttempts, attempts)
 	}
 }
 
@@ -1481,7 +1481,7 @@ func TestOrchestrator_PreexistingVMGuardChecksClusterWideVMID(t *testing.T) {
 // only then does the QMP socket directory (which holds no socket) refuse. The
 // test fails if the QMP check is removed (the run would go on to the probes)
 // and does not pass for an unrelated fault earlier in the setup.
-func TestOrchestrator_Stage1QMP_FailClosed(t *testing.T) {
+func TestOrchestrator_QMPCheck_FailClosed(t *testing.T) {
 	f := newLoopFixture(t, "exit 0")
 	if err := os.WriteFile(filepath.Join(filepath.Dir(f.log), "qemu-img"), []byte("#!/bin/sh\n"+okQemuImg), 0o755); err != nil {
 		t.Fatal(err)
@@ -1564,8 +1564,8 @@ func TestOrchestrator_Stage1QMP_FailClosed(t *testing.T) {
 
 	record, err := orch.bootAndVerifyVM(context.Background(), vm, 60, nil)
 	wantSocket := filepath.Join(qmpDir, "9002.qmp")
-	if err == nil || !strings.Contains(err.Error(), "Stage 1 QMP connection failed for VM 9002") || !strings.Contains(err.Error(), wantSocket) {
-		t.Fatalf("bootAndVerifyVM = %v, want the Stage 1 QMP connection failure naming %s", err, wantSocket)
+	if err == nil || !strings.Contains(err.Error(), "QMP connection to VM 9002 failed") || !strings.Contains(err.Error(), wantSocket) {
+		t.Fatalf("bootAndVerifyVM = %v, want the QMP connection failure naming %s", err, wantSocket)
 	}
 	if record == nil || record.AllPassed {
 		t.Errorf("a VM whose monitor could not be reached must not be recorded as passed: %+v", record)

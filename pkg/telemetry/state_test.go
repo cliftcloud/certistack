@@ -199,7 +199,7 @@ func TestInstallIDIsARandomUUIDv4WithAPerInstallSalt(t *testing.T) {
 	}
 }
 
-func TestClusterHashesAreSaltedDedupedAndNormalised(t *testing.T) {
+func TestClusterHashesAreSaltedDedupedAndNormalized(t *testing.T) {
 	a, b := enabledState(t, false), enabledState(t, false)
 	for _, st := range []*State{&a, &b} {
 		for _, id := range []string{"pve-lab", "PVE-LAB", " pve-lab ", "other-cluster"} {

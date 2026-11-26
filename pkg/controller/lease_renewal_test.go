@@ -22,7 +22,7 @@ type serialRunner struct {
 	mu       sync.Mutex
 	inner    *fakeCommandRunner
 	touches  atomic.Int64
-	cancelAt atomic.Int64 // touches when the run's context was cancelled
+	cancelAt atomic.Int64 // touches when the run's context was canceled
 }
 
 func (r *serialRunner) Run(ctx context.Context, name string, args []string) ([]byte, error) {

@@ -115,10 +115,10 @@ func TestStaleTokenAppliesOnlyTheRunsOwnPendingChanges(t *testing.T) {
 }
 
 // A lock request that provably never reached PVE (the call was
-// cancelled before it was sent, no connection was ever made, the client is not
+// canceled before it was sent, no connection was ever made, the client is not
 // configured) left no lock behind: it is not recorded as unresolved.
 func TestLockRequestThatNeverReachedPVEIsNotUnknown(t *testing.T) {
-	t.Run("cancelled before it was sent", func(t *testing.T) {
+	t.Run("canceled before it was sent", func(t *testing.T) {
 		fake := sdntest.New()
 		journal := &journalOf{}
 		m := NewManager(fake.Serve(t))

@@ -76,36 +76,37 @@ type TeardownEvidence struct {
 	VerifiedAt              string `json:"verified_at"`
 }
 
-// CurrentReportSchemaVersion defines the active JSON schema specification for audit certificates.
+// CurrentReportSchemaVersion is the report schema this build writes.
 //
 // Every minor change is additive, and a verifier accepts 1.0 through the
 // highest minor it knows, so an older verifier refuses a newer report loudly
-// (cmd/certistack reportSchemaProblem) rather than judge evidence it cannot
-// read. 1.6 adds, all omitempty: report run_id (the run's node journal ID, chosen
-// by the controller), plan_sha256 and worker_sha256; probe
-// result server_name, source_interface, source_address, require_qga,
-// timeout_sec, retries, attempts and image_sha256; and restored_hardware
-// cpu_weight. A VM record also
-// names its backup from the start of its restore, with the integrity_status
-// values not_attempted, mapped, map_failed, verification_failed and
-// restore_failed beside verified and skipped_test_mode. 1.7 adds the
-// policy a run is judged by: the report's rto_target_seconds (the recovery time
-// objective; absent means the plan set none) and admission (the host admission
-// limits, the recovery memory reserved and what the last admission check
-// measured and decided), so a pass states the objective and the limits it
-// passed under; and, omitempty, a VM record's soak: what the
-// tier's soak period established about the VM's services, checked by
-// repeating their probes and not only by asking PVE whether the VM still
-// runs, with the status_reads, status_read_failures and first_status_error of
-// PVE's answers about the VM.
-// 1.7 also adds validated_plan_sha256, resolved_plan_sha256 and
-// plan_digest_format for complete canonical worker policy before and after
-// backup resolution; required_available_mib with the
+// (acceptance.SchemaProblem) rather than judge evidence it cannot read.
+//
+// 1.6 adds, all omitempty: the report's run_id (the run's node journal ID,
+// chosen by the controller), plan_sha256 and worker_sha256; a probe result's
+// server_name, source_interface, source_address, require_qga, timeout_sec,
+// retries, attempts and image_sha256; and restored_hardware cpu_weight. A VM
+// record also names its backup from the start of its restore, with the
+// integrity_status values not_attempted, mapped, map_failed,
+// verification_failed and restore_failed beside verified and
+// skipped_test_mode.
+//
+// 1.7 adds the policy a run is judged by: the report's rto_target_seconds (the
+// recovery time objective; absent means the plan set none) and admission (the
+// host admission limits, the recovery memory reserved and what the last
+// admission check measured and decided), so a pass states the objective and
+// the limits it passed under. It adds, omitempty, a VM record's soak: what the
+// tier's soak period established about the VM's services, checked by repeating
+// their probes and not only by asking PVE whether the VM still runs, with the
+// status_reads, status_read_failures and first_status_error of PVE's answers
+// about the VM. It also adds validated_plan_sha256, resolved_plan_sha256 and
+// plan_digest_format for the complete canonical worker policy before and
+// after backup resolution; required_available_mib with the
 // preflight_denied_memory decision for an early memory refusal; and, all
 // omitempty, restored_hardware boot_order (the sandbox VM's whole boot order,
 // as sent to PVE, beside boot_disk), the report's pve_version, pbs_version,
-// pbs_client_version and version_support (the Proxmox versions the run read
-// on its node and whether that pair is a tested one), and the optional
+// pbs_client_version and version_support (the Proxmox versions the run read on
+// its node and whether that pair is a tested one), and the optional
 // signature_timestamp, a trusted timestamp over the signature that is carried
 // beside it and is not signed (see timestamp.go).
 const CurrentReportSchemaVersion = "1.7"
@@ -125,13 +126,13 @@ const (
 	// ValidationModeFullIntegrity is the default production validation mode. Every
 	// mapped PBS image is read and verified before the service probes run.
 	ValidationModeFullIntegrity = "full_integrity"
-	// ValidationModeTestSkipIntegrity records the explicitly requested lab-only
-	// shortcut. It is signed evidence that this result is not a full integrity
-	// validation and must not be used as production compliance evidence.
+	// ValidationModeTestSkipIntegrity records the explicitly requested
+	// test-only shortcut. It marks the result as not a full integrity
+	// validation, and it must not be used as production compliance evidence.
 	ValidationModeTestSkipIntegrity = "test_skip_integrity"
 )
 
-// Report represents a non-repudiable audit certificate for disaster recovery compliance.
+// Report is the evidence of one restore test run.
 type Report struct {
 	ReportSchemaVersion string `json:"report_schema_version,omitempty"` // Schema specification version
 	ReportID            string `json:"report_id"`                       // UUIDv4
@@ -139,7 +140,7 @@ type Report struct {
 	Timestamp           string `json:"timestamp"`                       // RFC 3339 UTC
 	PlanID              string `json:"plan_id"`
 	PlanName            string `json:"plan_name"`
-	PlanSHA256          string `json:"plan_sha256,omitempty"`           // SHA-256 of the plan file as the controller read it; set by the controller before it signs
+	PlanSHA256          string `json:"plan_sha256,omitempty"`           // SHA-256 of the plan file as the controller read it; set by the controller
 	ValidatedPlanSHA256 string `json:"validated_plan_sha256,omitempty"` // v1 canonical worker plan, before backup resolution
 	ResolvedPlanSHA256  string `json:"resolved_plan_sha256,omitempty"`  // v1 canonical worker plan after backup resolution; worker observation
 	PlanDigestFormat    string `json:"plan_digest_format,omitempty"`
@@ -186,7 +187,8 @@ type Report struct {
 	AllPassed bool               `json:"all_passed"`
 	// FailureReason is a bounded, redacted explanation for failures that occur
 	// before a VM-specific probe record exists (for example admission, sandbox,
-	// mapping, or cleanup failures). It is signed with the rest of the report.
+	// mapping, or cleanup failures). It is part of what a signature covers, as
+	// the rest of the report is.
 	FailureReason     string `json:"failure_reason,omitempty"`
 	FailureArtifact   string `json:"failure_artifact,omitempty"`   // Base64 PNG screenshot if failed
 	PublicKey         string `json:"public_key,omitempty"`         // Hex-encoded Ed25519 public key
@@ -314,7 +316,7 @@ func checkReportDocument(data []byte) error {
 // maxSignedInteger is 2^53. RFC 8785 canonicalizes every number as an IEEE-754
 // double, and from 2^53 on a double stands for several integers: 2^53 and
 // 2^53+1 both canonicalize to 9007199254740992. A report holding such an
-// integer would verify with the integer replaced by a neighbour that rounds to
+// integer would verify with the integer replaced by a neighbor that rounds to
 // the same double, so the signature would not cover it exactly. Such a report
 // is refused, when it is signed and when it is verified.
 const maxSignedInteger = 1 << 53
@@ -413,7 +415,7 @@ func DefaultReportPath(reportsBaseDir, planID, reportID string) string {
 	return filepath.Join(reportsBaseDir, planID, fmt.Sprintf("%s.json", reportID))
 }
 
-// VerifyReport parses an audit JSON report and verifies its embedded Ed25519 signature against a
+// VerifyReport parses a JSON report and verifies its embedded Ed25519 signature against a
 // trusted signer set. It canonicalizes the original raw JSON bytes while removing strictly the unsigned
 // members, "signature", "public_key", "signer_fingerprint" and "signature_timestamp", ensuring forward
 // compatibility with reports generated with future schema fields.

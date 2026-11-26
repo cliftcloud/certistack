@@ -36,9 +36,8 @@ type HTTPProber struct {
 	Source         Source
 }
 
-// NewHTTPProber creates a new HTTP/HTTPS health prober. The legacy
-// insecureSkipVerify argument is retained for source compatibility but is
-// deliberately ignored: CertiStack never disables TLS verification.
+// NewHTTPProber creates a new HTTP/HTTPS health prober. The insecureSkipVerify
+// argument is ignored: CertiStack never disables TLS verification.
 func NewHTTPProber(targetIP string, port int, path string, useTLS bool, _ bool, expectedStatus int, timeout time.Duration, desc, serverName string) *HTTPProber {
 	if timeout <= 0 {
 		timeout = 15 * time.Second
@@ -157,9 +156,9 @@ func (p *HTTPProber) Probe(ctx context.Context) probe.Result {
 
 		resp, err := client.Do(req)
 		if err == nil {
-			// The response body is never read into the result: the result is
-			// signed into a retained audit report, and a failing health
-			// endpoint can answer with a stack trace or application data.
+			// The response body is never read into the result: the result goes
+			// into the report, and a failing health endpoint can answer with a
+			// stack trace or application data.
 			resp.Body.Close()
 
 			switch {

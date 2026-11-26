@@ -316,7 +316,7 @@ func (c *acceptanceCheck) identity(report *attest.Report, exp Expectations) {
 // The controller records the SHA-256 of the plan file it read (plan_sha256),
 // so a plan that reads the same to the loader but is another file, or a
 // changed timeout, expected status or expected output, no longer matches. A
-// report without the digest (one of an earlier schema, or one signed with no
+// report without the digest (one of an earlier schema, or one written with no
 // controller) is still judged on its plan ID, VMs and probes, and the verdict
 // says the digest was not bound.
 func (c *acceptanceCheck) planDigest(report *attest.Report, exp Expectations) {
@@ -482,8 +482,8 @@ func (c *acceptanceCheck) fault(report *attest.Report, exp Expectations) {
 }
 
 // denied accepts a capacity refusal: the run failed before any VM was
-// restored, and its signed failure reason is the admission or preflight
-// capacity denial the product emits. Any other failure before a restore (SDN
+// restored, and its failure reason is the admission or preflight capacity
+// denial the product emits. Any other failure before a restore (SDN
 // setup, storage, PBS access) is a failed run, not a guard denial.
 func (c *acceptanceCheck) denied(report *attest.Report) {
 	if report.AllPassed {
@@ -520,12 +520,14 @@ const AdmissionDenialPrefix = "admission control guardrail triggered: "
 // it is named once, here, and the node worker writes it from here.
 const PreflightFailurePrefix = "node preflight failed: "
 
-var preflightMemoryShortage = regexp.MustCompile(`^memory: available RAM [0-9]+ MB is below required [0-9]+ MB`)
+// preflightMemoryShortage matches the memory check's shortage message. Reports
+// written before the message said MiB say MB, and are still read.
+var preflightMemoryShortage = regexp.MustCompile(`^memory: available RAM [0-9]+ (MiB|MB) is below required [0-9]+ (MiB|MB)`)
 
-// CapacityDenial reports whether a signed failure reason is a capacity
-// denial. It anchors at the start of the reason, so text the plan or a guest
-// controls further in (a plan ID, a probe error) can never satisfy it, and a
-// preflight refusal must name the memory check first: an earlier failed check
+// CapacityDenial reports whether a failure reason is a capacity denial. It
+// anchors at the start of the reason, so text the plan or a guest controls
+// further in (a plan ID, a probe error) can never satisfy it, and a preflight
+// refusal must name the memory check first: an earlier failed check
 // (privileges, KVM, a missing tool) is a broken node, not a full one.
 func CapacityDenial(reason string) bool {
 	if rest, found := strings.CutPrefix(reason, AdmissionDenialPrefix); found {
@@ -563,13 +565,14 @@ func (c *acceptanceCheck) uniqueRecords(records []probe.VMValidationRecord) {
 // probes checks one VM's probe results and reports whether any contradicts a
 // pass. With the planned VM, the results must be the plan's probes in order:
 // the same type, description, and, where the report carries it, target (see
-// expectedProbeTarget), and in a report that records them, the policy each ran
-// under (see attest.ProbePolicyProblems). A required probe must have run and passed, and only
-// an optional guest-agent probe may be skipped. expectedFailure is the index of
-// the one probe allowed to fail (the fault drill's injected failure), or -1.
-// A VM that does not fail must have at least one guest-level assertion that
-// ran and passed: QMP and screendump probes show that the VM is running, not
-// that a service in it works, so they never count as one.
+// attest.ExpectedProbeTarget), and in a report that records them, the policy
+// each ran under (see attest.ProbePolicyProblems). A required probe must have
+// run and passed, and only an optional guest-agent probe may be skipped.
+// expectedFailure is the index of the one probe allowed to fail (the fault
+// drill's injected failure), or -1. A VM that does not fail must have at least
+// one guest-level assertion that ran and passed: QMP and screendump probes show
+// that the VM is running, not that a service in it works, so they never count
+// as one.
 func (c *acceptanceCheck) probes(record probe.VMValidationRecord, planned *config.VM, expectedFailure int) bool {
 	problems := attest.ProbeProblems(record, planned, expectedFailure)
 	for _, problem := range problems {
@@ -581,7 +584,7 @@ func (c *acceptanceCheck) probes(record probe.VMValidationRecord, planned *confi
 	// evidence it must carry; a result that says its guest-agent probe was
 	// required cannot be a skip, with a plan or without one. These rules are
 	// the controller's too (attest.ProbePolicyProblems), so a report the
-	// controller signed never fails them here. They need the report's schema,
+	// controller wrote never fails them here. They need the report's schema,
 	// which is why they are not part of attest.ProbeProblems.
 	if c.policyRecorded {
 		policy := attest.ProbePolicyProblems(record, planned, c.plan)
@@ -638,24 +641,15 @@ func planHasSoak(plan *config.Plan) bool {
 	return false
 }
 
-// probeIsGuestLevel, expectedProbeTarget and probeIsOptional are the rules the
-// controller applies before it signs a report (pkg/attest planrules.go), so
-// that what it refuses and what this verifier refuses cannot differ.
-func probeIsGuestLevel(probeType string) bool { return attest.ProbeIsGuestLevel(probeType) }
-
-func expectedProbeTarget(p config.Probe) (string, bool) { return attest.ExpectedProbeTarget(p) }
-
-func probeIsOptional(configured config.Probe) bool { return attest.ProbeIsOptional(configured) }
-
 // integrity checks the backup a VM record names (the snapshot, which must be
 // the plan's and the source VM's; see attest.SourceProblems) and its disk
-// evidence: every disk the report records is
-// verified with a digest and manifest reference (a test-mode report accepted
-// with --allow-test-mode may instead record the explicit test-mode skip), no
-// slot is recorded twice, the boot disk the report names is among them, and
-// every disk the plan names is among them. A plan that names no drives (it
-// takes them from the backup's configuration) cannot say what the layout
-// should be, so its disks are checked only for what they record.
+// evidence: every disk the report records is verified with a digest and
+// manifest reference (a test-mode report accepted with --allow-test-mode may
+// instead record the explicit test-mode skip), no slot is recorded twice, the
+// boot disk the report names is among them, and every disk the plan names is
+// among them. A plan that names no drives (it takes them from the backup's
+// configuration) cannot say what the layout should be, so its disks are checked
+// only for what they record.
 func (c *acceptanceCheck) integrity(record probe.VMValidationRecord, planned *config.VM, validationMode string, allowTestMode bool) {
 	for _, problem := range attest.SourceProblems(record, planned) {
 		c.reject("%s", problem)

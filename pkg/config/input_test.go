@@ -252,7 +252,7 @@ admission:
 }
 
 // A probe timeout given as zero or negative is refused, not turned into ten
-// seconds by normalisation before validation sees it. Only a timeout left out
+// seconds by normalization before validation sees it. Only a timeout left out
 // gets the default.
 func TestNonpositiveProbeTimeoutsAreRefused(t *testing.T) {
 	base := planText(t, validPlan())
@@ -291,7 +291,7 @@ func TestNonpositiveProbeTimeoutsAreRefused(t *testing.T) {
 	if read, err := LoadFromReaderForWorker(strings.NewReader(string(worker))); err != nil || read.Tiers[0].VMs[0].Probes[0].TimeoutSec != 10 {
 		t.Fatalf("worker plan: %v", err)
 	}
-	// Code that builds a plan and normalises it still gets the default.
+	// Code that builds a plan and normalizes it still gets the default.
 	q := validPlan()
 	q.Tiers[0].VMs[0].Probes[0].TimeoutSec = 0
 	q.Normalize()

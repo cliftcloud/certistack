@@ -5,7 +5,7 @@
 // release has been tested with. A node reports a Proxmox VE version, a PBS
 // server version and a proxmox-backup-client version; Classify matches them
 // against the table in Pairs and says whether the pair is tested, untested or
-// unsupported, with a reason. certistack doctor, run, plan and the signed
+// unsupported, with a reason. certistack doctor, run, plan and the
 // report all take their answer from here, so the statement the guides make
 // ("see the version check in certistack doctor") is the code's.
 //
@@ -125,7 +125,7 @@ func (v Version) String() string {
 	return v.Raw
 }
 
-// maxVersionLen bounds a version taken from a node: it goes into a signed
+// maxVersionLen bounds a version taken from a node: it goes into the
 // report and onto an operator's terminal.
 const maxVersionLen = 48
 
@@ -133,7 +133,8 @@ const maxVersionLen = 48
 // "8.4.0~rc1" or "3.4.0-1": a major, usually a minor, and anything a package
 // version adds after a ".", "-", "~" or "+". It accepts one short token of
 // letters, digits and ".+~:_-" and nothing else, so what it keeps can be
-// printed and signed. Anything else, including an empty string, is unknown.
+// printed and written to the report. Anything else, including an empty string,
+// is unknown.
 func ParseVersion(s string) Version {
 	s = strings.TrimSpace(s)
 	if s == "" || len(s) > maxVersionLen {
@@ -259,7 +260,7 @@ func joinAnd(items []string) string {
 	return strings.Join(items[:len(items)-1], ", the ") + " and the " + items[len(items)-1]
 }
 
-// Verdict is what doctor and the signed report call the status: "tested",
+// Verdict is what doctor and the report call the status: "tested",
 // "untested" or "unsupported", and "unknown" for a status that is untested
 // because a version could not be read.
 func (s Status) Verdict() string {

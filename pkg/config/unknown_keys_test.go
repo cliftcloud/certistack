@@ -54,8 +54,8 @@ func TestPlanDecodeErrorKeepsOtherTypeErrors(t *testing.T) {
 }
 
 // A key that takes a list, written as one value, says it is a list and how to
-// write it. "frameworks: NONE" once got the decoder's "cannot unmarshal !!str
-// `NONE` into []string", which names neither the key nor the way out.
+// write it, not the decoder's "cannot unmarshal !!str `NONE` into []string",
+// which names neither the key nor the way out.
 func TestAListKeyWrittenAsOneValueSaysItIsAList(t *testing.T) {
 	for name, tc := range map[string]struct{ value, want string }{
 		"one label":    {"NONE", "line 2: frameworks is a list: write [NONE]"},

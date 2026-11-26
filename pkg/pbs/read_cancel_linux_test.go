@@ -56,9 +56,9 @@ func startPipeScan(t *testing.T, ctx context.Context, first string) (*os.File, <
 	return writer, done
 }
 
-// A scan cancelled while its read waits does not wait for the read to
+// A scan canceled while its read waits does not wait for the read to
 // return: it stops within readCancelGrace, and says a read is left.
-func TestScanStopsWhenCancelledDuringARead(t *testing.T) {
+func TestScanStopsWhenCanceledDuringARead(t *testing.T) {
 	oldGrace := readCancelGrace
 	readCancelGrace = 100 * time.Millisecond
 	t.Cleanup(func() { readCancelGrace = oldGrace })
@@ -70,10 +70,10 @@ func TestScanStopsWhenCancelledDuringARead(t *testing.T) {
 	select {
 	case err := <-done:
 		if !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), "still waiting") {
-			t.Fatalf("cancelled scan = %v, want the cancellation and the read left waiting", err)
+			t.Fatalf("canceled scan = %v, want the cancellation and the read left waiting", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("the cancelled scan is still blocked in its read")
+		t.Fatal("the canceled scan is still blocked in its read")
 	}
 	_ = writer.Close() // the read left waiting ends
 }
@@ -97,7 +97,7 @@ func TestScanEndingAfterCancellationFails(t *testing.T) {
 	}
 }
 
-// The control: the same scan, uncancelled, reads to the end.
+// The control: the same scan, uncanceled, reads to the end.
 func TestPipeScanWithoutCancellationCompletes(t *testing.T) {
 	ctx := context.Background()
 	oldRoot := numaRoot

@@ -175,7 +175,7 @@ func (o *Orchestrator) confirmLocalOverlayStorage(storage, dir string) (string, 
 	}
 	switch {
 	case !localStorageTypes[config.Type]:
-		return "", fmt.Errorf("storage %q is type %q; it must be file-based (dir, nfs, cifs, cephfs, btrfs)", storage, config.Type)
+		return "", fmt.Errorf("storage %q is type %q; it must be file-based (dir, nfs, cifs, cephfs, btrfs, glusterfs)", storage, config.Type)
 	case !contentAllows(config.Content, "images"):
 		return "", fmt.Errorf("storage %q does not allow disk images (content %q)", storage, config.Content)
 	case config.Nodes != "" && !contentAllows(config.Nodes, o.opts.NodeName):

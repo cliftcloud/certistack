@@ -59,7 +59,7 @@ type mapReaper struct {
 	readTimeout time.Duration
 	// pidfdOpen opens a pidfd for a PID (unix.PidfdOpen); tests replace it.
 	pidfdOpen func(pid, flags int) (int, error)
-	// daemonWait is how long stopMapDaemon waits for the daemon it signalled to
+	// daemonWait is how long stopMapDaemon waits for the daemon it signaled to
 	// exit; zero is mapCommandWatchdog.
 	daemonWait time.Duration
 }
@@ -278,7 +278,7 @@ func judge(intent journal.MapIntent, c mapCandidate) (verdict, reason) {
 // The others are left running; those that judge cannot tell from the run's
 // map are reported. A journal from before tokens has nothing to tell a
 // run's map by, and the snapshot and archive are what every operation that
-// maps them has: none of its candidates is signalled, and they are reported.
+// maps them has: none of its candidates is signaled, and they are reported.
 func (r mapReaper) identify(intent journal.MapIntent) ([]journal.Process, []error) {
 	var ours []journal.Process
 	var errs []error
@@ -326,7 +326,7 @@ func (r mapReaper) identify(intent journal.MapIntent) ([]journal.Process, []erro
 		}
 	}
 	if len(legacy) > 0 {
-		errs = append(errs, fmt.Errorf("cannot tell whether the interrupted run started PBS map process %s of %s %s: its journal predates the token that marks a run's map processes, so recovery stopped none. If the run started one, stop it (kill -INT <pid>), release what it made, and "+recoverhint.Again, strings.Join(legacy, ", "), intent.Snapshot, intent.Archive))
+		errs = append(errs, fmt.Errorf("cannot tell whether the interrupted run started PBS map process %s of %s %s: its journal, written by an earlier version, holds no token that marks a run's map processes, so recovery stopped none. If the run started one, stop it (kill -INT <pid>), release what it made, and "+recoverhint.Again, strings.Join(legacy, ", "), intent.Snapshot, intent.Archive))
 	}
 	return ours, errs
 }
@@ -347,7 +347,7 @@ func (r mapReaper) currentBootID() string {
 // not run), and a command line that is a map of the intent's snapshot and
 // archive, or none (a process that is exiting). A process whose command line
 // cannot be read counts as running, with the reason: recovery cannot tell
-// that it is gone, and signalling it is safe, because the signal goes through
+// that it is gone, and signaling it is safe, because the signal goes through
 // a pidfd only after the PID and start time are checked again.
 func (r mapReaper) stillRuns(p journal.Process, intent journal.MapIntent) (bool, error) {
 	if intent.BootID != "" {
@@ -357,7 +357,7 @@ func (r mapReaper) stillRuns(p journal.Process, intent journal.MapIntent) (bool,
 			// A PID and start time name a process only within one boot, so with
 			// this boot's identity unreadable the journaled process cannot be
 			// shown to be of this boot: it is not taken for the run's, and so
-			// is not signalled.
+			// is not signaled.
 			return false, fmt.Errorf("cannot read this boot's identity, so PBS map process %d of %s %s, which the interrupted run journaled in a boot that cannot be compared with this one, is not taken for the run's and was not stopped. If it is the run's map, stop it (kill -INT %d) and "+recoverhint.Again, p.PID, intent.Snapshot, intent.Archive, p.PID)
 		case boot != intent.BootID:
 			return false, nil
@@ -614,7 +614,7 @@ const (
 	// which looks at it again).
 	unmapStopDaemon unmapGuard = iota
 	// unmapDetachOnly: it names something that is not the run's daemon (the
-	// daemon is gone and its PID was reused): nothing is signalled, and the loop
+	// daemon is gone and its PID was reused): nothing is signaled, and the loop
 	// is only detached.
 	unmapDetachOnly
 	// unmapUnknown: it cannot be established: nothing is done.
@@ -753,7 +753,7 @@ func (r mapReaper) openPidfd(pid int) (int, error) {
 
 // stopMapDaemon stops the daemon of the map served through the map file
 // backing, as proxmox-backup-client unmap does, but so that the process that is
-// signalled is the one that was verified. The client rereads the pid file after
+// signaled is the one that was verified. The client rereads the pid file after
 // the caller's check and signals that bare PID: the daemon can exit, and its
 // PID be reused, in between.
 //
@@ -762,7 +762,7 @@ func (r mapReaper) openPidfd(pid int) (int, error) {
 //  2. It opens a pidfd for that PID, and looks again, with the pidfd open: a
 //     process that has taken the PID since, or whose start time differs, is not
 //     the one that was looked at. A pidfd names one process for good, so what
-//     is signalled through it is that process or nobody.
+//     is signaled through it is that process or nobody.
 //  3. It sends SIGINT through the pidfd, which makes the daemon release its
 //     loop device and map file itself (it is what the client's unmap sends), and
 //     waits, up to daemonWait, for the process to exit: the pidfd, or a state
@@ -774,7 +774,7 @@ func (r mapReaper) openPidfd(pid int) (int, error) {
 // loop alone. What cannot be established (a pid file that cannot be read, a
 // process that cannot be read, a boot that cannot be compared, a PID that
 // cannot be bound to a pidfd) signals nothing and is an error, as is a daemon
-// that was signalled and is still there after the wait. The daemon is never
+// that was signaled and is still there after the wait. The daemon is never
 // killed, as the client's unmap never kills it.
 func (r mapReaper) stopMapDaemon(backing string, intent journal.MapIntent) (note string, err error) {
 	pid, v, why := r.pidFileDaemon(backing)
@@ -802,7 +802,7 @@ func (r mapReaper) signalVerifiedDaemon(pid int, first journal.Process, intent j
 	case errors.Is(err, unix.ESRCH):
 		return "", nil // it exited since: nothing is left to stop
 	case err != nil:
-		return "", fmt.Errorf("the PBS map daemon %d of %s %s cannot be bound to a pidfd (%v), so it was not signalled: a signal by PID could land on a process that took the PID in between. Stop it yourself (kill -INT %d), then "+recoverhint.Again, pid, intent.Snapshot, intent.Archive, err, pid)
+		return "", fmt.Errorf("the PBS map daemon %d of %s %s cannot be bound to a pidfd (%v), so it was not signaled: a signal by PID could land on a process that took the PID in between. Stop it yourself (kill -INT %d), then "+recoverhint.Again, pid, intent.Snapshot, intent.Archive, err, pid)
 	}
 	defer unix.Close(fd)
 
@@ -815,7 +815,7 @@ func (r mapReaper) signalVerifiedDaemon(pid int, first journal.Process, intent j
 	case v == daemonNotOurs:
 		return why, nil
 	case second != first:
-		return fmt.Sprintf("PID %d was taken by another process while the map's daemon was being looked at, so nothing was signalled", pid), nil
+		return fmt.Sprintf("PID %d was taken by another process while the map's daemon was being looked at, so nothing was signaled", pid), nil
 	}
 
 	slog.Info("stopping a PBS map's daemon through its pidfd", "pid", pid, "snapshot", intent.Snapshot, "archive", intent.Archive)
@@ -913,7 +913,7 @@ func (r mapReaper) mapEnv(path string) (map[string]string, error) {
 
 // signalRecorded sends sig to p through a pidfd, after checking that the
 // PID still names p: a PID reused since recovery identified the process is
-// never signalled. A process that is gone is not an error.
+// never signaled. A process that is gone is not an error.
 func signalRecorded(p journal.Process, sig syscall.Signal) error {
 	fd, err := unix.PidfdOpen(p.PID, 0)
 	if errors.Is(err, unix.ESRCH) {

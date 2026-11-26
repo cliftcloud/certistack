@@ -24,7 +24,7 @@ import (
 // real process, and the host's real /proc: the client's unmap is never run, the
 // daemon is sent SIGINT (what the client's unmap sends), and the loop is then
 // released by the verified detach. The race itself cannot be made to happen on
-// demand, so the test pins the behaviour that rules it out.
+// demand, so the test pins the behavior that rules it out.
 func TestRecoverLockedStopsTheRunsDaemonItselfAndNeverRunsTheClientsUnmap(t *testing.T) {
 	signalFile := filepath.Join(t.TempDir(), "signal")
 	daemon := startFakeClient(t, "record", realMapArgv(ownRepo), append(realMapEnv(ownRepo, "team-a", ownToken), fakeClientSignalFile+"="+signalFile))

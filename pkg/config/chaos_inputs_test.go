@@ -72,7 +72,7 @@ func TestValidateRefusesControlCharactersInText(t *testing.T) {
 	for path, value := range map[string]string{
 		"name":                                  "Nightly\x1b]0;owned\x07",
 		"tiers[0].name":                         "Tier\r\x1b[2K",
-		"tiers[0].vms[0].probes[0].description": "SSH ‮okay",
+		"tiers[0].vms[0].probes[0].description": "SSH \u202eokay",
 		"environment":                           "prod\x00",
 	} {
 		text := examplePlanText(t, func(doc any) { setPath(doc, path, value) })
@@ -92,11 +92,11 @@ func TestValidateRefusesControlCharactersInText(t *testing.T) {
 	}
 }
 
-// A VM's sandbox vmid could be another VM's source_vmid in the same plan
+// A VM's sandbox vmid may not be another VM's source_vmid in the same plan
 // (vmid 100 beside a VM restored from VM 100's backups). While VM 100 exists a
-// run would refuse it only on the node; once VM 100 is deleted (its backups
-// still tested), the sandbox VM would take the ID that names those backups.
-// validate refuses it, as it refuses a VM's own source_vmid.
+// run refuses it only on the node; once VM 100 is deleted (its backups still
+// tested), the sandbox VM would take the ID that names those backups. validate
+// refuses it, as it refuses a VM's own source_vmid.
 func TestASandboxVMIDIsNoSourceVMIDOfThePlan(t *testing.T) {
 	plan := validPlan()
 	other := plan.Tiers[0].VMs[0]
@@ -141,7 +141,7 @@ func TestPlanSchemaRefusesTheControlCharactersValidateRefuses(t *testing.T) {
 			t.Errorf("%s has no context", entry)
 			continue
 		}
-		for value, refused := range map[string]bool{"a\x1bb": true, "a‮b": true, "a\u0085b": true, "a\rb": true, "a\nb": !multiLine, "a\tb": !multiLine, "ab": false} {
+		for value, refused := range map[string]bool{"a\x1bb": true, "a\u202eb": true, "a\u0085b": true, "a\rb": true, "a\nb": !multiLine, "a\tb": !multiLine, "ab": false} {
 			doc := examplePlan(t)
 			if c.prep != nil {
 				c.prep(t, doc)

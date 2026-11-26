@@ -260,14 +260,14 @@ func (p *MSSQLProber) strictTLSConfig() *tls.Config {
 		return cfg
 	}
 	// A probe with no server_name asserts that the SQL Server engine answers
-	// PRELOGIN, not who runs it, exactly as its cleartext PRELOGIN has always
-	// done: the exchange authenticates nobody, sends no credential and no
-	// secret, and reads a version number. SQL Server presents a self-signed
-	// certificate unless the operator installed one, so a chain check would
-	// fail every default instance. The result's detail says the certificate was
-	// not verified. A plan that wants the identity asserts it with server_name,
-	// and the branch above verifies, as the http probe always does because it
-	// asserts a named service.
+	// PRELOGIN, not who runs it, as its cleartext PRELOGIN does: the exchange
+	// authenticates nobody, sends no credential and no secret, and reads a
+	// version number. SQL Server presents a self-signed certificate unless the
+	// operator installed one, so a chain check would fail every default
+	// instance. The result's detail says the certificate was not verified. A
+	// plan that wants the identity asserts it with server_name, and the branch
+	// above verifies, as the http probe does because it asserts a named
+	// service.
 	cfg.InsecureSkipVerify = true // #nosec G402 -- identity is not asserted without server_name; see above
 	return cfg
 }

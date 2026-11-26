@@ -4,7 +4,8 @@
 
 1. On the controller, `certistack check my-first-plan.yaml` stops at the first failing layer and prints the fix. It
    checks the environment file setup recorded; `--env-file FILE` checks another.
-2. For a failed run, `certistack report show` (the newest report) names the VM, the probe and the reason.
+2. For a failed run, `certistack report show` (the newest report in your reports directory) names the VM, the probe and
+   the reason.
 3. On the node, the worker logs to `journalctl -u certistack-worker-<run id>`, and a run the node recovered itself to
    `/var/lib/certistack/logs/<run>.log`.
 4. "Run the recovery" below means the command in [Issue 35](#issue-35).

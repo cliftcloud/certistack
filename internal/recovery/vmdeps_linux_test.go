@@ -154,7 +154,7 @@ func TestRecoveryKeepsWhatAnUnstoppedQEMUProcessUses(t *testing.T) {
 				t.Fatalf("overlay unlinked while its QEMU process may run: %v", statErr)
 			}
 			if !runs(child.Process.Pid) {
-				t.Fatal("recovery signalled a process whose identity it could not confirm")
+				t.Fatal("recovery signaled a process whose identity it could not confirm")
 			}
 		})
 	}
@@ -201,7 +201,7 @@ func TestRecoveryReleasesWhatAVMConfirmedGoneUsed(t *testing.T) {
 			t.Fatalf("overlay kept for a process that is gone: %v", statErr)
 		}
 		if !runs(other.Process.Pid) {
-			t.Fatal("recovery signalled the process that reuses the PID")
+			t.Fatal("recovery signaled the process that reuses the PID")
 		}
 	})
 }

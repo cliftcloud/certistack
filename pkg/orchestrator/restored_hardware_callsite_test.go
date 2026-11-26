@@ -20,7 +20,7 @@ import (
 	"github.com/cliftcloud/certistack/pkg/pve"
 )
 
-// At the call site: the signed record of a VM's hardware and the create
+// At the call site: the record of a VM's hardware and the create
 // request PVE receives are the same thing. Tests that call the record helper
 // directly cannot catch bootAndVerifyVM recording something else (such as a
 // record without the CPU weight), so this drives bootAndVerifyVM itself,

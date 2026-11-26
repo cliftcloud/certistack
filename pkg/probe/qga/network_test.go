@@ -12,7 +12,7 @@ import (
 func TestNewHTTPNetworkProber_UsesSNIAndSandboxResolution(t *testing.T) {
 	prober := NewHTTPNetworkProber(
 		"/tmp/test.qga", "10.60.70.15", 443, "/healthz", true,
-		"certistack.local", 200, true, 10*time.Second, "HTTPS SNI",
+		"certistack.local", 200, 10*time.Second, "HTTPS SNI",
 	)
 	if !strings.Contains(prober.Command, "--resolve 'certistack.local:443:10.60.70.15'") {
 		t.Fatalf("curl command does not pin SNI name to sandbox IP: %s", prober.Command)
@@ -49,15 +49,15 @@ func TestNetworkProbersBracketAnIPv6Target(t *testing.T) {
 		t.Errorf("IPv4 tcp target = %q", v4.Target)
 	}
 
-	direct := NewHTTPNetworkProber("/tmp/test.qga", "fd00:99::10", 8080, "/health", false, "", 200, false, 5*time.Second, "http")
+	direct := NewHTTPNetworkProber("/tmp/test.qga", "fd00:99::10", 8080, "/health", false, "", 200, 5*time.Second, "http")
 	if !strings.Contains(direct.Command, "'http://[fd00:99::10]:8080/health'") || direct.Target != "http://[fd00:99::10]:8080/health" {
 		t.Errorf("IPv6 http probe: target %q, command %s", direct.Target, direct.Command)
 	}
-	named := NewHTTPNetworkProber("/tmp/test.qga", "fd00:99::10", 443, "/health", true, "certistack.local", 200, false, 5*time.Second, "https")
+	named := NewHTTPNetworkProber("/tmp/test.qga", "fd00:99::10", 443, "/health", true, "certistack.local", 200, 5*time.Second, "https")
 	if !strings.Contains(named.Command, "--resolve 'certistack.local:443:[fd00:99::10]'") || !strings.Contains(named.Command, "'https://certistack.local:443/health'") {
 		t.Errorf("IPv6 https probe with a server name: %s", named.Command)
 	}
-	if v4 := NewHTTPNetworkProber("/tmp/test.qga", "192.0.2.30", 80, "/", false, "", 200, false, 5*time.Second, "http"); !strings.Contains(v4.Command, "'http://192.0.2.30:80/'") {
+	if v4 := NewHTTPNetworkProber("/tmp/test.qga", "192.0.2.30", 80, "/", false, "", 200, 5*time.Second, "http"); !strings.Contains(v4.Command, "'http://192.0.2.30:80/'") {
 		t.Errorf("IPv4 http command changed: %s", v4.Command)
 	}
 }

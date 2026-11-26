@@ -90,8 +90,8 @@ type RBACParams struct {
 	PBSDatastore string
 	PBSNamespace string
 	// Part limits the script to one of its parts: PartPVE or PartPBS. Empty is
-	// both parts (the PBS part only with a datastore), as the script has always
-	// been printed. A single part is a complete script of its own, so that
+	// both parts (the PBS part only with a datastore). A single part is a
+	// complete script of its own, so that
 	// `certistack setup rbac ... --part pve | ssh root@NODE sh -s` works.
 	Part    string
 	Command string // the command line that was run, quoted in the header
@@ -101,6 +101,11 @@ type RBACParams struct {
 	// the part creates (nothing when the token exists already), which the setup
 	// reads into the 0600 environment file. The secret is never shown.
 	Capture bool
+	// SecretKept says that certistack setup holds the secret of the part's
+	// token, which exists already: the script then reports the token as found
+	// and kept, without the advice for a lost secret, which would tell the
+	// operator to replace a token whose secret setup has in hand.
+	SecretKept bool
 }
 
 // The values of RBACParams.Part, and of the command's --part flag.
@@ -109,14 +114,16 @@ const (
 	PartPBS = "pbs"
 )
 
-// validDatastore reports whether name looks like a PBS datastore ID.
+// validDatastore reports whether name looks like a PBS datastore ID: 3 to 32
+// letters, digits, "-", "_" and ".", not starting with "-" or ".", as PBS and
+// the shape check of PBS_REPOSITORY allow.
 func validDatastore(name string) bool {
 	if len(name) < 3 || len(name) > 32 {
 		return false
 	}
 	for i, r := range name {
-		letter := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
-		if !letter && (i == 0 || (r != '-' && r != '_' && r != '.')) {
+		word := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_'
+		if !word && (i == 0 || (r != '-' && r != '.')) {
 			return false
 		}
 	}
@@ -179,7 +186,12 @@ func RBACScript(p RBACParams) (string, error) {
 		line(`trap 'status=$?; [ "$status" -eq 0 ] || echo "certistack access setup stopped while $STEP (exit status $status). Nothing after this step ran. Fix the cause shown above, then run the script again: every step can be repeated." >&2' EXIT`)
 	}
 	// existingToken is the branch for a token that exists already: its secret
-	// was shown once and cannot be shown again, so say how to replace it.
+	// was shown once and cannot be shown again. The grants that follow it are
+	// given only to a token whose secret is held: by certistack setup
+	// (SecretKept), or by the person running a printed script, who says so with
+	// CERTISTACK_KEEP_TOKEN=yes. Otherwise the script stops before any grant: a
+	// token made for another controller (another customer's, on a PBS or a
+	// cluster they share) must gain no access from this run.
 	existingToken := func(system, tokenID, secretName, removal string) {
 		kind := "API token"
 		if system == "PBS" {
@@ -187,13 +199,33 @@ func RBACScript(p RBACParams) (string, error) {
 		}
 		line("  echo 'Found the existing %s %s: it exists already, so it was not created again.' >&2", kind, tokenID)
 		line("  echo 'It was not examined or changed: its expiry, its privilege separation and its comment stay as they are.' >&2")
+		if p.SecretKept {
+			if system == "PVE" {
+				line("  echo 'A token made by hand without --privsep 1 holds all the privileges of its user, not only the role; if it was, remove it (%s) and run certistack setup again.' >&2", removal)
+			}
+			line("  echo 'certistack setup holds the secret of this token and keeps using it.' >&2")
+			return
+		}
 		if system == "PVE" {
 			line("  echo 'A token made by hand without --privsep 1 holds all the privileges of its user, not only the role; if it was, replace it as below.' >&2")
 		}
 		line("  echo '%s shows the secret of a token only once, when it is created; it cannot be shown again.' >&2", system)
-		line("  echo 'If you still have that secret, it is your %s and nothing more is needed.' >&2", secretName)
-		line("  echo 'If you lost it, replace the token: run  %s' >&2", removal)
-		line("  echo 'and then run this script again; it creates a new token and prints its new secret.' >&2")
+		if p.Capture {
+			// certistack setup holds no secret for it: it asks next whether to
+			// replace the token. No token JSON on standard output is how it
+			// learns that the token exists.
+			line("  echo 'certistack setup does not hold its secret, so nothing was granted to it.' >&2")
+			line("  exit 0")
+			return
+		}
+		line(`  if [ "${CERTISTACK_KEEP_TOKEN:-}" != yes ]; then`)
+		line("    echo 'Nothing was granted to it: a token whose secret is held elsewhere gains no access from this script.' >&2")
+		line("    echo 'If you hold its secret (your %s), run this script again with CERTISTACK_KEEP_TOKEN=yes in front, for example: CERTISTACK_KEEP_TOKEN=yes sh -s < this-script.sh' >&2", secretName)
+		line("    echo 'If you lost it, replace the token: run  %s' >&2", removal)
+		line("    echo 'and then run this script again; it creates a new token and prints its new secret.' >&2")
+		line("    exit 3")
+		line("  fi")
+		line("  echo 'CERTISTACK_KEEP_TOKEN=yes: you hold its secret, so the grants below are given to it.' >&2")
 	}
 
 	line("#!/bin/sh")
@@ -217,6 +249,9 @@ func RBACScript(p RBACParams) (string, error) {
 	line("# prints it: a role that exists is set to the current privilege list, a user or")
 	line("# token that exists is left as it is (a token's secret cannot be shown a second")
 	line("# time, so the script says how to replace it instead), and the ACLs are set again.")
+	line("# A token that exists gets the ACLs only if you hold its secret: then run the")
+	line("# script with CERTISTACK_KEEP_TOKEN=yes in front. Without it the script stops")
+	line("# before any grant, so a token made for another controller gains no access.")
 	line("# If a step fails the script stops and says which one; run it again once the")
 	line("# cause is fixed.")
 	line("#")
@@ -289,7 +324,7 @@ func RBACScript(p RBACParams) (string, error) {
 		line(`if pveum user list --output-format json | grep -Fq '"%s"'; then`, PVEUser)
 		line("  echo 'Found the existing user %s. It was not examined or changed: it is left as it is, whatever its state (a disabled user stays disabled).'", PVEUser)
 		line("else")
-		line(`  pveum user add %s --comment "CertiStack DR validation"`, PVEUser)
+		line(`  pveum user add %s --comment "CertiStack restore tests"`, PVEUser)
 		line("  echo 'User %s created.'", PVEUser)
 		line("fi")
 		line("")
@@ -298,7 +333,7 @@ func RBACScript(p RBACParams) (string, error) {
 		line("#    PVE prints the token's secret (\"value\") ONCE, here. It is PVE_TOKEN_SECRET.")
 		line("#    PVE_TOKEN_ID is %s.", PVETokenID)
 		line("#    A token that exists is not created again (PVE cannot show its secret a second")
-		line("#    time); the script says how to replace it and goes on with the ACLs.")
+		line("#    time); the ACLs below are given to it only if its secret is held.")
 		line("STEP='creating the API token %s'", PVETokenID)
 		line(`if pveum user token list %s --output-format json | grep -Eq '"(%s!)?%s"'; then`, PVEUser, PVEUser, PVETokenName)
 		existingToken("PVE", PVETokenID, "PVE_TOKEN_SECRET", "pveum user token remove "+PVEUser+" "+PVETokenName)
@@ -386,7 +421,7 @@ func RBACScript(p RBACParams) (string, error) {
 		line("")
 		line("# generate-token prints the token's secret ONCE. It is PBS_PASSWORD. A token that")
 		line("# exists is not created again (PBS cannot show its secret a second time); the")
-		line("# script says how to replace it and goes on with the ACLs.")
+		line("# ACLs below are given to it only if its secret is held.")
 		line("STEP='creating the PBS API token %s'", PBSTokenID)
 		line(`if proxmox-backup-manager user list-tokens %s --output-format json | grep -Eq '"(%s!)?%s"'; then`, PBSUser, PBSUser, PBSTokenName)
 		existingToken("PBS", PBSTokenID, "PBS_PASSWORD", "proxmox-backup-manager user delete-token "+PBSUser+" "+PBSTokenName+" (or in the PBS web UI: Configuration, Access Control, API Token)")

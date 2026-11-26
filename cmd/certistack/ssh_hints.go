@@ -27,7 +27,7 @@ func trustNodeCommand(cfg controller.SSHConfig) string {
 
 // sshFailureHint says what to do about a failed SSH connection, read from
 // OpenSSH's own words in err. It returns "" for a failure it does not
-// recognise, which the caller then shows as it is.
+// recognize, which the caller then shows as it is.
 func sshFailureHint(err error, cfg controller.SSHConfig) string {
 	if err == nil {
 		return ""
@@ -65,7 +65,7 @@ func sshFailureHint(err error, cfg controller.SSHConfig) string {
 	case strings.Contains(text, "executable file not found"):
 		return "The OpenSSH client (ssh and scp) is not installed on this controller. On Debian or Ubuntu: sudo apt install openssh-client"
 	case strings.Contains(text, "a password is required"), strings.Contains(text, "sudo: not found"), strings.Contains(text, "sudo: command not found"):
-		return fmt.Sprintf("CERTISTACK_SSH_SUDO is on, but %q cannot run sudo without a password on the node (or the node has no /usr/bin/sudo). Use root, or give the account passwordless sudo as in the SSH setup guide.", account)
+		return fmt.Sprintf("CERTISTACK_SSH_SUDO is on, but %q cannot run sudo without a password on the node (or the node has no /usr/bin/sudo). Use root, or give the account passwordless sudo "+sudoersRuleGuide+".", account)
 	}
 	return ""
 }

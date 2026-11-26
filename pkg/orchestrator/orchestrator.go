@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package orchestrator implements the Directed Acyclic Graph (DAG) dependency resolver,
-// multi-tier boot sequencer, and timeout manager for CertiStack disaster recovery plans.
+// Package orchestrator runs a restore test from a plan: it checks that the
+// node can take it, makes the sandbox network, restores each tier's VMs from
+// their PBS backups into copy-on-write overlays, boots the tiers in order
+// under timeouts, runs their probes, and removes everything it made.
 package orchestrator
 
 import (
@@ -53,15 +55,14 @@ type Options struct {
 	// volumes, attached by volume ID. Required on stock Proxmox VE, which
 	// refuses disks outside a storage.
 	OverlayStorage string
-	DryRun         bool   // If true, validates DAG and stages without actual hypervisor mutations
-	RunID          string // Unique DR validation run UUID (default auto-generated)
+	RunID          string // Unique ID of the run (default auto-generated)
 	StateDir       string // Directory for active.json state journaling (default "/var/lib/certistack")
 	QMPSocketDir   string // Optional directory override for QMP sockets (default "/var/run/qemu-server")
 	QGASocketDir   string // Optional directory override for QGA sockets (default "/var/run/qemu-server")
-	SkipQMP        bool   // If true, skips Stage 1 QMP connection (e.g. in non-QEMU environments)
+	SkipQMP        bool   // If true, skips the QMP check (e.g. in non-QEMU environments)
 	// SkipIntegrity is an explicit test-only shortcut that omits the full read
 	// and checksum verification of each mapped PBS image. The runner stamps the
-	// resulting signed report as non-comprehensive test evidence.
+	// resulting report as non-comprehensive test evidence.
 	SkipIntegrity bool
 	ChaosTrigger  string // Fault to inject in a chaos build ("panic", "kill-daemon")
 	// Sandbox are the checks of the sandbox range against the node that Plan
@@ -100,7 +101,7 @@ type ExecutionResult struct {
 	Error           error
 }
 
-// Orchestrator coordinates the end-to-end execution of a declarative DR test plan.
+// Orchestrator runs one plan from admission to teardown.
 type Orchestrator struct {
 	plan               *config.Plan
 	opts               Options
@@ -122,7 +123,7 @@ type Orchestrator struct {
 	networkDiagnosticPartial map[int]bool
 
 	// SDN cleanup is registered before resources are created so it runs last in
-	// LIFO order. These fields make both the callback and its signed evidence
+	// LIFO order. These fields make both the callback and the report's evidence
 	// reflect only mutations this run actually made.
 	sdnReloadRequired bool
 	sdnTeardownReload bool
@@ -187,7 +188,7 @@ type Orchestrator struct {
 	// mayStopMapDaemonFn says whether the daemon of a map's loop may be stopped
 	// (its pid file names none, or the run's own), stopMapDaemonFn stops it
 	// through a pidfd of the process it verified (the note says why none was
-	// signalled), and reusedLoopNoteFn what to say of a recorded loop device that
+	// signaled), and reusedLoopNoteFn what to say of a recorded loop device that
 	// backs another file now: see unmapRecordedLoop.
 	mayStopMapDaemonFn func(string, journal.MapIntent) (bool, error)
 	stopMapDaemonFn    func(string, journal.MapIntent) (string, error)
@@ -505,8 +506,8 @@ func (o *Orchestrator) noteVNetNotOwned(err error) {
 	}
 }
 
-// Run executes the full disaster recovery validation workflow.
-// Guarantees fail-safe LIFO resource teardown upon completion or error.
+// Run executes the restore test from admission to teardown. Whatever the
+// outcome, it tears down what it made in LIFO order.
 //
 // Signal cancellation is handled in this goroutine rather than by a
 // concurrent cleanup goroutine. That guarantees any interrupted operation
@@ -524,7 +525,7 @@ func (o *Orchestrator) Run(ctx context.Context) (*ExecutionResult, error) {
 		err = withInterruption(err, interrupted)
 	}
 	// A run the address guard stopped because the sandbox's containment could
-	// not be restored does not read as complete or as merely cancelled.
+	// not be restored does not read as complete or as merely canceled.
 	if failure := o.isolationFailure(); failure != nil {
 		if res != nil {
 			res.AllPassed = false
@@ -679,10 +680,10 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		res.TeardownEvidence = evidence
 		if evidence.AllCleaned {
 			// A normal run must not look like an interrupted run on the next
-			// controller invocation. Keep the journal as an auditable terminal
-			// record, but mark it clean only after every owned resource has been
-			// checked absent. Crash recovery intentionally leaves other phases
-			// untouched so it can retry safely.
+			// controller invocation. Keep the journal as the terminal record, but
+			// mark it clean only after every owned resource has been checked
+			// absent. Crash recovery leaves other phases untouched so it can
+			// retry safely.
 			o.record.Phase = "cleaned"
 			o.record.CleanupErrors = nil
 			if err := o.flushJournal(); err != nil {
@@ -718,8 +719,8 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		return res, err
 	}
 
-	slog.Info("starting CertiStack DR validation plan", "plan_id", o.plan.PlanID, "tiers", len(o.plan.Tiers))
-	progress.Info("", "Starting DR validation plan %q with %d recovery tier(s).", o.plan.PlanID, len(o.plan.Tiers))
+	slog.Info("starting restore test", "plan_id", o.plan.PlanID, "tiers", len(o.plan.Tiers))
+	progress.Info("", "Starting restore test %q with %d recovery tier(s).", o.plan.PlanID, len(o.plan.Tiers))
 	o.announcePhase(runphase.Admission, 0, "")
 	if enabled, err := o.networkRecoveryEnabled(); err != nil {
 		res.AllPassed = false
@@ -774,7 +775,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		return res, res.Error
 	}
 
-	// 1. Admission Control Guardrails
+	// Admission checks.
 	slog.Info("evaluating host admission control thresholds...")
 	progress.Info("Admission", "Evaluating host admission control thresholds.")
 	admissionTime := startPhase(&timings.AdmissionCheckSec)
@@ -802,7 +803,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		return res, res.Error
 	}
 
-	// 2. Set up the isolated SDN sandbox.
+	// Set up the isolated SDN sandbox.
 	o.announcePhase(runphase.Network, 0, "")
 	slog.Info("setting up isolated SDN sandbox...", "mode", o.plan.Network.Mode, "lifecycle", o.plan.Network.EffectiveLifecycle(), "zone", o.plan.Network.ZoneID)
 	if o.plan.Network.EffectiveLifecycle() == "preprovisioned" {
@@ -820,7 +821,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		return res, res.Error
 	}
 
-	// 3. Multi-Tier Sequential Execution
+	// Run the tiers in order.
 	tiers := make([]config.Tier, len(o.plan.Tiers))
 	copy(tiers, o.plan.Tiers)
 	sort.SliceStable(tiers, func(i, j int) bool {
@@ -833,7 +834,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 		o.beginTierCache(tier)
 
 		// A tier represents services that can recover independently. Always
-		// collect every outcome in the current tier so the signed report remains
+		// collect every outcome in the current tier so the report remains
 		// actionable; a failure still prevents dependent tiers from starting.
 		runnable := make([]tierVMRun, 0, len(tier.VMs))
 		failures := make([]error, 0)
@@ -916,7 +917,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 			runnable = still
 		}
 
-		// Execute Stage 2 (synthetic wire-level) & Stage 3 (in-guest QGA) probes
+		// Run the network probes and the guest-agent probes.
 		for runIndex := range runnable {
 			vmCfg := runnable[runIndex].config
 			recordIndex := runnable[runIndex].recordIndex
@@ -962,7 +963,7 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 					}
 				}
 
-				// Diagnostic Fallback: Trigger forensic screendump
+				// Take a screendump of the failed VM's console.
 				artifact := o.captureFailureArtifact(ctx, vmCfg.VMID)
 				if artifact != nil {
 					o.trackFailureArtifact(artifact)
@@ -1054,10 +1055,10 @@ func (o *Orchestrator) run(ctx context.Context) (*ExecutionResult, error) {
 	// report agree.
 	cleaned := res.TeardownEvidence != nil && res.TeardownEvidence.AllCleaned
 	if cleaned {
-		slog.Info("CertiStack DR validation plan completed",
+		slog.Info("restore test completed",
 			"plan_id", o.plan.PlanID, "all_passed", res.AllPassed, "validation_passed", res.AllPassed, "cleanup_verified", true, "rto", res.RTO)
 	} else {
-		slog.Warn("CertiStack DR validation plan completed, but its temporary resource cleanup could not be verified",
+		slog.Warn("restore test completed, but its temporary resource cleanup could not be verified",
 			"plan_id", o.plan.PlanID, "all_passed", false, "validation_passed", res.AllPassed, "cleanup_verified", false, "rto", res.RTO)
 	}
 
@@ -1076,7 +1077,7 @@ func markVMRecordFailed(record *probe.VMValidationRecord, failure error) {
 	record.ProbeResults = append(record.ProbeResults, probe.Result{
 		Type:        "recovery",
 		Target:      fmt.Sprintf("vm/%d", record.VMID),
-		Description: "Recovery bootstrap and Stage 1 verification",
+		Description: "VM failed before it produced a probe result",
 		Passed:      false,
 		Error:       failure.Error(),
 	})
@@ -1110,7 +1111,7 @@ func markVMRecordIncomplete(record *probe.VMValidationRecord, interruption error
 	record.ProbeResults = append(record.ProbeResults, probe.Result{
 		Type:        "validation",
 		Target:      fmt.Sprintf("vm/%d", record.VMID),
-		Description: "Deterministic probes were not completed",
+		Description: "Probes were not completed",
 		Passed:      false,
 		Error:       "validation interrupted before probes were run: " + interruption.Error(),
 	})
@@ -1134,9 +1135,9 @@ func (o *Orchestrator) networkRecoveryEnabled() (bool, error) {
 	return false, nil
 }
 
-// finalizeResultTiming makes every terminal result auditable. A successful
-// validation records time to its last verified recovery point and excludes
-// teardown; a negative validation has no recovery point, so it records elapsed
+// finalizeResultTiming sets the time of every terminal result. A successful
+// run records time to its last verified recovery point and excludes
+// teardown; a failed run has no recovery point, so it records elapsed
 // time to terminal failure, which includes teardown because deferred timing
 // runs after cleanup. A run that stopped before any VM's restore began (an
 // admission refusal, a sandbox that could not be made) recovered nothing and
@@ -1634,7 +1635,7 @@ func (o *Orchestrator) recordHostAddressIdentity(ctx context.Context, iface, cid
 // bootAndVerifyVM provisions block mapping, delta overlay, and boots the VM.
 func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, bootTimeoutSec int, timings *attest.PhaseTimings) (*probe.VMValidationRecord, error) {
 	// The record starts with everything already known of the backup, so a
-	// restore that stops at its first guard still signs which backup it was.
+	// restore that stops at its first guard still records which backup it was.
 	record := newVMRecord(vmCfg)
 	if timings == nil {
 		timings = &attest.PhaseTimings{} // a caller that keeps no timings
@@ -1648,7 +1649,7 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 		}
 	}
 
-	// 0. Preexisting VM Guard: Fail-closed before making any mutations. VMIDs
+	// Refuse a VMID already in use, before anything is changed. VMIDs
 	// are cluster-wide, so check cluster resources before the node-local status.
 	clusterVMInUse, err := o.pveClient.IsVMIDInUse(ctx, vmCfg.VMID)
 	if err != nil {
@@ -1684,8 +1685,8 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 	o.announcePhase(runphase.Restore, vmCfg.VMID, "")
 	slog.Info("mapping PBS backup disks", "vmid", vmCfg.VMID, "snapshot", vmCfg.SourcePBS.Snapshot, "disks", len(drives))
 
-	// A/B. Map every backed-up PBS archive and create one ephemeral COW overlay
-	// per source SCSI slot. A source map is never attached directly to PVE.
+	// Map every backed-up PBS archive and create one ephemeral COW overlay per
+	// source disk slot. A source map is never attached directly to PVE.
 	timestamp := time.Now().UnixNano()
 	pveDisks := make([]pve.DiskOverlay, 0, len(drives))
 	type mappedSourceDisk struct {
@@ -1754,7 +1755,7 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 		progress.Info("Storage", "Restored the source %s of VM %d from PBS as a disposable copy; the backup remains read-only.", firmware.Slot, vmCfg.VMID)
 	}
 
-	// C. Adapt the isolated sandbox network inside the disposable overlays. The
+	// Adapt the isolated sandbox network inside the disposable overlays. The
 	// guest's root filesystem need not be on the boot disk, so guestfish is
 	// given the overlay of every restored disk. The PBS map remains
 	// read-only and every generated profile is reported as evidence. A recovery
@@ -1913,7 +1914,7 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 		progress.Info("Storage", "VM %d: test mode read the partition tables and labels of %d disk(s) (%d MiB) ahead of boot.", vmCfg.VMID, warmedDisks, warmedBytes>>20)
 	}
 
-	// D. Register Ephemeral PVE VM Configuration with ownership markers.
+	// Register the sandbox VM with PVE, with ownership markers.
 	o.announcePhase(runphase.Boot, vmCfg.VMID, "")
 	pveVMConfig := o.sandboxVMWithEvidence(ctx, vmCfg, pveDisks, bootSlot, firmwareVolumes, record)
 	cpuWeight := pveVMConfig.CPUWeight
@@ -1967,7 +1968,7 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 	}
 	registrationTime.stop()
 
-	// D. Start VM, once fewer than max_concurrent_boots sandbox VMs are
+	// Start the VM, once fewer than max_concurrent_boots sandbox VMs are
 	// still booting.
 	waited, err := o.boots.wait(ctx, vmCfg.VMID)
 	if timings != nil {
@@ -1983,10 +1984,9 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 	startTime := startPhase(&timings.VMStartSec)
 	defer startTime.stop() // covers every return before the start ends
 	recordBootDuration := func() {
-		// This is intentionally measured from the PVE start request through
-		// Stage 1 readiness. PBS mapping, COW guestfs work, and image integrity
-		// each have separate timing evidence and must not be misrepresented as
-		// guest boot time in a customer-facing certificate.
+		// Boot time runs from the PVE start request to the end of the QMP
+		// check. PBS mapping, COW guestfs work, and image integrity each have
+		// their own timing evidence and are not part of it.
 		if record.BootDuration == 0 {
 			record.BootDuration = time.Since(tStart)
 			record.BootDurationSeconds = record.BootDuration.Seconds()
@@ -2004,7 +2004,7 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 	o.boots.started(tStart)
 	startTime.stop()
 
-	// E. Record VM PID in runner state journal
+	// Record the VM's PID in the state journal.
 	vmPID := 0
 	if vmStatus, err := o.pveClient.GetVMStatus(ctx, o.opts.NodeName, vmCfg.VMID); err == nil && vmStatus != nil && vmStatus.PID > 0 {
 		vmPID = vmStatus.PID
@@ -2034,7 +2034,7 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 		return record, err
 	}
 
-	// F. Stage 1: QMP Hypervisor Status Verification (Fail-Closed)
+	// QMP check: the hypervisor reports the VM running. Fails closed.
 	if !o.opts.SkipQMP {
 		qmpSocket := qmp.DefaultSocketPath(vmCfg.VMID)
 		if o.opts.QMPSocketDir != "" {
@@ -2047,18 +2047,18 @@ func (o *Orchestrator) bootAndVerifyVM(ctx context.Context, vmCfg config.VM, boo
 		if err != nil {
 			record.AllPassed = false
 			recordBootDuration()
-			return record, fmt.Errorf("Stage 1 QMP connection failed for VM %d: %w", vmCfg.VMID, err)
+			return record, fmt.Errorf("QMP connection to VM %d failed: %w", vmCfg.VMID, err)
 		}
 		defer qmpClient.Close()
 		if err := qmpClient.WaitForRunning(ctx, 500*time.Millisecond, bootTimeout); err != nil {
 			record.AllPassed = false
 			recordBootDuration()
-			return record, fmt.Errorf("Stage 1 verification failed for VM %d: %w", vmCfg.VMID, err)
+			return record, fmt.Errorf("QMP check of VM %d failed: %w", vmCfg.VMID, err)
 		}
 		qmpTime.stop()
-		progress.Info("Stage 1", "QMP hypervisor handshake established → VM RUNNING.")
+		progress.Info("QMP check", "QMP handshake established; the VM is running.")
 	} else {
-		slog.Warn("skipping Stage 1 QMP verification as configured", "vmid", vmCfg.VMID)
+		slog.Warn("skipping the QMP check as configured", "vmid", vmCfg.VMID)
 	}
 	recordBootDuration()
 	record.VerificationStatus = "booted"
@@ -2634,7 +2634,6 @@ func firewallPorts(probes []config.Probe) []guestnet.FirewallPort {
 	return ports
 }
 
-// runProbes executes all configured Stage 2 and Stage 3 probes for a VM.
 // checkWireProbeTargetsNotLocal refuses a plan whose wire probes target an
 // address of the worker host. Each dial checks again (synthetic.Source).
 func (o *Orchestrator) checkWireProbeTargetsNotLocal() error {
@@ -2668,6 +2667,8 @@ func (o *Orchestrator) wireProbeSource() synthetic.Source {
 	}
 }
 
+// runProbes executes all of a VM's configured probes: the network probes and
+// the guest-agent probes.
 func (o *Orchestrator) runProbes(ctx context.Context, vmCfg config.VM) ([]probe.Result, bool, error) {
 	return o.runProbeSet(ctx, vmCfg, false)
 }
@@ -2683,7 +2684,7 @@ func (o *Orchestrator) runProbeSet(ctx context.Context, vmCfg config.VM, quiet b
 		}
 	}
 	if len(vmCfg.Probes) == 0 {
-		return nil, false, fmt.Errorf("VM %d has no probes configured (at least one Stage 2/3 probe is required)", vmCfg.VMID)
+		return nil, false, fmt.Errorf("VM %d has no probes (a plan needs at least one network or guest-agent probe)", vmCfg.VMID)
 	}
 	// A result is credited to the VM whose probes ran, so a target another VM
 	// of the plan names too is never probed on this VM's behalf.
@@ -2696,7 +2697,7 @@ func (o *Orchestrator) runProbeSet(ctx context.Context, vmCfg config.VM, quiet b
 		switch o.opts.ChaosTrigger {
 		case "panic":
 			slog.Warn("CHAOS INJECTION: triggering unhandled runtime panic during probes")
-			panic("CertiStack Gate 3 chaos test injection: unhandled panic")
+			panic("chaos test injection: unhandled panic")
 		case "kill-daemon":
 			slog.Warn("CHAOS INJECTION: violently terminating process with SIGKILL (code 137)")
 			os.Exit(137)
@@ -2974,7 +2975,7 @@ func (o *Orchestrator) runProbeSet(ctx context.Context, vmCfg config.VM, quiet b
 			Description: "At least one guest-level assertion ran and passed",
 			Error:       err.Error(),
 		})
-		progress.Error("Stage 3", "%s", err)
+		progress.Error("Guest-agent probes", "%s", err)
 		return results, false, err
 	}
 	return results, allPassed, nil
@@ -2988,8 +2989,8 @@ type vmUnverifiedError struct{ message string }
 func (e *vmUnverifiedError) Error() string { return e.message }
 
 // noGuestAssertion is why no result is a guest-level assertion that ran and
-// passed, or "" when one is. The verdict on a signed report applies the same
-// rule (cmd/certistack verify_acceptance.go, probeIsGuestLevel).
+// passed, or "" when one is. The verdict on a report applies the same
+// rule (attest.ProbeIsGuestLevel).
 func noGuestAssertion(results []probe.Result) string {
 	skipped, hypervisor := 0, 0
 	for _, res := range results {
@@ -3014,7 +3015,7 @@ func noGuestAssertion(results []probe.Result) string {
 
 // restoredHardware is the hardware evidence of a sandbox VM created with hw:
 // every setting CreateVM sends that shapes how the guest runs, so two
-// configurations that request different hardware never sign the same record. A
+// configurations that request different hardware never give the same record. A
 // test keeps it in step with pve.Hardware.
 func restoredHardware(hw pve.Hardware, fromBackupConfig bool, bootSlot, smbios1 string) *probe.RestoredHardware {
 	return &probe.RestoredHardware{
@@ -3026,12 +3027,12 @@ func restoredHardware(hw pve.Hardware, fromBackupConfig bool, bootSlot, smbios1 
 }
 
 // recordProbePolicy writes into a result the policy its probe ran under and
-// its attempt history, which the signed report would otherwise leave out: two
+// its attempt history, which the report would otherwise leave out: two
 // runs that passed under a one-second and a three-minute budget, on the first
 // attempt and on the ninth, or with the guest agent required and optional,
-// would sign the same result. The policy is what the
-// plan asked for, and what the probe was actually given: the timeout is the
-// budget runProberWithRetry enforced.
+// would give the same result. The policy is what the plan asked for, and what
+// the probe was actually given: the timeout is the budget runProberWithRetry
+// enforced.
 func recordProbePolicy(res *probe.Result, p config.Probe, timeout time.Duration, attempts int) {
 	res.TimeoutSec = int(timeout / time.Second)
 	if p.Retries > 0 {
@@ -3214,7 +3215,7 @@ func latePass(ctx context.Context, result probe.Result, timeout time.Duration) p
 // without turning a transport symptom into an unsupported claim about the
 // application. A connection refusal proves that the isolated target answered;
 // it does not prove whether the guest process is absent or a guest-local
-// firewall rejected the port. The signed result and terminal output therefore
+// firewall rejected the port. The result and terminal output therefore
 // direct the operator to the captured listener/firewall evidence.
 func annotateReachableTargetRejection(result *probe.Result, omittedNICs []string) {
 	if result == nil || result.Passed || !strings.Contains(strings.ToLower(result.Error), "connection refused") {
@@ -3241,16 +3242,16 @@ func (o *Orchestrator) shouldReadNetworkDiagnostic(vmid int) bool {
 	return !capturedLive || o.networkDiagnosticPartial[vmid]
 }
 
+// captureVMNeverCreated is ownsVMForCapture's reason when the run made no VM
+// at the ID and PVE shows none there either.
+const captureVMNeverCreated = "the run stopped before it created the VM"
+
 // ownsVMForCapture says whether the console at vmid may be photographed as the
 // restored VM's: this run created a VM at that ID (it is in the journal) and
 // PVE still shows the run's own markers on it. A restore that was refused
 // because the ID was occupied, a VM replaced since, or one whose ownership
 // cannot be read is somebody else's console, and its screenshot would put an
-// unrelated guest's screen into signed evidence as the backup's.
-// captureVMNeverCreated is ownsVMForCapture's reason when the run made no VM
-// at the ID and PVE shows none there either.
-const captureVMNeverCreated = "the run stopped before it created the VM"
-
+// unrelated guest's screen into the report as the backup's.
 func (o *Orchestrator) ownsVMForCapture(ctx context.Context, vmid int) (bool, string) {
 	tracked := false
 	for _, vm := range o.record.VMs {
@@ -3290,9 +3291,9 @@ func (o *Orchestrator) captureFailureArtifact(ctx context.Context, vmid int) *sc
 	if owned, why := o.ownsVMForCapture(ctx, vmid); !owned {
 		slog.Warn("no forensic screendump of this VM: it is not shown to be the run's", "vmid", vmid, "reason", why)
 		if why == captureVMNeverCreated {
-			progress.Warn("Stage 4", "No console image for VM %d: %s.", vmid, why)
+			progress.Warn("Console image", "No console image for VM %d: %s.", vmid, why)
 		} else {
-			progress.Warn("Stage 4", "No console image was taken for VM %d: %s, so whatever runs under that ID is not photographed as the restored VM's.", vmid, why)
+			progress.Warn("Console image", "No console image was taken for VM %d: %s, so whatever runs under that ID is not photographed as the restored VM's.", vmid, why)
 		}
 		return nil
 	}
@@ -3313,7 +3314,7 @@ func (o *Orchestrator) captureFailureArtifact(ctx context.Context, vmid int) *sc
 		slog.Warn("failed to capture forensic screendump", "vmid", vmid, "error", err)
 		return nil
 	}
-	progress.Info("Stage 4", "Forensic framebuffer capture completed for VM %d (%dx%d).", vmid, artifact.Width, artifact.Height)
+	progress.Info("Console image", "Console image captured for VM %d (%dx%d).", vmid, artifact.Width, artifact.Height)
 
 	return artifact
 }
@@ -3426,7 +3427,7 @@ func formatGuestInterfaces(interfaces []qga.NetworkInterface) string {
 // recordNetworkDiagnostics puts each VM's captured network diagnostic into its
 // record. Whichever way it was captured (live through the agent, or read back
 // from the file the guest wrote into the overlay), it is the guest's text, so
-// it is cleaned and bounded here, once, on its way into the signed report.
+// it is cleaned and bounded here, once, on its way into the report.
 func (o *Orchestrator) recordNetworkDiagnostics(records []probe.VMValidationRecord) {
 	for i := range records {
 		if diagnostic, ok := o.networkDiagnostics[records[i].VMID]; ok {
@@ -3454,11 +3455,11 @@ func normalizeNetworkDiagnostic(output string) string {
 func progressStageForProbe(probeType string) string {
 	switch strings.ToLower(probeType) {
 	case "qga", "qga_ping":
-		return "Stage 3"
+		return "Guest-agent probes"
 	case "screendump":
-		return "Stage 4"
+		return "Console image"
 	default:
-		return "Stage 2"
+		return "Network probes"
 	}
 }
 
@@ -3538,7 +3539,7 @@ func (o *Orchestrator) sandboxVMConfig(vmCfg config.VM, pveDisks []pve.DiskOverl
 
 // sandboxVMWithEvidence is the configuration CreateVM sends PVE for vmCfg's
 // sandbox VM, with the hardware it requests recorded in the VM's evidence from
-// that same configuration: what the signed report says the guest ran with is
+// that same configuration: what the report says the guest ran with is
 // what was asked of PVE, the CPU weight included. bootAndVerifyVM
 // creates the VM from the configuration returned, so there is no second place
 // for the request and the record to disagree.

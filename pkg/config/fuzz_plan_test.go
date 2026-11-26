@@ -82,7 +82,7 @@ func checkAcceptedPlan(t *testing.T, data []byte, plan *Plan) {
 	}
 	workerData, err := MarshalWorkerPlan(plan)
 	if err != nil {
-		t.Fatalf("an accepted plan cannot be marshalled for the worker: %v", err)
+		t.Fatalf("an accepted plan cannot be marshaled for the worker: %v", err)
 	}
 	worker, err := LoadFromReaderForWorker(bytes.NewReader(workerData))
 	if err != nil {

@@ -45,17 +45,16 @@ type copyInputs struct {
 }
 
 // decideCopy says whether to copy, and gives a warning to show (or ""). It
-// returns an error only when an explicit "always" cannot be honoured.
+// returns an error only when an explicit "always" cannot be honored.
 //
 // Auto copies a VM whose disks would not all stay cached until its boot:
 // a cold boot misses Windows' service start deadline. It also copies every
 // VM of a tier whose disks together are more than the node can keep cached,
 // the VMs that fit as well: a VM that boots from the backup map keeps running
 // from the cache its scan filled, and the later VMs' reads would push that
-// cache out under it (a four-controller domain went cold fifty minutes after
-// its first controller booted). It never copies onto the cluster database's
-// disk, whose writes can delay corosync, or without room for the copies and
-// the overlays' growth.
+// cache out under it. It never copies onto the cluster database's disk, whose
+// writes can delay corosync, or without room for the copies and the overlays'
+// growth.
 func decideCopy(in copyInputs) (bool, string, error) {
 	need := in.vmBytes + minOverlayStorageFreeBytes
 	switch in.mode {
@@ -197,7 +196,7 @@ func (o *Orchestrator) chooseCopyBeforeBoot(ctx context.Context, vmCfg config.VM
 	}
 	if shared, err := o.sharedDisksFn(ctx, copyDir, sysutil.ClusterStateDir); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
-			// Cancelled while the disks were looked up: the run ends, and
+			// Canceled while the disks were looked up: the run ends, and
 			// teardown must not wait on a decision nothing will use.
 			return false, ctxErr
 		}

@@ -16,9 +16,7 @@ func flat(text string) string { return strings.Join(strings.Fields(text), " ") }
 // The build finds its VM's address through the guest agent and
 // connects before any provisioner has run, so a source template without a
 // running agent hangs the build for as long as Packer waits. The guide says so
-// before the build, and gives the check that finds it out in a minute. A
-// mutation of the README that replaced the agent's name and the preflight command
-// left every other repocontract test green, because nothing read the text.
+// before the build, and gives the check that finds it out in a minute.
 func TestApplianceReadmeRequiresAndChecksTheGuestAgent(t *testing.T) {
 	readme := flat(applianceReadme(t))
 	for _, want := range []string{

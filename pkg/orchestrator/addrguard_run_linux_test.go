@@ -196,7 +196,7 @@ func TestRunStopsWhenTheContainmentCannotBeRestored(t *testing.T) {
 	select {
 	case <-stopped:
 	default:
-		t.Fatal("the run's context was not cancelled")
+		t.Fatal("the run's context was not canceled")
 	}
 	if err == nil || res == nil || res.AllPassed {
 		t.Fatalf("a run that lost its containment passed: %v", err)

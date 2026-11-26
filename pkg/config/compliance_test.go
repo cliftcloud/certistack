@@ -81,13 +81,13 @@ func TestTheNoStandardLabelStandsAlone(t *testing.T) {
 	}
 }
 
-// The framework placeholder (CHANGE) is refused with a message that says
-// where it came from and what to put instead, not with the generic list.
+// The framework placeholder (CHANGE) is refused with a message that says what
+// it is and what to put instead, not with the generic list.
 func TestTheFrameworkPlaceholderExplainsItself(t *testing.T) {
 	p := validPlan()
 	p.Compliance.Frameworks = []string{FrameworkPlaceholder}
 	errs := Validate(p)
-	if len(errs) != 1 || errs[0].Field != "compliance.frameworks[0]" || !strings.Contains(errs[0].Message, "placeholder an earlier certistack init wrote") {
+	if len(errs) != 1 || errs[0].Field != "compliance.frameworks[0]" || !strings.Contains(errs[0].Message, "is a placeholder, not a framework") {
 		t.Fatalf("errors %v, want the placeholder explained", errs)
 	}
 }

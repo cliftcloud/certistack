@@ -13,7 +13,7 @@ import (
 
 // The two first-run questions, word for word.
 const (
-	QuestionShare    = "Share anonymous usage statistics with Clift Cloud? Nothing but the five fields shown by `certistack telemetry show` is sent. [y/N] "
+	QuestionShare    = "Share usage statistics with Clift Cloud? Nothing but the five fields shown by `certistack telemetry show` is sent. [y/N] "
 	QuestionBusiness = "Do you use CertiStack for a business or commercial purpose? [y/N] "
 )
 

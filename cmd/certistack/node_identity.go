@@ -27,10 +27,8 @@ var hostIsPVENode = nodeidentity.OnPVENode
 // controller through an SSH host and otherwise on the PVE node itself, call
 // when no SSH host is set: it is nil on a PVE node, where working on the node
 // is the legitimate use, and on any other host stops the command before it
-// calls PVE or PBS. Without it a controller whose user forgot --env-file went
-// on, retried the PVE API for 17 seconds, showed its own host name as the node
-// and failed on a missing proxmox-backup-client. envFile is the --env-file
-// the command was given, "" for none.
+// calls PVE or PBS. envFile is the --env-file the command was given, "" for
+// none.
 func requirePVENodeWithoutSSHHost(envFile string) error {
 	if hostIsPVENode() {
 		return nil

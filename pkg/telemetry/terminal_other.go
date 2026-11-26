@@ -8,6 +8,6 @@ package telemetry
 import "os"
 
 // IsTerminal is false on a platform this build cannot ask: the first-run
-// question is never shown, and `certistack telemetry enable` is the only way
-// in.
+// question is never shown, and `certistack telemetry enable` or
+// CERTISTACK_TELEMETRY=1 is the way in.
 func IsTerminal(*os.File) bool { return false }

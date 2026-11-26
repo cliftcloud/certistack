@@ -136,14 +136,14 @@ func TestDNSOverUDPPollingEndsAtOnceWhenCanceled(t *testing.T) {
 		done <- NewDNSProber("127.0.0.1", port, "healthy.certistack.test", "udp", 30*time.Second, "cancel").Probe(ctx)
 	}()
 	time.Sleep(400 * time.Millisecond)
-	cancelled := time.Now()
+	canceled := time.Now()
 	cancel()
 	select {
 	case res := <-done:
 		if res.Passed {
 			t.Fatalf("result = %+v, want a failure", res)
 		}
-		if took := time.Since(cancelled); took > 2*time.Second {
+		if took := time.Since(canceled); took > 2*time.Second {
 			t.Fatalf("the probe took %v to give up after cancellation", took)
 		}
 	case <-time.After(5 * time.Second):
@@ -173,7 +173,7 @@ func TestIsUDPNotThereYet(t *testing.T) {
 	}
 }
 
-// TCP keeps its behaviour: a refused connection fails the probe at once, as
+// TCP keeps its behavior: a refused connection fails the probe at once, as
 // the attempt has no later datagram to wait for.
 func TestDNSOverTCPStillFailsAtOnceOnARefusedConnection(t *testing.T) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")

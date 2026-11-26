@@ -37,6 +37,7 @@ type fakeWizardWorld struct {
 	pbsFails   bool     // ssh to the PBS fails
 	pbsWider   string   // who still holds the grant on the whole datastore, as the PBS part reports it
 	pbsScripts []string // every script run on the PBS
+	pveScripts []string // every PVE access part run on the node
 	pbsReads   int      // runs of the read-only fingerprint script
 	pbsPrint   string   // the fingerprint the PBS reports; "" is wizardPBSPrint
 	customCert bool     // the API certificate is not signed by the cluster CA
@@ -224,6 +225,7 @@ func (f *fakeWizardWorld) nodeScript(_ context.Context, cfg controller.SSHConfig
 		return nil, nil
 	case strings.Contains(script, "PART 1") && strings.Contains(script, ">&3"):
 		f.changes = append(f.changes, "pve access")
+		f.pveScripts = append(f.pveScripts, script)
 		io.WriteString(stderr, "Role CertiStackRole created.\n")
 		if f.pveToken {
 			return nil, nil

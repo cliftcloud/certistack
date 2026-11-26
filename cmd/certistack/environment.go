@@ -332,7 +332,7 @@ func resolveControllerEnvFile(flag string) (controllerEnvFile, error) {
 
 // errEnvFileRequired is what check and setup pve-ca, which work only from an
 // environment file, say when no --env-file was given and setup has recorded
-// none: the words of the required flag they had before setup recorded one.
+// none. It reads as the error for a missing required flag.
 var errEnvFileRequired = errors.New(`required flag(s) "env-file" not set`)
 
 // utf8BOM starts a file a Windows editor saved as UTF-8 with a signature. The

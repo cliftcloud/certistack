@@ -138,7 +138,7 @@ func TestWorkerStopNeverSignalsAProgramThatReusedTheWorkersPID(t *testing.T) {
 			// then it is gone for good. A single-threaded shell rewinds the
 			// counter and forks the program in one go, so nothing can come
 			// between; the shell waits for it, so it ends when the program
-			// is signalled, which is what the check below looks for.
+			// is signaled, which is what the check below looks for.
 			gotPid := filepath.Join(dir, "other.pid")
 			other = exec.Command("/bin/sh", "-c",
 				"echo "+strconv.Itoa(pid-1)+" > /proc/sys/kernel/ns_last_pid; /bin/sleep 60 & echo $! > '"+gotPid+"'; wait")
@@ -177,7 +177,7 @@ func TestWorkerStopNeverSignalsAProgramThatReusedTheWorkersPID(t *testing.T) {
 			go func() { ended <- other.Wait() }()
 			select {
 			case err := <-ended:
-				t.Fatalf("the program that reused the worker's PID was signalled and ended: %v", err)
+				t.Fatalf("the program that reused the worker's PID was signaled and ended: %v", err)
 			case <-time.After(300 * time.Millisecond):
 			}
 			_ = other.Process.Kill()

@@ -153,7 +153,7 @@ variable "cpu_type" {
 variable "os" {
   type        = string
   default     = "l26"
-  description = "PVE guest OS type (l26 is a current Linux kernel)"
+  description = "PVE guest OS type (l26 is a Linux 2.6 or later kernel)"
 }
 
 variable "ssh_username" {
@@ -191,7 +191,7 @@ variable "controller_image" {
 variable "insecure_skip_tls_verify" {
   type        = bool
   default     = false
-  description = "Only permit for an isolated build lab with an explicit exception"
+  description = "Turns off TLS verification of the PVE API. Set it only for an isolated build lab, as an explicit exception"
 }
 
 source "proxmox-clone" "controller" {
@@ -219,7 +219,7 @@ source "proxmox-clone" "controller" {
   ssh_private_key_file     = var.ssh_private_key_file
   # Packer removes only a key it generated itself, so this does nothing for
   # the static key above; the finalize provisioner below is the control that
-  # matters. It stays on as a second, cheap line of defence.
+  # matters. It stays on as a second, cheap line of defense.
   ssh_clear_authorized_keys = true
 
   network_adapters {
@@ -286,8 +286,8 @@ build {
   # Last: checks the pulled image, records the controller image reference and
   # a build manifest, resets the machine ID, cloud-init state, SSH host keys
   # and journals, removes the build key, and then asserts every one of those
-  # postconditions. Any failure
-  # fails the build, so no template is produced from a half-cleaned guest.
+  # postconditions. Any failure fails the build, so no template is produced
+  # from a half-cleaned guest.
   provisioner "shell" {
     environment_vars = [
       "CERTISTACK_CONTROLLER_IMAGE=${var.controller_image}",

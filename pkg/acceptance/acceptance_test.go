@@ -15,9 +15,9 @@ import (
 	"github.com/cliftcloud/certistack/pkg/attest"
 )
 
-// The rules are exercised end to end, with signed and unsigned reports of the
-// campaign fixtures, by the verify-report tests in cmd/certistack. These tests
-// pin the exported surface the Enterprise Edition builds on.
+// The rules are exercised end to end, with signed and unsigned reports, by the
+// verify-report tests in cmd/certistack. These tests pin the exported surface
+// the Enterprise Edition builds on.
 
 // A report is judged by its contents. Whether it carries a signature is none of
 // the rules' business: a report the Community Edition wrote unsigned and the
@@ -119,9 +119,11 @@ func TestCapacityDenial(t *testing.T) {
 		acceptance.AdmissionDenialPrefix + admission.ErrMaxRetriesExceeded.Error():                          true,
 		acceptance.AdmissionDenialPrefix + admission.ErrNeverAdmissible.Error() + ": 200 GiB":               true,
 		acceptance.PreflightFailurePrefix + "memory: available RAM 512 MB is below required 4096 MB":        true,
+		acceptance.PreflightFailurePrefix + "memory: available RAM 512 MiB is below required 4096 MiB":      true,
 		acceptance.PreflightFailurePrefix + "memory: " + admission.ErrNeverAdmissible.Error() + ": 200 GiB": true,
 		// Anchored at the start of the reason: nothing further in can satisfy it.
-		"validation failed: " + acceptance.PreflightFailurePrefix + "memory: available RAM 512 MB is below required 4096 MB": false,
+		"validation failed: " + acceptance.PreflightFailurePrefix + "memory: available RAM 512 MB is below required 4096 MB":   false,
+		"validation failed: " + acceptance.PreflightFailurePrefix + "memory: available RAM 512 MiB is below required 4096 MiB": false,
 		// A broken node is not a full one.
 		acceptance.PreflightFailurePrefix + "kvm: open /dev/kvm: no such file or directory; memory: available RAM 512 MB is below required 4096 MB": false,
 		acceptance.AdmissionDenialPrefix + "failed to read host metrics":                                                                            false,

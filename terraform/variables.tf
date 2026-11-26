@@ -8,7 +8,7 @@ variable "pve_api_endpoint" {
 
 variable "pve_api_token" {
   type        = string
-  description = "Bootstrap API token or root credentials for Terraform execution (format: USER@REALM!TOKENID=SECRET)"
+  description = "Bootstrap API token for Terraform (format: USER@REALM!TOKENID=SECRET)"
   sensitive   = true
 }
 
@@ -43,7 +43,6 @@ variable "pve_tls_insecure" {
   default     = false
   description = "Allow self-signed TLS certificates for Proxmox VE API (defaults to false for security)"
 }
-
 
 variable "pbs_host" {
   type        = string
@@ -85,7 +84,7 @@ variable "reference_template_vmid" {
 variable "reference_vmid" {
   type        = number
   default     = 9000
-  description = "VMID for the reference golden test VM to be provisioned and snapshotted"
+  description = "VM ID of the reference VM, a full clone of reference_template_vmid"
 }
 
 variable "reference_datastore" {

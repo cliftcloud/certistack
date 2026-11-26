@@ -27,10 +27,9 @@ var numaRoot = sysutil.NUMANodeRoot
 // file's page cache. The loop device's worker fills that cache on the node
 // of the CPU the read was queued from, so the scanning thread's CPU decides
 // where the cache lands. Left alone, it all lands on one node, whose kswapd
-// then evicts it while the other node is free. Spread, the cache can
-// use every node's free memory (48 GiB split 42/58, nothing
-// reclaimed). The scan's own pages are inactive file pages, so counting
-// Inactive(file) as room would keep it on the node it is filling.
+// then evicts it while the other node is free. Spread, the cache can use
+// every node's free memory. The scan's own pages are inactive file pages, so
+// counting Inactive(file) as room would keep it on the node it is filling.
 type scanSpread struct {
 	nodes []sysutil.NUMANode
 	sets  []unix.CPUSet

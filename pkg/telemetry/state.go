@@ -43,7 +43,7 @@ const (
 // An install (InstallID and Salt) with Enabled false is the install that an
 // opt-in through CERTISTACK_TELEMETRY=1 keeps: the environment says yes on
 // every run, and the file only holds what a report needs to be counted once a
-// day. Answered then says only whether the user was ever asked, as before.
+// day. Answered then says only whether the user was ever asked.
 type State struct {
 	Answered    bool     `json:"answered"`
 	Enabled     bool     `json:"enabled"`

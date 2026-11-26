@@ -18,6 +18,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// localDir reports whether a directory is local material a developer's
+// checkout may hold untracked: a hidden directory other than .git and
+// .github. The scans of the tree leave such directories out.
+func localDir(name string) bool {
+	return strings.HasPrefix(name, ".") && name != "." && name != ".." && name != ".git" && name != ".github"
+}
+
+// untrackedDirs are the local directories this checkout holds at its top
+// level (none in a fresh clone).
+var untrackedDirs = func() map[string]bool {
+	dirs := map[string]bool{}
+	entries, _ := os.ReadDir(repoFile())
+	for _, entry := range entries {
+		if entry.IsDir() && localDir(entry.Name()) {
+			dirs[entry.Name()] = true
+		}
+	}
+	return dirs
+}()
+
 // repoFile is a path in the repository, from this package's directory.
 func repoFile(parts ...string) string {
 	return filepath.Join(append([]string{"..", ".."}, parts...)...)

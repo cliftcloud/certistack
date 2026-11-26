@@ -371,7 +371,7 @@ func TestCheckLayer3ExplainsWhySSHFailed(t *testing.T) {
 			"ssh failed: exit status 255: root@pve-node-01.example.com: Permission denied (publickey,password).",
 			[]string{"Permission denied (publickey", "ssh-copy-id"},
 		},
-		"unrecognised": {
+		"unrecognized": {
 			"ssh failed: exit status 255: something new",
 			[]string{"Run the connection by hand to read ssh's own message: ssh -o BatchMode=yes -o StrictHostKeyChecking=yes", "-p 2222", "root@pve-node-01.example.com uname -m"},
 		},
@@ -540,7 +540,7 @@ func TestCheckLayer7RefusesAPlanThatIsNotThere(t *testing.T) {
 }
 
 // An interrupt ends the command with the interrupted status, not a failed layer.
-func TestCheckEndsWithTheInterruptedStatusWhenCancelled(t *testing.T) {
+func TestCheckEndsWithTheInterruptedStatusWhenCanceled(t *testing.T) {
 	c := readyController(t)
 	withNode(t, &nodeStub{})
 	checkNodeMachine = func(ctx context.Context, cfg controller.SSHConfig) (string, error) { return "", context.Canceled }

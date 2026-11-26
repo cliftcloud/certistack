@@ -19,7 +19,7 @@ import (
 // its first probe at the very target VM 9001 recorded, so the one answer is
 // credited to both records.
 func sharedTargetReport() *attest.Report {
-	return campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) {
+	return fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) {
 		r.VMRecords[1].ProbeResults[0].Target = r.VMRecords[0].ProbeResults[0].Target
 	}})
 }
@@ -39,7 +39,7 @@ func TestVerifyReportRefusesOneWireTargetOnTwoVMRecords(t *testing.T) {
 	host := strings.Split(target, ":")[0]
 
 	// The control: the plan's own targets are distinct and accepted.
-	control := accept.Evaluate(campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass}), fixtureExpectations(plan, accept.OutcomePass))
+	control := accept.Evaluate(fixtureReport(plan, reportFixture{mode: accept.OutcomePass}), fixtureExpectations(plan, accept.OutcomePass))
 	if control.Verdict != accept.Accepted {
 		t.Fatalf("control rejected: %q", control.Reasons)
 	}
@@ -75,7 +75,7 @@ func TestVerifyReportRefusesOneWireTargetOnTwoVMRecords(t *testing.T) {
 // are named, whatever else the verdict says about the drill.
 func TestFaultDrillRefusesOneWireTargetOnTwoVMRecords(t *testing.T) {
 	plan := mustLoadFixturePlan()
-	report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault, mutate: func(r *attest.Report) {
+	report := fixtureReport(plan, reportFixture{mode: accept.OutcomeFault, mutate: func(r *attest.Report) {
 		second, third := passedRecordFor(plan, 9002), passedRecordFor(plan, 9003)
 		third.ProbeResults[0].Target = second.ProbeResults[0].Target
 		r.VMRecords = append(r.VMRecords, second, third)

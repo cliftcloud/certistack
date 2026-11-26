@@ -67,7 +67,7 @@ func TestNodeBehindTheControllerIsNotRefusedAndIsToldHowLongTheRunMustLast(t *te
 // is ahead by more than the allowance and the time the controller can take to
 // check a report: it is saved only by the controller being slow, and the
 // warning says so.
-func TestNodeAheadWithinTheJudgementLagIsWarnedNotRefused(t *testing.T) {
+func TestNodeAheadWithinTheJudgmentLagIsWarnedNotRefused(t *testing.T) {
 	_, result, progress, err := runOnNodeWithClock(t, reportClockSkew+2*time.Minute, nil)
 	if err == nil || result != nil || !strings.Contains(err.Error(), "is not from this run") {
 		t.Fatalf("Run = %v, %v; want the report refused at the end for a node 12 min ahead", result, err)
@@ -93,8 +93,8 @@ func TestNodeAheadWithinTheJudgementLagIsWarnedNotRefused(t *testing.T) {
 //   - never leaves a node whose report a run of no length would see refused
 //     without a warning.
 func TestEarlyClockCheckNeverRefusesWhatTheReportCheckCouldAccept(t *testing.T) {
-	if maxReportJudgementLag < interruptionCleanupTimeout {
-		t.Fatalf("maxReportJudgementLag %s is less than the %s the controller may spend verifying the journal before it checks the report", maxReportJudgementLag, interruptionCleanupTimeout)
+	if maxReportJudgmentLag < interruptionCleanupTimeout {
+		t.Fatalf("maxReportJudgmentLag %s is less than the %s the controller may spend verifying the journal before it checks the report", maxReportJudgmentLag, interruptionCleanupTimeout)
 	}
 	opts := completedWorkerTeardownOptions(t)
 	plan, err := config.LoadFromFile(opts.PlanPath)
@@ -122,12 +122,12 @@ func TestEarlyClockCheckNeverRefusesWhatTheReportCheckCouldAccept(t *testing.T) 
 		return false
 	}
 
-	limit := reportClockSkew + maxReportJudgementLag
+	limit := reportClockSkew + maxReportJudgmentLag
 	offsets := []time.Duration{-48 * time.Hour, -3 * time.Hour, -41 * time.Minute, -31 * time.Minute, -21 * time.Minute, -11 * time.Minute, -10*time.Minute - 5*time.Second,
 		-9 * time.Minute, -time.Minute, 0, time.Minute, 9 * time.Minute, 10 * time.Minute, 10*time.Minute + 5*time.Second, 11 * time.Minute, 21 * time.Minute, 31 * time.Minute,
 		limit - 10*time.Second, limit + 10*time.Second, limit + 5*time.Minute, 3 * time.Hour, 48 * time.Hour}
 	runLengths := []time.Duration{0, time.Minute, 5 * time.Minute, 30 * time.Minute, 3 * time.Hour, 7 * 24 * time.Hour}
-	lags := []time.Duration{0, 10 * time.Second, 5 * time.Minute, maxReportJudgementLag}
+	lags := []time.Duration{0, 10 * time.Second, 5 * time.Minute, maxReportJudgmentLag}
 
 	for _, offset := range offsets {
 		verdict := nodeClockDifference(start.Add(offset).Unix(), start, start).judge()
@@ -196,7 +196,7 @@ func TestPlanReadsTheNodesClockAsRunDoes(t *testing.T) {
 	}
 
 	// Far ahead: no plan is made, and nothing was staged.
-	fake, _, output, err = plan(reportClockSkew+maxReportJudgementLag+5*time.Minute, nil)
+	fake, _, output, err = plan(reportClockSkew+maxReportJudgmentLag+5*time.Minute, nil)
 	if err == nil || len(output) != 0 || !strings.Contains(err.Error(), "Nothing was started on the node") {
 		t.Fatalf("a node far ahead: err = %v, output %q; want it refused as a run would", err, output)
 	}

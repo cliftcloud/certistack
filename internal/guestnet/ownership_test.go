@@ -303,7 +303,7 @@ func TestExplicitNetworkManagerRefusesAGuestNetworkdConfigures(t *testing.T) {
 	}
 }
 
-// How a mask is recognised: systemd never starts a unit whose file in
+// How a mask is recognized: systemd never starts a unit whose file in
 // /etc/systemd/system is a link to /dev/null or is empty.
 func TestMaskedUnit(t *testing.T) {
 	for _, tc := range []struct {

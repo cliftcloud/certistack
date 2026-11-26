@@ -2,7 +2,7 @@
 # Copyright (C) 2024-2026 Clift Cloud LLC
 #
 # The smallest useful CertiStack plan: boot the latest PBS backup of one VM in
-# an isolated sandbox and prove that its SSH listener answers. Copy this file,
+# an isolated sandbox and check that its SSH listener answers. Copy this file,
 # change the values marked CHANGE, and run `certistack validate` on the copy.
 #
 # Addresses use the RFC 5737 documentation range 192.0.2.0/24, which nearly
@@ -20,11 +20,12 @@ name: "Minimal single-VM recovery check"
 use_backup_config: true
 
 compliance:
-  # CHANGE: the frameworks the report maps its evidence to (DORA, SOC2, HIPAA,
-  # ISO27001, CIS_V8; a label, not a certification), or NONE if you have no
+  # CHANGE: the framework labels the report records (DORA, SOC2, HIPAA,
+  # ISO27001, CIS_V8; labels, not certifications), or NONE if you have no
   # standard to name; NONE stands alone. At least one is required.
   frameworks: [NONE]
-  # CHANGE: the days you keep each report, 1 to 36500 (2555 is seven years).
+  # CHANGE: the retention period in days, 1 to 36500 (2555 is seven years). It
+  # is recorded in each report; CertiStack deletes nothing.
   # Required: a plan without it, or with 0, does not validate.
   retention_days: 90
 

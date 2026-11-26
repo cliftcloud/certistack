@@ -84,7 +84,7 @@ func stopFails(t *testing.T) func() error {
 
 // The run's map is gone, the loop number is another map's, and a detach by
 // path would detach whatever is at the path. Nothing runs against the device:
-// the map's daemon is not stopped (it would be signalled for a map that is not
+// the map's daemon is not stopped (it would be signaled for a map that is not
 // the run's), the client is not run, and losetup is not run.
 func TestUnmapLeavesAReusedLoopAlone(t *testing.T) {
 	f := newUnmapFixture(t, foreignBacking, "exit 19")

@@ -26,7 +26,8 @@ services:
       # writable path: the usage statistics keep their install id and the time
       # of the last report in .config/certistack/telemetry.json, so that
       # CERTISTACK_TELEMETRY=1 reports once a day and not after every run.
-      # Nothing is written there unless the statistics are turned on.
+      # The file is written only when CERTISTACK_TELEMETRY=1 keeps an install
+      # there, or when `certistack telemetry` stores an answer, a no included.
       XDG_CONFIG_HOME: /var/lib/certistack/.config
     user: "65532:65532"
     read_only: true

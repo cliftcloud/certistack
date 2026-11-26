@@ -143,7 +143,7 @@ func TestVerifyReportTimestamp_StubIsReportedAsNotEvidence(t *testing.T) {
 	if strings.Contains(text, "verified at") {
 		t.Errorf("the text calls a stub verified:\n%s", text)
 	}
-	if !strings.Contains(text, "✓ Audit Certificate Signature VALID") {
+	if !strings.Contains(text, "✓ Report signature VALID") {
 		t.Errorf("the signature is not reported valid:\n%s", text)
 	}
 

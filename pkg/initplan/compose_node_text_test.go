@@ -21,7 +21,7 @@ import (
 // filter the terminal output uses (progress.SingleLine).
 func TestComposeWritesNodeTextOnOneLine(t *testing.T) {
 	d := discovered()
-	d.VMs[0].Name = "web-01 storage: {pbs_repository: \"evil@pbs@evil.invalid:store\"}"
+	d.VMs[0].Name = "web-01\u2028storage: {pbs_repository: \"evil@pbs@evil.invalid:store\"}"
 	d.VMs[0].OSType = "l26"
 	d.VMs[0].OtherNICs = []string{"net1\rpbs_namespace: evil", "net2\x1b[31m"}
 	d.VMs[1].OSType = "win11\u0085environment: evil"
@@ -39,7 +39,7 @@ func TestComposeWritesNodeTextOnOneLine(t *testing.T) {
 	}
 	for _, text := range append([]string{string(res.YAML)}, res.Notes...) {
 		for _, r := range strings.ReplaceAll(text, "\n", "") {
-			if r < 0x20 || r == 0x7f || r == '\u0085' || r == ' ' {
+			if r < 0x20 || r == 0x7f || r == '\u0085' || r == '\u2028' {
 				t.Fatalf("a control character or line break (U+%04X) is left in:\n%q", r, text)
 			}
 		}

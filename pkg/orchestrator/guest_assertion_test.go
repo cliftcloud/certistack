@@ -15,10 +15,10 @@ import (
 
 // A VM is verified only by a guest-level assertion that ran and passed (a wire
 // probe, or a QGA probe that was not skipped). QMP says QEMU runs the VM, which
-// Stage 1 already required, and a screendump captures whatever the framebuffer
-// shows, a black screen at a boot failure included: both are supporting
-// evidence. A stage whose passes are only those leaves the VM unverified and
-// fails, keeping the results and saying why.
+// the QMP check already required, and a screendump captures whatever the
+// framebuffer shows, a black screen at a boot failure included: both are
+// supporting evidence. A stage whose passes are only those leaves the VM
+// unverified and fails, keeping the results and saying why.
 func TestRunProbesLeavesAVMUnverifiedWithoutAGuestLevelAssertion(t *testing.T) {
 	qmpProbe := config.Probe{Type: "qmp", Description: "VM is running", TimeoutSec: 2, Retries: 1}
 	screenProbe := config.Probe{Type: "screendump", Description: "console screenshot", TimeoutSec: 2, Retries: 1}

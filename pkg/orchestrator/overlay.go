@@ -45,7 +45,7 @@ func pvesmVolumePath(ctx context.Context, volume string) (string, error) {
 // directory is on a physical disk that also holds the cluster file system's
 // database. A sandbox's first writes to its overlays can saturate that disk:
 // corosync then misses its token deadline and the node can lose its cluster
-// membership. It returns ctx's error when the run was cancelled while the
+// membership. It returns ctx's error when the run was canceled while the
 // disks were being looked up: the run is over, and the check must not hold up
 // its teardown.
 func (o *Orchestrator) warnOverlaySharesClusterDisk(ctx context.Context, dir string) error {

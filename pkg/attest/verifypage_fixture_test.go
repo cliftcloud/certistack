@@ -65,7 +65,7 @@ func canonicalizationProbe() map[string]interface{} {
 			"9007199254740991.0", "4.5e15", "123456789.123456789", "5e-324", "0.1", "100e-2", "0", "-1.5E-3"),
 		"strings": []interface{}{
 			"Zürich ✓", "astral \U0001F600 and ～", "tab\there", `quote " and back\slash and / slash`,
-			"nul\u0000 and \u001f and del\u007f", "line separator", "<tag> & more", "",
+			"nul\u0000 and \u001f and del\u007f", "line\u2028separator", "<tag> & more", "",
 		},
 		// No two names here differ only by case: a report with such a pair is
 		// refused (the decoder would read both into one field), so the capitals
@@ -277,7 +277,7 @@ func TestVerifyPageFixtures_AreReproducibleAndMeanWhatTheyClaim(t *testing.T) {
 	canonical := string(canonicalValid)
 	for _, want := range []string{
 		`"numbers":[1,1.5,0.000001,1e-7,100,0,9007199254740991,-9007199254740991,9007199254740991,4500000000000000,123456789.12345679,5e-324,0.1,1,0,-0.0015]`,
-		`"strings":["Zürich ✓","astral 😀 and ～","tab\there","quote \" and back\\slash and / slash","nul\u0000 and \u001f and del` + "\u007f" + `","line` + " " + `separator","<tag> & more",""]`,
+		`"strings":["Zürich ✓","astral 😀 and ～","tab\there","quote \" and back\\slash and / slash","nul\u0000 and \u001f and del` + "\u007f" + `","line` + "\u2028" + `separator","<tag> & more",""]`,
 		`"nested":[{"x":[{"a":null,"b":true}],"y":1},[],{},null,true,false,0]`,
 	} {
 		if !strings.Contains(canonical, want) {

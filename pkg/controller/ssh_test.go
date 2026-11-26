@@ -761,7 +761,7 @@ func TestExecutorRunReconcilesCompletedWorkerTeardownBeforeRemovingWorkspace(t *
 	fake := &fakeCommandRunner{nodeResult: nodeapi.RunResult{Report: report, Error: "service probe failed"}}
 
 	result, err := (&Executor{runner: fake}).Run(context.Background(), opts)
-	if err == nil || !strings.Contains(err.Error(), "DR validation failed") {
+	if err == nil || !strings.Contains(err.Error(), "the run failed") {
 		t.Fatalf("completed-worker result error = %v, want validation failure after cleanup", err)
 	}
 	if result == nil || result.Report == nil || result.Report.TeardownEvidence == nil {
@@ -1009,7 +1009,7 @@ func recordedCommands(calls []recordedCommand) string {
 	return strings.Join(commands, "\n")
 }
 
-// A gone worker (SIGKILLed, say) is not signalled, and its journal is
+// A gone worker (SIGKILLed, say) is not signaled, and its journal is
 // recovered at once, so its sandbox VM, maps and probe address do not stay
 // live until the node's next run.
 func TestReconcileInterruptedWorkerRecoversAfterTheWorkerIsGone(t *testing.T) {

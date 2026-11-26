@@ -7,7 +7,7 @@ package recovery
 
 import internal "github.com/cliftcloud/certistack/internal/recovery"
 
-// Recover reconciles resources recorded for an interrupted validation run.
+// Recover reconciles the resources recorded for an interrupted run.
 func Recover(stateDir string) error {
 	return internal.Recover(stateDir)
 }

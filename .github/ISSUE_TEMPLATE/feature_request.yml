@@ -29,7 +29,7 @@ body:
     id: safety
     attributes:
       label: Safety impact
-      description: How does the change affect the safety guarantees (read-only backups, an isolated sandbox, verified cleanup, a report of every run)? See https://certistack.dev/docs/#safety.
+      description: How does the change affect the safety guarantees (read-only backups, an isolated sandbox, verified cleanup, journal-scoped recovery)? See https://certistack.dev/docs/#safety.
     validations:
       required: false
   - type: checkboxes

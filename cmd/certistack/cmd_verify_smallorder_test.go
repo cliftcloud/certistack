@@ -61,7 +61,7 @@ func forgedReportFile(t *testing.T, dir string, pub ed25519.PublicKey) string {
 	plan := mustLoadFixturePlan()
 	sig := append([]byte{1}, make([]byte, 63)...)
 	for i := 0; i < 512; i++ {
-		report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+		report := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 		report.ReportID = fmt.Sprintf("forged-%d", i)
 		report.PublicKey = hex.EncodeToString(pub)
 		report.SignerFingerprint = attest.Fingerprint(pub)
@@ -145,7 +145,7 @@ func TestVerifyReportKeyringWithAPlaceholderIsRefusedWhole(t *testing.T) {
 	if err := os.WriteFile(clean, []byte(`{"trusted_signers":[{"name":"prod-controller","public_key":"`+hex.EncodeToString(honest)+`"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := runVerify(t, "--keyring", clean, honestPath); err != nil || !strings.Contains(out, "Audit Certificate Signature VALID") {
+	if out, err := runVerify(t, "--keyring", clean, honestPath); err != nil || !strings.Contains(out, "Report signature VALID") {
 		t.Fatalf("the honest keyring was refused: err=%v\n%s", err, out)
 	}
 }

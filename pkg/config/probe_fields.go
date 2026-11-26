@@ -132,9 +132,9 @@ func joinWords(words []string) string {
 	return strings.Join(words[:len(words)-1], ", ") + " and " + words[len(words)-1]
 }
 
-// probeFieldsByType renders the reference's table of the fields each probe
-// type reads, from probeFields. docs/plan-reference.md carries it
-// verbatim, and a test fails when the two differ.
+// probeFieldsByType renders, from probeFields, the fields each probe type reads
+// besides type, timeout_sec, retries and description. A test holds the probe
+// types table of docs/plan-reference.md to it.
 func probeFieldsByType() string {
 	var b strings.Builder
 	b.WriteString("| Probe type | Fields it reads besides `type`, `timeout_sec`, `retries` and `description` |\n")

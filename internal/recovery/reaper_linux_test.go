@@ -106,7 +106,7 @@ func testReaper(root string, signal func(journal.Process, syscall.Signal) error)
 		signal:   signal,
 		sleep:    func(time.Duration) {},
 		// A fake PID has no pidfd, and the real process that has the number must
-		// never be signalled: a test that stops a fake daemon says which pidfd
+		// never be signaled: a test that stops a fake daemon says which pidfd
 		// stands for it (pidfdStandIn).
 		pidfdOpen: func(int, int) (int, error) { return -1, unix.ENOSYS },
 	}
@@ -203,14 +203,14 @@ func TestMapReaperStopsOnlyTheRunsOwnMap(t *testing.T) {
 			t.Errorf("signal %v to %d", sig, p.PID)
 		}
 		if persisted == 0 {
-			t.Errorf("process %d signalled before it was journaled", p.PID)
+			t.Errorf("process %d signaled before it was journaled", p.PID)
 		}
 		signaled = append(signaled, p.PID)
 		return os.RemoveAll(filepath.Join(root, fmt.Sprint(p.PID)))
 	})
 	err := r.stop(&intent, func() error { persisted++; return nil })
 	if fmt.Sprint(signaled) != "[100]" {
-		t.Fatalf("signalled %v, want only the run's own map 100", signaled)
+		t.Fatalf("signaled %v, want only the run's own map 100", signaled)
 	}
 	if len(intent.Processes) != 1 || intent.Processes[0].PID != 100 {
 		t.Fatalf("journaled %+v, want process 100", intent.Processes)
@@ -260,7 +260,7 @@ func TestMapReaperStopsAMapStartedWithNsAndNeverAnother(t *testing.T) {
 	err := r.stop(&intent, func() error { return nil })
 	sort.Ints(signaled)
 	if fmt.Sprint(signaled) != "[100 101 102]" {
-		t.Fatalf("signalled %v, want the run's own maps 100, 101 and 102: with --ns, with --ns= and without", signaled)
+		t.Fatalf("signaled %v, want the run's own maps 100, 101 and 102: with --ns, with --ns= and without", signaled)
 	}
 	if err == nil || !strings.Contains(err.Error(), "process 104") || !strings.Contains(err.Error(), "process 105") {
 		t.Fatalf("err = %v, want the look-alike 104 and the run's token from another namespace 105 reported", err)
@@ -298,13 +298,13 @@ func TestMapReaperOfTwoRunsStopsOnlyEachRunsOwnMap(t *testing.T) {
 		t.Fatalf("first run: %v", err)
 	}
 	if fmt.Sprint(signaled) != "[100]" || !present(root, 200) {
-		t.Fatalf("signalled %v, want only 100; 200 present %v", signaled, present(root, 200))
+		t.Fatalf("signaled %v, want only 100; 200 present %v", signaled, present(root, 200))
 	}
 	if err := r.stop(&second, nil); err != nil {
 		t.Fatalf("second run: %v", err)
 	}
 	if fmt.Sprint(signaled) != "[100 200]" {
-		t.Fatalf("signalled %v, want 100 then 200", signaled)
+		t.Fatalf("signaled %v, want 100 then 200", signaled)
 	}
 	if len(first.Processes) != 1 || first.Processes[0].PID != 100 || len(second.Processes) != 1 || second.Processes[0].PID != 200 {
 		t.Fatalf("journaled %+v and %+v", first.Processes, second.Processes)
@@ -338,7 +338,7 @@ func TestMapReaperLegacyIntentStopsNoProcess(t *testing.T) {
 
 	// The only candidate is not the run's on that account.
 	err := r.stop(&legacy, nil)
-	if err == nil || !strings.Contains(err.Error(), "process 100") || !strings.Contains(err.Error(), "predates") || strings.Contains(err.Error(), "repo-a") || len(legacy.Processes) != 0 {
+	if err == nil || !strings.Contains(err.Error(), "process 100") || !strings.Contains(err.Error(), "holds no token") || strings.Contains(err.Error(), "repo-a") || len(legacy.Processes) != 0 {
 		t.Fatalf("err = %v, journaled %v; want the candidate reported and not stopped", err, legacy.Processes)
 	}
 	// Nor are two.
@@ -555,7 +555,7 @@ func statIdentity(root string, pid int) (journal.Process, error) {
 
 // A journaled PID that names another process now (its map exited
 // and the PID was reused, in this boot or in a later one) is never
-// signalled, and does not keep recovery from completing.
+// signaled, and does not keep recovery from completing.
 func TestMapReaperNeverSignalsAReusedPID(t *testing.T) {
 	root := t.TempDir()
 	at := reaperBoot.Add(10 * time.Hour)

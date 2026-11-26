@@ -11,13 +11,12 @@ import (
 	"testing"
 )
 
-// Whatever else happens to a script on its way to the shell, one that
-// reaches it altered does not start a worker. The supervisor and the lease
-// watch each open with a comparison of a text systemd would change with the
-// same text spelled so that it cannot: here they are run as the launcher
-// would hand them over had it not escaped them, had it escaped them and not
-// undone it, and had it expanded the
-// specifiers "%h" and "%%".
+// Whatever else happens to a script on its way to the shell, one that reaches
+// it altered does not start a worker. The supervisor and the lease watch each
+// open with a comparison of a text systemd would change with the same text
+// spelled so that it cannot: here they are run as the launcher would hand them
+// over had it not escaped them, had it escaped them and not undone it, and had
+// it expanded the specifiers "%h" and "%%".
 func TestSupervisorAndWatchRefuseToStartWhenTheirLauncherAlteredThem(t *testing.T) {
 	alterations := map[string]func(string) string{
 		"systemd deletes the ${...} forms": func(s string) string { return systemdExpandCommand([]string{s}, systemdEnvironment)[0] },

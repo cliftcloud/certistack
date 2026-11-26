@@ -52,7 +52,7 @@ type Hardware struct {
 	BootOrder []string
 }
 
-// EffectiveHardware applies CreateVM's defaults so signed evidence records
+// EffectiveHardware applies CreateVM's defaults so the report records
 // exactly the hardware that was requested, not the plan's partial view.
 func (cfg VMConfig) EffectiveHardware() Hardware {
 	hw := Hardware{
@@ -96,11 +96,11 @@ func (cfg VMConfig) EffectiveHardware() Hardware {
 	return hw
 }
 
-// VMConfig defines the ephemeral virtual machine parameters for DR validation.
+// VMConfig defines the parameters of a sandbox VM.
 type VMConfig struct {
 	VMID        int    // Unique ephemeral VM identifier
 	Name        string // Ephemeral VM name label
-	RunID       string // Unique DR validation run UUID for ownership tagging
+	RunID       string // Unique ID of the run, for ownership tagging
 	Tags        string // Comma-separated PVE resource tags
 	Description string // Durable VM description
 	Cores       int    // Number of vCPUs
@@ -117,8 +117,8 @@ type VMConfig struct {
 	// a restore keeps the drives. A slot a restored disk uses is left out.
 	EmptyCDROMs []string
 	CPUWeight   int // PVE relative CPU weight via cpuunits (default 50)
-	// DeltaPath is retained for legacy single-disk callers. New callers use
-	// DiskOverlays to preserve every backed-up disk slot.
+	// DeltaPath is the overlay of a VM with one disk, attached as scsi0.
+	// DiskOverlays names every backed-up disk slot and takes precedence.
 	DeltaPath    string        // Absolute path to ephemeral COW .qcow2 delta file
 	DiskOverlays []DiskOverlay // Ephemeral COW overlays keyed by PVE disk slot
 	// BootDisk is the slot to boot; empty means PVE's first disk.
@@ -345,9 +345,6 @@ func (c *Client) UsedVMIDs(ctx context.Context) (map[int]bool, error) {
 	return used, nil
 }
 
-// CreateVM provisions an ephemeral VM referencing the delta overlay and isolated SDN bridge.
-// Injects ownership tags and description to guarantee non-destructive teardown safety.
-// Returns the asynchronous task UPID.
 // createRequest is a sandbox VM's create request, with what the local qm
 // fallbacks need to make it again.
 type createRequest struct {
@@ -527,6 +524,10 @@ func (cfg VMConfig) createRequest() (createRequest, error) {
 	}, nil
 }
 
+// CreateVM creates the sandbox VM cfg describes, with its disk overlays on the
+// isolated SDN bridge. Its tags and description carry the run's ownership
+// markers, which teardown checks before it deletes anything. It returns the
+// task's UPID.
 func (c *Client) CreateVM(ctx context.Context, node string, cfg VMConfig) (string, error) {
 	if err := validateVMRequest(node, cfg.VMID); err != nil {
 		return "", err
@@ -697,7 +698,7 @@ func ownedMetadata(tags, description, runID string) (string, string, error) {
 		}
 	}
 	if description == "" {
-		description = "CertiStack Ephemeral DR VM; owner=certistack"
+		description = "CertiStack sandbox VM; owner=certistack"
 		if runID != "" {
 			description += "; run_id=" + runID
 		}
@@ -830,8 +831,7 @@ func runLocalQM(ctx context.Context, args []string) error {
 	return fmt.Errorf("qm create failed: %w: %s", err, strings.TrimSpace(string(out)))
 }
 
-// overlays are the VM's disk overlays: DiskOverlays, or the legacy single
-// DeltaPath as scsi0.
+// overlays are the VM's disk overlays: DiskOverlays, or DeltaPath as scsi0.
 func (cfg VMConfig) overlays() []DiskOverlay {
 	if len(cfg.DiskOverlays) == 0 && cfg.DeltaPath != "" {
 		return []DiskOverlay{{Slot: "scsi0", Path: cfg.DeltaPath}}
@@ -1057,7 +1057,7 @@ func (c *Client) IsCertiStackOwned(ctx context.Context, node string, vmid int) (
 }
 
 // IsCertiStackRunOwned additionally binds a VM to the precise journaled run.
-// Recovery must use this instead of treating any CertiStack-labelled VM as
+// Recovery must use this instead of treating any CertiStack-labeled VM as
 // safe to delete after a VMID has been reused.
 func (c *Client) IsCertiStackRunOwned(ctx context.Context, node string, vmid int, runID string) (bool, error) {
 	if strings.TrimSpace(runID) == "" {

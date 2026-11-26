@@ -14,7 +14,7 @@ Security fixes go into the latest release. There are no backport branches.
 Report vulnerabilities privately to [security@certistack.dev](mailto:security@certistack.dev) (also published at
 `https://certistack.dev/.well-known/security.txt`). Do not open a public issue.
 
-- If the report contains sensitive material, send a first e-mail without the details and ask for a PGP key. We reply
+- If the report contains sensitive material, send a first email without the details and ask for a PGP key. We reply
   with one before you send the full report.
 - We acknowledge and assess every report. There is no contractual response time.
 - Please give us a reasonable opportunity to fix the issue before you disclose it.
@@ -51,8 +51,8 @@ among them:
 
 CertiStack Community needs no internet connection, analytics service or vendor account, and sends no webhooks. It
 connects only to the endpoints you configure: SSH from the controller, the PVE API and PBS from the node worker, and the
-sandbox's guest probes. The one exception is opt-in: anonymous usage statistics are off by default and sent only if you
-turn them on. `DO_NOT_TRACK=1` or `CERTISTACK_TELEMETRY=0` forbids them. See
+sandbox's guest probes. The one exception is opt-in: usage statistics are off by default and sent only if you turn
+them on. `DO_NOT_TRACK=1` or `CERTISTACK_TELEMETRY=0` forbids them. See
 [Usage statistics](https://certistack.dev/docs/telemetry/).
 
 Restored guests get no gateway and no DNS server. CertiStack does not restrict the node's own DNS resolver or other
@@ -66,7 +66,7 @@ snapshot, VM, disk slot, verification result and byte count, but never PBS or PV
 identities, private key paths or environment files.
 
 If a secret is disclosed anyway: stop distributing the affected report, rotate the credential, revoke old access, and
-run the validation again with the new credential. Do not edit an old report to make it look clean.
+run the restore test again with the new credential. Do not edit an old report to make it look clean.
 
 ## Release assets
 
@@ -100,7 +100,7 @@ does steps 1 to 3 with the fingerprint pinned, and installs nothing unless they 
 
    ```bash
    sudo install -d -m 0700 -o "$USER" /secure/certistack
-   git clone --depth 1 --branch v0.1.3 https://github.com/cliftcloud/certistack.git
+   git clone --depth 1 --branch v0.1.4 https://github.com/cliftcloud/certistack.git
    gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --import certistack/release/release-public-key.asc
    gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --fingerprint
    gpgv --keyring /secure/certistack/release-signing-key.gpg \
@@ -127,7 +127,7 @@ is your build, not the release.
 
 ### How releases are built
 
-A GitHub Actions workflow builds a release from a commit on the default branch, for a stable tag such as `v0.1.3` only.
+A GitHub Actions workflow builds a release from a commit on the default branch, for a stable tag such as `v0.1.4` only.
 A candidate tag (`vMAJOR.MINOR.PATCH-rcN`) starts nothing.
 
 - **Registry.** `release/candidates.txt` lists, for each release, the tag, the full commit and the SHA-256 of

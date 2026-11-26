@@ -141,10 +141,10 @@ chown 0:0 "$dir" 2>/dev/null
 chmod 700 "$dir" 2>/dev/null
 [ -O "$dir" ] || { echo "certistack: cannot make $dir private" >&2; exit 1; }
 # The after-boot capture is started when multi-user.target is reached, which is
-# often many seconds before the services that are still starting have settled
-# (a capture at 12 s still said "system starting"). It waits for the manager to
-# leave "starting", looking every 2 s for at most 120 s, and says so when it
-# gave up. It waits before it stamps itself, so its stamp is when it began.
+# often many seconds before the services that are still starting have settled.
+# It waits for the manager to leave "starting", looking every 2 s for at most
+# 120 s, and says so when it gave up. It waits before it stamps itself, so its
+# stamp is when it began.
 if [ "$1" = after-boot ]; then
   waited=0
   while [ "$waited" -lt 60 ]; do

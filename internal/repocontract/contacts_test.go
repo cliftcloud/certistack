@@ -33,7 +33,7 @@ var contactMailboxes = map[string]bool{
 }
 
 var (
-	// addressPattern is an e-mail address: a name, an @ and a dotted host with an
+	// addressPattern is an email address: a name, an @ and a dotted host with an
 	// alphabetic last label (so module versions such as name@v1.2.3 are not one).
 	addressPattern = regexp.MustCompile(`[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}`)
 	// mailtoPattern is a mailto: link with a literal target. A mailto: that is
@@ -44,9 +44,6 @@ var (
 	mailboxNamePattern = regexp.MustCompile(`(?i)\b(?:security|sales|licensing|conduct|privacy)@([A-Za-z0-9.\-]*)`)
 	// otherDomainPattern is the product's name at a domain that is not its own.
 	otherDomainPattern = regexp.MustCompile(`(?i)certistack\.(?:com|net|org|io|app|cloud|co|ai|xyz|us|eu|info|biz|me)\b`)
-	// labDomainPattern is the operator's own domain, which names lab hosts and is
-	// never a product address.
-	labDomainPattern = regexp.MustCompile(`(?i)clift\.cloud\b`)
 )
 
 // placeholderHost reports whether a host is reserved for examples and tests
@@ -100,20 +97,17 @@ func contactLineProblems(line string) []string {
 	for _, found := range otherDomainPattern.FindAllString(line, -1) {
 		problems = append(problems, fmt.Sprintf("%s: the only product domain is %s", found, contactDomain))
 	}
-	for _, found := range labDomainPattern.FindAllString(line, -1) {
-		problems = append(problems, fmt.Sprintf("%s is the operator's lab domain, not a product address or URL", found))
-	}
 	return problems
 }
 
 // contactSkippedDir lists what is not the project's own text: version control,
-// the local .lab directory, dependencies and build output.
+// local, untracked directories, dependencies and build output.
 func contactSkippedDir(name string) bool {
 	switch name {
-	case ".git", ".lab", "node_modules", "vendor", "dist", "bin", ".terraform":
+	case ".git", "node_modules", "vendor", "dist", "bin", ".terraform":
 		return true
 	}
-	return false
+	return localDir(name)
 }
 
 // contactProblems walks root and returns one line for each place in a text file
@@ -153,9 +147,8 @@ func contactProblems(root string) (problems []string, scanned int, err error) {
 }
 
 // Every text of the repository names the five mailboxes at certistack.dev and
-// no other address, no product URL at another domain, and no lab host. An
-// example address (example.com, .example, .test, .invalid, .internal) is a
-// fixture and stays.
+// no other address and no product URL at another domain. An example address
+// (example.com, .example, .test, .invalid, .internal) is a fixture and stays.
 func TestNoTextNamesAnAddressOutsideTheFiveMailboxes(t *testing.T) {
 	problems, scanned, err := contactProblems(repoFile())
 	if err != nil {
@@ -177,7 +170,6 @@ func mailboxAddress(name string) string { return name + "@" + contactDomain }
 func TestContactRuleSeparatesTheFiveMailboxesFromEverythingElse(t *testing.T) {
 	at, dev, mt := "@", "certistack.dev", "mailto"+":"
 	other := "certistack." + "com"
-	lab := "clift." + "cloud"
 	bad := []string{
 		"write to info" + at + dev,                              // a sixth mailbox
 		"write to support" + at + dev,                           // another sixth
@@ -192,8 +184,7 @@ func TestContactRuleSeparatesTheFiveMailboxesFromEverythingElse(t *testing.T) {
 		"https://www." + other,                                  // the same with a subdomain
 		"<a href=\"" + mt + "help" + at + dev + "\">",           // a link to a sixth mailbox
 		mt + "sales",                                            // a link with no address
-		"eval" + at + lab,                                       // the evaluation marker at the lab domain
-		"ssh pve1." + lab,                                       // a lab host in a product text
+		"eval" + at + "ops.corp",                                // an address at a private domain
 		"Questions: Licensing" + at + "Certistack.example.org.", // a mailbox name at another host
 	}
 	for _, line := range bad {
@@ -227,9 +218,9 @@ func TestContactRuleSeparatesTheFiveMailboxesFromEverythingElse(t *testing.T) {
 }
 
 // The scan reads text files in the tree, leaves out what is not the project's
-// text (.lab, version control, dependencies, build output, hashes, binary
-// files) and names the file and line of each problem.
-func TestContactScanReadsTextAndLeavesOutTheLab(t *testing.T) {
+// text (untracked local directories, version control, dependencies, build
+// output, hashes, binary files) and names the file and line of each problem.
+func TestContactScanReadsTextAndLeavesOutWhatIsNotTheProjects(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, content string) {
 		t.Helper()
@@ -244,7 +235,7 @@ func TestContactScanReadsTextAndLeavesOutTheLab(t *testing.T) {
 	at := "@"
 	write("docs/a.md", "fine\nwrite to info"+at+"certistack.dev\n")
 	write("cmd/b.go", "var x = \"https://certistack."+"com/x\"\n")
-	write(".lab/notes.md", "pve1.clift."+"cloud and info"+at+"certistack.dev\n")
+	write(".local-notes/notes.md", "info"+at+"certistack.dev\n") // a developer's local directory
 	write("vendor/m/m.go", "info"+at+"certistack.dev\n")
 	write("go.sum", "info"+at+"certistack.dev h1:abc\n")
 	write("img.png", "info"+at+"certistack.dev\x00\x01")

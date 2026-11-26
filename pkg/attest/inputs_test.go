@@ -129,8 +129,8 @@ func TestReadRegularFileFollowsLinksToRegularFilesOnly(t *testing.T) {
 }
 
 // The loaders refuse a 16 MiB file after reading none of it, and allocate
-// nothing in proportion to its size. A report is refused
-// the same way one byte over its own limit (MaxReportFileBytes).
+// nothing in proportion to its size. A report is refused the same way one byte
+// over its own limit (MaxReportFileBytes).
 func TestTrustFileLoadersRefuseHugeFilesWithoutReadingThem(t *testing.T) {
 	pub, _ := newKey(t)
 	dir := t.TempDir()
@@ -247,9 +247,9 @@ func jsonKeyring(t *testing.T, entries ...map[string]string) string {
 	return keyringFixture(t, string(raw))
 }
 
-// A contradictory keyring (a key labeled with another key's
-// fingerprint, a malformed anchor, and the first key again in upper case with
-// other metadata) is refused whole, and the error names each entry.
+// A contradictory keyring (a key labeled with another key's fingerprint, a
+// malformed anchor, and the first key again in upper case with other metadata)
+// is refused whole, and the error names each entry.
 func TestKeyringWithContradictoryEntriesIsRefused(t *testing.T) {
 	pubA, _ := newKey(t)
 	pubB, _ := newKey(t)

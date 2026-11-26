@@ -20,7 +20,7 @@ import (
 // less-trusted side, so the controller checks the answer against its request
 // (CheckInspection) and treats every text in it as the guest's.
 
-// The services an inspection recognises, by kind.
+// The services an inspection recognizes, by kind.
 const (
 	ServiceNginx      = "nginx"
 	ServiceApache     = "apache"

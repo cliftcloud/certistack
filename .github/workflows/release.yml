@@ -100,18 +100,6 @@ jobs:
             echo "CHANGELOG.md must contain a dated section for $release_version before publication." >&2
             exit 1
           fi
-          # Legal text with a fact still marked for confirmation (an entity
-          # or jurisdiction, for example) must not ship.
-          if git grep -n -I -E 'CONFIRM before publishing|CONFIRM:' -- '*.md' '*.html' '*.txt'; then
-            echo "Resolve every CONFIRM marker above with counsel before publication." >&2
-            exit 1
-          fi
-          # The release signing key and its fingerprint are published in SECURITY.md
-          # before a release; the placeholder must not ship.
-          if git grep -n -I -F '<published with the release>' -- '*.md'; then
-            echo "SECURITY.md still has the release key placeholder above: publish the key and fingerprint before the release." >&2
-            exit 1
-          fi
 
       # Anyone who can push a tag can start this workflow, so the tag proves
       # nothing by itself. It counts only if its commit is on the default

@@ -92,7 +92,7 @@ func TestTheJournaledQEMUProcessNamesTheBootItRunsIn(t *testing.T) {
 	vm.SourceImageBytes = map[string]int64{"scsi0": 36 << 20}
 	vm.SourceDiskBytes = map[string]int64{"scsi0": 33 << 20}
 
-	if _, err := o.bootAndVerifyVM(context.Background(), vm, 60, nil); err == nil || !strings.Contains(err.Error(), "Stage 1 QMP connection failed") {
+	if _, err := o.bootAndVerifyVM(context.Background(), vm, 60, nil); err == nil || !strings.Contains(err.Error(), "QMP connection to VM") {
 		t.Fatalf("bootAndVerifyVM = %v, want the run to reach the QMP wait after the VM started", err)
 	}
 	record, err := journal.Load(filepath.Join(stateDir, "active.json"))

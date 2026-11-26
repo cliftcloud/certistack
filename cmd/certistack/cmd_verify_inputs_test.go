@@ -223,7 +223,7 @@ func TestVerifyReportTrustFileInputs(t *testing.T) {
 		"keyring list with BOM":        {"--keyring", write("bom.keys", []byte(bom+keyHex+"\r\n"))},
 		"JSON keyring with BOM":        {"--keyring", write("bom.json", []byte(bom+`{"trusted_signers":[{"name":"n","public_key":"`+keyHex+`"}]}`))},
 	} {
-		if out, err := runVerify(t, append(args, reportPath)...); err != nil || !strings.Contains(out, "Audit Certificate Signature VALID") {
+		if out, err := runVerify(t, append(args, reportPath)...); err != nil || !strings.Contains(out, "Report signature VALID") {
 			t.Errorf("%s: err=%v\n%s", name, err, out)
 		}
 	}

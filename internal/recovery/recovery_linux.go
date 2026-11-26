@@ -532,7 +532,7 @@ func releaseRecordedLoop(ctx context.Context, intent journal.MapIntent, loop jou
 	}
 	// The map's daemon is stopped only when the pid file shows it is the run's
 	// own (or names no live process): what else the pid file names is not
-	// signalled.
+	// signaled.
 	guard, why := hostMapReaper.unmapGuardFor(loop.Backing, intent)
 	var stopDaemon func() error
 	switch guard {
@@ -548,7 +548,7 @@ func releaseRecordedLoop(ctx context.Context, intent journal.MapIntent, loop jou
 				return fmt.Errorf("left %s attached: %w; "+recoverhint.Again, loop.Device, err)
 			}
 			if note != "" {
-				slog.Warn("signalled no map daemon", "device", loop.Device, "reason", note)
+				slog.Warn("signaled no map daemon", "device", loop.Device, "reason", note)
 				say("WARN", "Detaching %s without stopping a map daemon: %s.", loop.Device, note)
 			}
 			return nil
@@ -682,7 +682,7 @@ func mapRemnant(backing string) (string, error) {
 // MayStopMapDaemon says whether the daemon of the map served through the map
 // file backing (recorded for the map intent) may be stopped (StopMapDaemon):
 // the pid file names no live process, or the run's own map daemon. When it
-// names something else the caller only detaches the loop, signalling nothing.
+// names something else the caller only detaches the loop, signaling nothing.
 // An error means it cannot be established: nothing is to be done to the map.
 func MayStopMapDaemon(backing string, intent journal.MapIntent) (bool, error) {
 	guard, why := hostMapReaper.unmapGuardFor(backing, intent)

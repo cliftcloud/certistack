@@ -221,7 +221,7 @@ func TestRunKeepsTheRunsReportAndErrorWhenTheSignerFailsToo(t *testing.T) {
 	if entries, _ := os.ReadDir(r.reports); len(entries) != 0 {
 		t.Errorf("the report store is not empty: %v", entries)
 	}
-	if text := r.out.String(); !strings.Contains(text, "DR VALIDATION FAILED") || strings.Contains(text, "SUCCEEDED") {
+	if text := r.out.String(); !strings.Contains(text, "RESTORE TEST FAILED") || strings.Contains(text, "SUCCEEDED") {
 		t.Errorf("the operator was told %q", text)
 	}
 }
@@ -264,7 +264,7 @@ func TestRunCallsTheSignerOnceWhenTheReportCannotBeSaved(t *testing.T) {
 	if _, valid, err := attest.VerifyReport(data, []ed25519.PublicKey{public}); err == nil || valid {
 		t.Errorf("the failed report verifies as signed: valid=%v err=%v", valid, err)
 	}
-	if text := r.out.String(); !strings.Contains(text, "DR VALIDATION FAILED") || strings.Contains(text, "SUCCEEDED") {
+	if text := r.out.String(); !strings.Contains(text, "RESTORE TEST FAILED") || strings.Contains(text, "SUCCEEDED") {
 		t.Fatalf("the operator was told %q", text)
 	}
 	if record, err := journal.Load(filepath.Join(r.dir, "state", "active.json")); err != nil || record.Phase != "cleaned" {

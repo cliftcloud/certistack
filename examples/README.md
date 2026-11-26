@@ -15,7 +15,8 @@ JSON Schema for these files
 ([editor completion](https://certistack.dev/docs/plan-reference/#editor-completion-and-checks)).
 
 [`sample-report-unsigned.json`](sample-report-unsigned.json) is an unsigned sample report from a test run on a
-demonstration Proxmox VE and Backup Server. Read it with `certistack report show examples/sample-report-unsigned.json`,
+demonstration Proxmox VE and Backup Server. An earlier build wrote it (engine v0.1.0, a pre-release), so its build
+fields are not those of a current release. Read it with `certistack report show examples/sample-report-unsigned.json`,
 and judge it with `certistack verify-report --unsigned --expect-outcome pass examples/sample-report-unsigned.json`. It
 is a sample, not evidence about your systems.
 

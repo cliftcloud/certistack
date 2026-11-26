@@ -121,7 +121,7 @@ func TestControllerSignsAFailedRunWhoseTierNeverReachedItsSoak(t *testing.T) {
 	record.SourceDisks[0].IntegrityStatus = "map_failed"
 	record.SourceDisks[0].ImageDigest = ""
 	fake := &fakeCommandRunner{nodeResult: nodeapi.RunResult{Report: report, Error: report.FailureReason}, journalPhase: "cleaned"}
-	if _, err := (&Executor{runner: fake}).Run(context.Background(), opts); err == nil || !strings.Contains(err.Error(), "DR validation failed: recovery tier 1 failed") {
+	if _, err := (&Executor{runner: fake}).Run(context.Background(), opts); err == nil || !strings.Contains(err.Error(), "the run failed: recovery tier 1 failed") {
 		t.Fatalf("err = %v", err)
 	}
 }

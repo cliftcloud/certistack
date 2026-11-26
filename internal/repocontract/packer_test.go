@@ -428,7 +428,7 @@ printf 'journalctl %s (journal files: %s)\n' "$*" "$files" >> "$STUB_LOG"
 `
 
 // finalizeTree is a guest filesystem as the build leaves it before the last
-// step: an initialised machine ID, a used cloud-init instance, cloud-init
+// step: an initialized machine ID, a used cloud-init instance, cloud-init
 // logs, and the build key authorized for root and for a login user.
 type finalizeTree struct {
 	t     *testing.T

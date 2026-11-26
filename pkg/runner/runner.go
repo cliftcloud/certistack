@@ -42,8 +42,8 @@ type BuildInfo struct {
 }
 
 // Options controls one local validation run. It intentionally contains no
-// licensing, tenant, or service-side concerns so Community and MSP products
-// can share the same recovery engine.
+// licensing, tenant, or service-side concerns so the Community and Enterprise
+// editions can share the same recovery engine.
 type Options struct {
 	// Recovered is what recovery of an unfinished run deletes before a run;
 	// PlanRun counts it as gone.
@@ -292,7 +292,7 @@ func run(ctx context.Context, plan *config.Plan, opts Options) (*attest.Report, 
 	result, runErr := orchestrate(ctx, orch)
 	// A temporary node worker returns its raw teardown evidence to the
 	// controller, which has the protected workspace and authority to reconcile
-	// the durable journal before deciding the final customer-visible result.
+	// the durable journal before deciding the run's final result.
 	// A direct local run has no such second authority, so it must fail closed
 	// immediately when teardown cannot be proven.
 	runErr = requireVerifiedTeardown(result, runErr)
@@ -309,8 +309,8 @@ func run(ctx context.Context, plan *config.Plan, opts Options) (*attest.Report, 
 	}
 	if rtoErr := enforceRTOTarget(report, plan); rtoErr != nil && runErr == nil {
 		// A missed objective is a failed validation, not a warning: every
-		// caller (CLI exit status, node worker result, daemon, MSP agent)
-		// decides pass/fail from the returned error.
+		// caller (CLI exit status, node worker result, daemon) decides
+		// pass/fail from the returned error.
 		runErr = rtoErr
 	}
 	if opts.SkipIntegrity {
@@ -328,9 +328,9 @@ func run(ctx context.Context, plan *config.Plan, opts Options) (*attest.Report, 
 	// The orchestrator writes resource identities as it allocates them. Its
 	// terminal journal state is equally important: without it, a subsequent run
 	// cannot distinguish a clean completion from an interrupted cleanup. Finalize
-	// before signing so an evidence-persistence failure is part of the report
-	// (and of its signature, when there is one) rather than an optimistic
-	// certificate followed by a warning.
+	// before the signer runs, so an evidence-persistence failure is part of the
+	// report (and of its signature, when there is one) rather than an optimistic
+	// report followed by a warning.
 	if err := finalizeJournal(activeJournalPath, runRecord, result); err != nil {
 		runErr = recordDurabilityFailure(report, runErr, "finalize recovery journal", err)
 	}
@@ -344,27 +344,26 @@ func run(ctx context.Context, plan *config.Plan, opts Options) (*attest.Report, 
 		// the signer's, as they do when a report cannot be saved. Nothing is
 		// written, and the error says the report is not evidence.
 		runErr = errors.Join(runErr, fmt.Errorf("sign report: %w", err))
-		fmt.Fprintf(opts.Writer, "✗ DR VALIDATION FAILED: %v\n", runErr)
+		fmt.Fprintf(opts.Writer, "✗ RESTORE TEST FAILED: %v\n", runErr)
 		return report, runErr
 	}
 
 	reportPath := attest.DefaultReportPath(opts.OutputDir, plan.PlanID, report.ReportID)
 	if err := report.Save(reportPath); err != nil {
 		runErr = recordSaveFailure(report, runErr, err)
-		// The in-memory report cannot serve as durable customer or compliance
-		// evidence. Never report a success when it did not reach the protected
-		// report store.
-		fmt.Fprintf(opts.Writer, "✗ DR VALIDATION FAILED: %v\n", runErr)
+		// The in-memory report is not durable evidence: a run whose report
+		// was not saved is never reported as a success.
+		fmt.Fprintf(opts.Writer, "✗ RESTORE TEST FAILED: %v\n", runErr)
 		return report, runErr
 	} else {
-		writeArtifacts(opts.Writer, report, reportPath)
+		writeArtifacts(opts.Writer, reportPath)
 	}
 
 	if runErr != nil {
-		fmt.Fprintf(opts.Writer, "✗ DR VALIDATION FAILED: %v\n", runErr)
+		fmt.Fprintf(opts.Writer, "✗ RESTORE TEST FAILED: %v\n", runErr)
 		return report, runErr
 	}
-	fmt.Fprintln(opts.Writer, "✓ DR VALIDATION SUCCEEDED")
+	fmt.Fprintln(opts.Writer, "✓ RESTORE TEST SUCCEEDED")
 	fmt.Fprintf(opts.Writer, "  Plan:       %s\n", plan.Name)
 	fmt.Fprintf(opts.Writer, "  Report ID:  %s\n", report.ReportID)
 	fmt.Fprintf(opts.Writer, "  RTO:        %.2f seconds\n", report.RTOSeconds)
@@ -377,7 +376,7 @@ func run(ctx context.Context, plan *config.Plan, opts Options) (*attest.Report, 
 // to a run directly, which may not have been loaded through the validating
 // loader: a NaN limit would admit any load, an overflowing duration would skip
 // its wait, a guest-agent probe's command reaches a shell in the recovered
-// guest (under either spelling of the probe type), and the report signs the
+// guest (under either spelling of the probe type), and the report records the
 // frameworks and retention it is given.
 func requirePlanBounds(plan *config.Plan) error {
 	errs := append(config.NumericBoundsErrors(plan), config.ProbeCommandErrors(plan)...)
@@ -493,12 +492,11 @@ func newPBSClient(storage config.Storage, namespace string) (*pbs.Client, error)
 // validatePBSRouting rejects per-VM selectors that the configured single PBS
 // endpoint cannot honor. StorageID is a PVE storage label, not a PBS endpoint;
 // silently accepting a second label or namespace would restore the wrong data.
-// Multi-endpoint routing must be represented by a future explicit endpoint map.
 func validatePBSRouting(plan *config.Plan, namespace string) error {
 	for _, tier := range plan.Tiers {
 		for _, vm := range tier.VMs {
 			if id := strings.TrimSpace(vm.SourcePBS.StorageID); id != "" && id != "pbs" {
-				return fmt.Errorf("VM %d requests source_pbs.storage_id %q, but this run has one configured PBS endpoint; use storage_id pbs or configure an explicit endpoint map", vm.VMID, id)
+				return fmt.Errorf("VM %d requests source_pbs.storage_id %q, but this run has one configured PBS endpoint; use storage_id pbs", vm.VMID, id)
 			}
 			if vmNamespace := strings.TrimSpace(vm.SourcePBS.Namespace); vmNamespace != "" && vmNamespace != namespace {
 				return fmt.Errorf("VM %d requests PBS namespace %q, but this run is configured for namespace %q", vm.VMID, vmNamespace, namespace)
@@ -508,7 +506,7 @@ func validatePBSRouting(plan *config.Plan, namespace string) error {
 	return nil
 }
 
-// SafeFailureReason keeps a signed failure report actionable without allowing
+// SafeFailureReason keeps a failure report actionable without allowing
 // process errors or a misbehaving dependency to leak credentials into an
 // operator-facing artifact. It also prevents a pathological error from making
 // a report unexpectedly large. Controller and node-worker boundaries must use
@@ -544,7 +542,7 @@ func SafeFailureReason(err error) string {
 	}
 	// A failure reason is one line: guest output reaches it through probe and
 	// boot errors, and a line break in it would forge a line in every log and
-	// terminal that shows the reason, and in the signed report. Joined errors
+	// terminal that shows the reason, and in the report. Joined errors
 	// read as "first; second".
 	reason = progress.SingleLine(reason)
 	const maximum = 4096
@@ -599,7 +597,7 @@ func journalHasResources(record journal.Record) bool {
 // enforceRTOTarget makes compliance.rto_target_seconds a real pass/fail
 // criterion, not just documentation: a run that boots and probes cleanly but
 // blows through the operator's own recovery time objective must not be
-// signed as a pass.
+// reported as a pass.
 func enforceRTOTarget(report *attest.Report, plan *config.Plan) error {
 	target := plan.Compliance.RTOTargetSeconds
 	finite := !math.IsNaN(target) && !math.IsInf(target, 0)
@@ -688,7 +686,7 @@ func resolveLatestSnapshots(ctx context.Context, plan *config.Plan, resolver sna
 	return nil
 }
 
-// applyBackupConfig discovers all backed-up SCSI images and inherits only the
+// applyBackupConfig discovers all backed-up disk images and inherits only the
 // safe hardware subset stored with each source snapshot. It also preserves
 // only net0's MAC so MAC-bound guest network profiles survive; sandbox
 // topology, ownership tags, passthrough devices, hooks, and source PVE tags
@@ -813,7 +811,7 @@ func applyBackupLayout(ctx context.Context, plan *config.Plan, resolver backupPr
 //     it: a restored VM never tries the network or a disk it does not have.
 //   - A plan may restore only some of the backed-up disks, but never one the
 //     backup does not have, and the disks it leaves out are recorded so the
-//     signed report cannot pass a partial restore off as the whole VM.
+//     report cannot pass a partial restore off as the whole VM.
 func applySourceLayout(vm *config.VM, layout pbs.VMLayout) error {
 	if err := requireSignedSource(vm, layout); err != nil {
 		return err
@@ -1020,11 +1018,10 @@ func sameSourceDriveLayout(configured, discovered []config.SourceDrive) bool {
 	return true
 }
 
-// writeArtifacts reports the signed JSON evidence path. The Community engine
-// produces JSON only; HTML/PDF binder rendering is an Enterprise feature.
-func writeArtifacts(w io.Writer, report *attest.Report, reportPath string) {
+// writeArtifacts prints where the report was saved. The Community engine
+// writes JSON only.
+func writeArtifacts(w io.Writer, reportPath string) {
 	fmt.Fprintf(w, "✓ Report saved to: %s\n", reportPath)
-	fmt.Fprintf(w, "✓ Audit Certificate (JSON): %s\n", reportPath)
 }
 
 func envOr(name, fallback string) string {

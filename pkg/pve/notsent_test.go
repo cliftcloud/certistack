@@ -26,10 +26,10 @@ func TestNotSentDistinguishesNeverSentFromLostReply(t *testing.T) {
 		t.Fatalf("a timed-out request = %v, NotSent %v; want it possibly sent", err, NotSent(err))
 	}
 
-	cancelled, cancel := context.WithCancel(context.Background())
+	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := NewClient(Config{BaseURL: server.URL}).Do(cancelled, "POST", "cluster/sdn/lock", nil, nil); !NotSent(err) {
-		t.Fatalf("a request cancelled before it was sent = %v; want NotSent", err)
+	if err := NewClient(Config{BaseURL: server.URL}).Do(canceled, "POST", "cluster/sdn/lock", nil, nil); !NotSent(err) {
+		t.Fatalf("a request canceled before it was sent = %v; want NotSent", err)
 	}
 
 	bad := NewClient(Config{BaseURL: "ftp://not-pve.example"})

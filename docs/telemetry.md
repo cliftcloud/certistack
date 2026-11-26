@@ -9,7 +9,7 @@ Five fields, as `certistack telemetry show` prints them:
 ```json
 {
   "install_id": "3f0c8a5e-6b1d-4e2a-9c47-0d5e1b7a92f4",
-  "version": "v0.1.3",
+  "version": "v0.1.4",
   "cluster_count": 2,
   "last_test_run": "2026-10-01",
   "business_use": false
@@ -33,12 +33,13 @@ failure is silent (`--debug` shows it) and never changes the exit status.
 
 ## Turn it on or off
 
-The first `run`, `plan`, `doctor` or `init` at a terminal asks once; the default is no. To change your mind:
+The first `run`, `plan`, `doctor` or `init` at a terminal, with `CI` unset, asks once; the default is no. To change
+your mind:
 
 | Command | Does |
 | --- | --- |
 | `certistack telemetry status` | Says whether it is on, and why |
-| `certistack telemetry show` | Prints what would be sent now |
+| `certistack telemetry show` | Prints what would be sent now. While off, it prints the five fields with example values |
 | `certistack telemetry enable [--business]` | Opts in |
 | `certistack telemetry disable` | Opts out and forgets the install ID |
 | `certistack telemetry reset` | Deletes `telemetry.json`, so the question is asked again |
@@ -71,5 +72,5 @@ environment: `environment:` in `deploy/controller/compose.yaml`, or `podman run 
 ## Deletion
 
 The server keeps only the latest report for each `install_id`, stores no IP address, and deletes a record after 45
-days without a new one. To delete yours sooner, note the `install_id` from `certistack telemetry show`, run
+days without a new one. To delete yours sooner, note the `install id` that `certistack telemetry status` prints, run
 `certistack telemetry reset`, and send the ID to `privacy@certistack.dev` with the subject "Telemetry deletion".

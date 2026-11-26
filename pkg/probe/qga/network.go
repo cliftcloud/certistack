@@ -36,10 +36,9 @@ func NewTCPNetworkProber(socketPath, targetIP string, port int, timeout time.Dur
 // NewHTTPNetworkProber requires curl in the recovered guest and validates the
 // expected HTTP status without using the host network namespace. When
 // serverName is set, curl uses it for both TLS SNI and the HTTP Host header;
-// --resolve still pins the actual connection to the sandbox IP. The legacy
-// insecureSkipVerify argument is retained for source compatibility but is
-// deliberately ignored: curl never receives a TLS-verification bypass.
-func NewHTTPNetworkProber(socketPath, targetIP string, port int, path string, useTLS bool, serverName string, expectedStatus int, _ bool, timeout time.Duration, desc string) *NetworkProber {
+// --resolve still pins the actual connection to the sandbox IP. curl never
+// receives a TLS-verification bypass.
+func NewHTTPNetworkProber(socketPath, targetIP string, port int, path string, useTLS bool, serverName string, expectedStatus int, timeout time.Duration, desc string) *NetworkProber {
 	seconds := timeoutSeconds(timeout)
 	if port <= 0 {
 		port = 80

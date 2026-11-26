@@ -20,7 +20,7 @@ import (
 
 // A restore that was refused because its VMID was occupied created no VM, so no
 // console is its own: the failure screenshot must not dial the occupant's QMP
-// socket and put that guest's screen into the signed report as the backup's.
+// socket and put that guest's screen into the report as the backup's.
 func TestNoFailureScreenshotOfAConsoleTheRunDidNotCreate(t *testing.T) {
 	dir, err := os.MkdirTemp("", "cs-qmp")
 	if err != nil {

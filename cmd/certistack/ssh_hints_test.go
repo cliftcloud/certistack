@@ -181,7 +181,7 @@ func TestSSHFailureHintReadsOpenSSHsWords(t *testing.T) {
 		})
 	}
 	if hint := sshFailureHint(errors.New("something nobody foresaw"), cfg); hint != "" {
-		t.Errorf("an unrecognised failure got the hint %q", hint)
+		t.Errorf("an unrecognized failure got the hint %q", hint)
 	}
 	if hint := sshFailureHint(nil, cfg); hint != "" {
 		t.Errorf("no error got the hint %q", hint)

@@ -230,13 +230,12 @@ func (s *stagedFile) publish(replace bool) error {
 	}
 	err := noReplaceRename(s.staging, s.path)
 	if errors.Is(err, errNoAtomicNoReplace) {
-		// This filesystem supports neither a no-replace rename nor hard
-		// links. Create the destination exclusively and write it in place:
-		// it still never overwrites a file, but a crash here can leave it
-		// partly written. The
-		// staging file is a second copy of the content, which for a private
-		// key must not stay behind, and its presence would refuse the next
-		// write: it goes now, whatever publication left in its place.
+		// This filesystem supports neither a no-replace rename nor hard links.
+		// Create the destination exclusively and write it in place: it still
+		// never overwrites a file, but a crash here can leave it partly
+		// written. The staging file is a second copy of the content, which for
+		// a private key must not stay behind, and its presence would refuse the
+		// next write: it goes now, whatever publication left in its place.
 		err = s.writeInPlace()
 		if err == nil {
 			_ = os.Remove(s.staging)

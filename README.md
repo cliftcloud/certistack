@@ -5,7 +5,7 @@
 <h1 align="center">CertiStack</h1>
 
 <p align="center">
-  <strong>Restore-test your Proxmox backups in a sandbox, with proof.</strong>
+  <strong>Restore-test your Proxmox backups in an isolated sandbox.</strong>
 </p>
 
 <p align="center">
@@ -19,11 +19,11 @@
 
 Your Proxmox Backup Server says the backup is **verified**. That means the stored chunks are intact.
 It does not mean the VM boots, that its disks are whole, or that the database inside it answers.
-Most people find that out on the day they need the backup.
+Without a restore test, you find that out on the day you need the backup.
 
 **CertiStack finds out now.** It restores a VM from your PBS into an isolated sandbox on your
 Proxmox VE node, boots it, checks that its services answer, removes everything again, and tells you
-plainly whether that backup would have saved you.
+whether the VM came back and the probes you chose passed.
 
 ```text
 $ certistack report show --keyring demo-trusted-signers.pub sample-pass.json
@@ -48,8 +48,8 @@ Teardown:
   sandbox network: removed: zone csZone1, VNet csVnet1
 ```
 
-<sub>An excerpt of a real report from a test run on a demo node. The whole report, its key and how
-to check it are on the [verify page](https://certistack.dev/verify/).</sub>
+<sub>An excerpt of a real report from a test run on a demo node, signed with a demo key; Community reports are
+unsigned. The whole report, its key and how to check it are on the [verify page](https://certistack.dev/verify/).</sub>
 
 ## How it works
 
@@ -58,9 +58,10 @@ to check it are on the [verify page](https://certistack.dev/verify/).</sub>
    that is deleted afterwards. Your real VM is never touched.
 3. **Isolates it.** The sandbox gets its own SDN network with no gateway, no NAT and no uplink. A restored domain
    controller cannot reach your production network.
-4. **Checks that it works.** Not just "it booted": the probes you choose: TCP, HTTP(S), DNS, LDAP, SQL Server, SMB, or
-   commands through the guest agent, in the order your tiers need (a database before the app that uses it).
-5. **Cleans up, and proves it.** The VM, the overlays and the network are removed, and the report records that
+4. **Checks that it works.** Not just "it booted": the probes you choose run against it. They can be TCP, HTTP(S),
+   DNS, LDAP, SQL Server, SMB, or commands through the guest agent, in the order your tiers need (a database before
+   the app that uses it).
+5. **Cleans up, and verifies it.** The VM, the overlays and the network are removed, and the report records that
    nothing is left. **A run passes only if every check passed and the cleanup was verified.** If anything crashes
    mid-run, `certistack recover` finishes the cleanup.
 
@@ -70,14 +71,16 @@ to check it are on the [verify page](https://certistack.dev/verify/).</sub>
 - **Nothing reaches production**: the sandbox network has no way out.
 - **It asks first.** `certistack setup` shows each change it makes on your node and PBS and waits for a yes.
   [What it changes on your node](https://certistack.dev/docs/manual-setup/#what-it-changes) lists all of it on one page, and
-  [Remove CertiStack](https://certistack.dev/docs/manual-setup/#remove-certistack) takes it all back off.
+  [Remove CertiStack](https://certistack.dev/docs/manual-setup/#remove-certistack) takes the access back off and lists
+  what stays.
 - **It holds a run** while the node is short of memory, and runs one test per node at a time.
 - **It runs from a small Linux VM**, not on the Proxmox VE host; a short-lived worker does the node's part and is
   removed after each run.
 
 ## Quickstart
 
-On a small Linux VM (not the Proxmox VE host), run these one at a time:
+On a small Linux VM (not the Proxmox VE host), run these one at a time. Use a standalone node, or one you can take out
+of service, for a first run: on a cluster, each run applies an SDN change, which reloads the network on every node.
 
 ```bash
 curl -fsSL https://certistack.dev/install.sh | bash   # checks the release's signature and checksums
@@ -88,8 +91,9 @@ certistack run my-first-plan.yaml                      # about 5 to 20 minutes f
 certistack report show
 ```
 
-`setup` ends with a six-layer check, and the commands after it use the settings it saved. `init --inspect` looks inside
-a Linux backup and adds a probe for each service it finds. The [quickstart](https://certistack.dev/docs/quickstart/)
+`setup` ends with a six-layer check, and the commands after it use the settings it saved, including the reports
+directory that `report show` reads. `init --inspect` looks inside a Linux backup and adds a probe for each service it
+finds. The [quickstart](https://certistack.dev/docs/quickstart/)
 walks through each step with its output. [Read the installer](https://github.com/cliftcloud/certistack/blob/main/scripts/install.sh)
 first, or [install by hand](https://certistack.dev/docs/quickstart/#install-by-hand); no `sudo`? See
 [Install without sudo](https://certistack.dev/docs/quickstart/#install-without-sudo).
@@ -103,7 +107,7 @@ first, or [install by hand](https://certistack.dev/docs/quickstart/#install-by-h
 | **Backups** | Plain and encrypted PBS backups, any namespace, the newest snapshot or a pinned one |
 | **Scale** | Several VMs per plan, started tier by tier in dependency order |
 | **Proxmox** | Proxmox VE 9.x and 8.1 to 8.4, each with PBS 3.x or 4.x, on amd64 ([compatibility](https://certistack.dev/docs/compatibility/)) |
-| **Reports** | JSON with the outcome, every probe, each disk's checksum, the recovery time against your objective and the proof of cleanup; `report show` reads it, `verify-report` judges it |
+| **Reports** | JSON with the outcome, every probe, each disk's checksum, the recovery time against your objective and the cleanup record; `report show` reads it, `verify-report` judges it |
 
 ## How it was tested
 
@@ -121,12 +125,10 @@ was tested on a 14-node Proxmox VE lab and standalone hosts:
   killed halfway and finished by `recover`.
 - **Over 7,000 automated tests** on the release commit, **more than 3.6 million fuzzed inputs** to its parsers, and
   **fault injection**: hostile inputs, misbehaving Proxmox servers, corrupt and impossible backups, and runs killed
-  midway. Every case is refused before anything is created, or fails safely and leaves the node clean; none passes
-  falsely.
+  midway. In these tests every case was refused before anything was created, or failed safely and left the node clean;
+  none passed falsely.
 
-[What was tested, on which build](https://certistack.dev/docs/compatibility/#what-was-tested). Recommended for a first
-run: a standalone node, or a node you can take out of service. On a cluster, each run applies an SDN change, which
-reloads the network on every node.
+[What was tested, on which build](https://certistack.dev/docs/compatibility/#what-was-tested).
 
 ## Community and Enterprise
 

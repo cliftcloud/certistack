@@ -224,6 +224,10 @@ func (s *rbacSandbox) secrets() int {
 	return len(strings.Fields(s.read("secrets")))
 }
 
+// keepToken is what a person who holds the existing tokens' secrets puts in
+// front of a rerun: without it the script stops before any grant.
+const keepToken = "CERTISTACK_KEEP_TOKEN=yes"
+
 var rbacWithPBS = RBACParams{Node: "pve-node-01", OverlayStorage: "certistack-scratch", PBSDatastore: "datastore1"}
 
 // A newcomer who runs the script twice (or after a half-finished first run)
@@ -242,7 +246,7 @@ func TestRBACScriptCanBeRunAgain(t *testing.T) {
 	}
 	acls := s.read("acl")
 
-	stdout, stderr, code = s.run()
+	stdout, stderr, code = s.run(keepToken)
 	if code != 0 {
 		t.Fatalf("second run exited %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
 	}
@@ -266,9 +270,13 @@ func TestRBACScriptCanBeRunAgain(t *testing.T) {
 	}
 }
 
-// An existing token is not an error: the script says its secret was shown once,
-// how to replace it, and goes on to the ACLs.
-func TestRBACScriptExplainsAnExistingTokenAndCarriesOn(t *testing.T) {
+// An existing token gets no grant from a run that does not say its secret is
+// held: the script stops before the ACLs (exit 3), says the secret was shown
+// once and how to replace it, and how to go on when the secret is held. A
+// token made for another controller, another customer's on a PBS or cluster
+// they share, so gains no access. With CERTISTACK_KEEP_TOKEN=yes it goes on to
+// the ACLs.
+func TestRBACScriptGrantsNothingToAnExistingTokenUnlessItsSecretIsHeld(t *testing.T) {
 	s := newRBACSandbox(t, rbacWithPBS)
 	if _, _, code := s.run(); code != 0 {
 		t.Fatalf("first run exited %d", code)
@@ -277,23 +285,29 @@ func TestRBACScriptExplainsAnExistingTokenAndCarriesOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	stdout, stderr, code := s.run()
+	if code != 3 {
+		t.Fatalf("a rerun without CERTISTACK_KEEP_TOKEN exited %d, want 3\n%s\n%s", code, stdout, stderr)
+	}
+	if got := s.read("acl"); got != "" {
+		t.Errorf("a rerun without CERTISTACK_KEEP_TOKEN granted ACLs to the existing token:\n%s", got)
+	}
+	for _, want := range []string{
+		"Nothing was granted to it", "CERTISTACK_KEEP_TOKEN=yes", "If you lost it", "stopped while",
+		"certistack-svc@pve!automation", "cannot be shown again", "pveum user token remove certistack-svc@pve automation",
+		"run this script again",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("the refused rerun's stderr lacks %q:\n%s", want, stderr)
+		}
+	}
+	stdout, stderr, code = s.run(keepToken)
 	if code != 0 {
 		t.Fatalf("second run exited %d\n%s\n%s", code, stdout, stderr)
 	}
-	both := stdout + stderr
-	for _, want := range []string{
-		"certistack-svc@pve!automation",
-		"cannot be shown again",
-		"pveum user token remove certistack-svc@pve automation",
-		"run this script again",
-		"certistack-ro@pbs!ro",
-		"proxmox-backup-manager user delete-token certistack-ro@pbs ro",
-	} {
-		if !strings.Contains(both, want) {
-			t.Errorf("the second run's output lacks %q:\n%s", want, both)
-		}
+	if !strings.Contains(stderr, "CERTISTACK_KEEP_TOKEN=yes: you hold its secret, so the grants below are given to it.") {
+		t.Errorf("the rerun with the secret held does not say why it grants:\n%s", stderr)
 	}
-	// The ACL steps ran although both tokens existed.
+	// With the secret held, the ACL steps ran although both tokens existed.
 	if got := strings.Count(s.read("acl"), "\n"); got != 5+2 {
 		t.Errorf("the second run applied %d ACLs, want %d:\n%s", got, 5+2, s.read("acl"))
 	}
@@ -301,7 +315,7 @@ func TestRBACScriptExplainsAnExistingTokenAndCarriesOn(t *testing.T) {
 	if _, _, code := s.runCommand("pveum", "user", "token", "remove", "certistack-svc@pve", "automation"); code != 0 {
 		t.Fatalf("removing the token: exit %d", code)
 	}
-	stdout, _, code = s.run()
+	stdout, _, code = s.run(keepToken)
 	if code != 0 || !strings.Contains(stdout, "STUB-SECRET-certistack-svc@pve!automation") {
 		t.Errorf("after removing the token the script did not create a new one (exit %d):\n%s", code, stdout)
 	}
@@ -353,7 +367,7 @@ func TestRBACScriptSaysWhichExistingObjectsItFoundAndLeftUntouched(t *testing.T)
 	if _, _, code := s.run(); code != 0 {
 		t.Fatalf("first run exited %d", code)
 	}
-	stdout, stderr, code := s.run()
+	stdout, stderr, code := s.run(keepToken)
 	if code != 0 {
 		t.Fatalf("second run exited %d\n%s\n%s", code, stdout, stderr)
 	}
@@ -391,7 +405,7 @@ func TestRBACScriptFinishesAHalfDoneFirstRun(t *testing.T) {
 			if !strings.Contains(stderr, "stopped while") {
 				t.Errorf("no clear message on stderr:\n%s", stderr)
 			}
-			stdout, stderr, code = s.run()
+			stdout, stderr, code = s.run(keepToken)
 			if code != 0 {
 				t.Fatalf("the re-run exited %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
 			}
@@ -457,7 +471,7 @@ func TestRBACScriptFindsAnEarlierGrantOnTheWholeDatastore(t *testing.T) {
 	if err := os.WriteFile(s.script, []byte(scriptFor(t, narrow)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr, code := s.run()
+	stdout, stderr, code := s.run(keepToken)
 	if code != 0 {
 		t.Fatalf("the run with a namespace exited %d\n%s\n%s", code, stdout, stderr)
 	}
@@ -480,7 +494,7 @@ func TestRBACScriptFindsAnEarlierGrantOnTheWholeDatastore(t *testing.T) {
 	if acl := s.read("acl"); strings.Contains(acl, "/datastore/datastore1 ") || strings.Count(acl, "/datastore/datastore1/prod ") != 2 {
 		t.Errorf("after the printed commands the ACLs are:\n%s", acl)
 	}
-	if stdout, _, _ := s.run(); strings.Contains(stdout, "can still read every namespace") {
+	if stdout, _, code := s.run(keepToken); code != 0 || strings.Contains(stdout, "can still read every namespace") {
 		t.Errorf("the note is printed with no wider grant left:\n%s", stdout)
 	}
 
@@ -488,7 +502,7 @@ func TestRBACScriptFindsAnEarlierGrantOnTheWholeDatastore(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.state, "acl"), []byte("acl update /datastore/datastore1 DatastoreAudit --auth-id certistack-ro@pbs\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if stdout, _, _ := s.run(); strings.Contains(stdout, "can still read every namespace") {
+	if stdout, _, code := s.run(keepToken); code != 0 || strings.Contains(stdout, "can still read every namespace") {
 		t.Errorf("a grant of another role is reported:\n%s", stdout)
 	}
 
@@ -499,10 +513,11 @@ func TestRBACScriptFindsAnEarlierGrantOnTheWholeDatastore(t *testing.T) {
 	if err := os.WriteFile(s.script, []byte(scriptFor(t, whole)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, code := s.run(); code != 0 {
+	if _, _, code := s.run(keepToken); code != 0 {
 		t.Fatal("the run without a namespace failed")
 	}
-	narrow.Capture = true
+	// Setup runs the part for an existing token only when it holds its secret.
+	narrow.Capture, narrow.SecretKept = true, true
 	if err := os.WriteFile(s.script, []byte(scriptFor(t, narrow)), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -515,5 +530,50 @@ func TestRBACScriptFindsAnEarlierGrantOnTheWholeDatastore(t *testing.T) {
 	}
 	if got := WiderGrantHolders(`certistack-ro@pbs certistack-ro@pbs!ro root@pam certistack-ro@pbs`); strings.Join(got, " ") != "certistack-ro@pbs certistack-ro@pbs!ro" {
 		t.Errorf("WiderGrantHolders = %q", got)
+	}
+}
+
+// The script certistack setup runs (capture) grants nothing to a token that
+// exists when setup holds no secret for it: it prints no token on standard
+// output (so setup learns the token exists and asks whether to replace it),
+// applies no ACL, and ends with status 0. This is the shared-PBS case: a
+// second customer's setup must not widen the first customer's token.
+func TestTheCaptureScriptGrantsNothingToATokenSetupHoldsNoSecretFor(t *testing.T) {
+	for _, part := range []string{PartPVE, PartPBS} {
+		t.Run(part, func(t *testing.T) {
+			params := RBACParams{Node: "pve-node-01", OverlayStorage: "certistack-scratch", PBSDatastore: "datastore1", Part: part}
+			tool := map[string]string{PartPVE: "pveum", PartPBS: "proxmox-backup-manager"}[part]
+			s := newRBACSandboxWith(t, params, tool)
+			if _, _, code := s.run(); code != 0 {
+				t.Fatalf("the first (printed) run exited %d", code)
+			}
+			if err := os.Remove(filepath.Join(s.state, "acl")); err != nil {
+				t.Fatal(err)
+			}
+			params.Capture = true
+			if err := os.WriteFile(s.script, []byte(scriptFor(t, params)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			stdout, stderr, code := s.run()
+			if code != 0 {
+				t.Fatalf("the capture run exited %d, want 0\n%s\n%s", code, stdout, stderr)
+			}
+			if strings.TrimSpace(stdout) != "" {
+				t.Errorf("the capture run wrote to standard output, where setup reads a new token:\n%s", stdout)
+			}
+			if got := s.read("acl"); got != "" {
+				t.Errorf("the capture run granted ACLs to a token setup holds no secret for:\n%s", got)
+			}
+			if !strings.Contains(stderr, "certistack setup does not hold its secret, so nothing was granted to it.") {
+				t.Errorf("the capture run does not say why it stopped:\n%s", stderr)
+			}
+			params.SecretKept = true
+			if err := os.WriteFile(s.script, []byte(scriptFor(t, params)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if _, stderr, code := s.run(); code != 0 || s.read("acl") == "" {
+				t.Errorf("with the secret held the capture run exited %d and granted %q\n%s", code, s.read("acl"), stderr)
+			}
+		})
 	}
 }

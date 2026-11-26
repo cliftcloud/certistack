@@ -15,7 +15,7 @@ import (
 )
 
 // Every verifier refuses a report that has no signature, and says so with a
-// sentinel a caller can recognise: a signature taken off a report must never
+// sentinel a caller can recognize: a signature taken off a report must never
 // read as a report that was verified.
 func TestVerifiersRefuseAnUnsignedReportWithTheSentinel(t *testing.T) {
 	public, _ := testKeys(t)

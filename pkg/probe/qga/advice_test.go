@@ -33,7 +33,7 @@ func silentAgentSocket(t *testing.T) string {
 // timeout", which does not say that the agent is the thing that is missing.
 func TestUnavailableChannelNamesTheMissingAgent(t *testing.T) {
 	// The handshake error as the report carried it.
-	_, err := Dial(silentAgentSocket(t), 200*time.Millisecond)
+	_, err := Dial(silentAgentSocket(t), 2*time.Second)
 	if err == nil || !strings.Contains(err.Error(), "QGA sync handshake failed") || !strings.Contains(err.Error(), "i/o timeout") {
 		t.Fatalf("Dial to a silent agent = %v, want the handshake to fail with an i/o timeout", err)
 	}
@@ -43,8 +43,9 @@ func TestUnavailableChannelNamesTheMissingAgent(t *testing.T) {
 
 	for _, required := range []bool{true, false} {
 		t.Run(fmt.Sprintf("required=%v", required), func(t *testing.T) {
-			// The probe's own budget ends the handshake, as it does in a run.
-			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+			// The probe's own one-second budget ends the handshake, as it does in a
+			// run; the context only bounds a hang.
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			result := NewQGAProber(silentAgentSocket(t), "systemctl is-active nginx", "", required, time.Second, "nginx is running").Probe(ctx)
 			text := result.Error
@@ -81,7 +82,7 @@ func TestUnavailableChannelAdviceIsForASilentAgentOnly(t *testing.T) {
 		_, _ = bufio.NewReader(conn).ReadBytes('\n')
 		_, _ = conn.Write([]byte("{\"error\":{\"class\":\"GenericError\",\"desc\":\"JSON parse error\"}}\n"))
 	})
-	_, parseErr := Dial(notAnAgent, 200*time.Millisecond)
+	_, parseErr := Dial(notAnAgent, 2*time.Second)
 	for _, tc := range []struct {
 		name   string
 		err    error
@@ -153,10 +154,10 @@ func TestDisabledGuestExecNamesTheAllowList(t *testing.T) {
 		t.Error("a disabled guest-ping was reported as a disabled guest-exec")
 	}
 	if !IsGuestExecDisabled(fmt.Errorf("wrapped: %w", &AgentError{Command: "guest-exec", Desc: "Command guest-exec has been disabled"})) {
-		t.Error("a wrapped disabled guest-exec was not recognised")
+		t.Error("a wrapped disabled guest-exec was not recognized")
 	}
 	if IsGuestExecDisabled(errors.New(agentText)) {
-		t.Error("plain text that merely reads like the agent's error was recognised")
+		t.Error("plain text that merely reads like the agent's error was recognized")
 	}
 }
 

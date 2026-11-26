@@ -200,7 +200,7 @@ func TestComposedPlanIsValidAsWritten(t *testing.T) {
 	if strings.Contains(text, "frameworks: []") || strings.Contains(text, "frameworks: [CHANGE]") {
 		t.Fatalf("the composed plan still needs its frameworks set:\n%s", text)
 	}
-	const block = "compliance:\n  # The standards the report is labelled with: DORA, SOC2, HIPAA, ISO27001,\n  # CIS_V8 (a label, not a certification). NONE names none and stands alone;\n  # replace it to name one or more. It is valid as it stands.\n  frameworks: [NONE]\n"
+	const block = "compliance:\n  # The standards the report is labeled with: DORA, SOC2, HIPAA, ISO27001,\n  # CIS_V8 (a label, not a certification). NONE names none and stands alone;\n  # replace it to name one or more. It is valid as it stands.\n  frameworks: [NONE]\n"
 	if !strings.Contains(text, block) {
 		t.Fatalf("the plan lacks the frameworks line and the comment that explains it:\n%s", text)
 	}
@@ -246,7 +246,7 @@ func TestComposedPlanWithoutRetentionIsRefused(t *testing.T) {
 	}
 	filled := string(res.YAML)
 	const line = "  retention_days: 90\n"
-	if !strings.Contains(filled, line) || !strings.Contains(filled, "# Your choice: the days you keep each report") || strings.Contains(filled, "CHANGE: the days you keep") {
+	if !strings.Contains(filled, line) || !strings.Contains(filled, "# Your choice: the retention period in days") || strings.Contains(filled, "CHANGE: the retention period") {
 		t.Fatalf("the composed plan lacks a marked retention_days:\n%s", filled)
 	}
 	for name, edited := range map[string]string{

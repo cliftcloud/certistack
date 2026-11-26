@@ -64,31 +64,31 @@ func TestStepsListTheirPhasesInTheOrderOfTheRun(t *testing.T) {
 		want string
 	}{
 		{"one VM, every phase", testPlan(tier(1, adaptable(9100, "web"))), Options{},
-			"admission network restore guest-network integrity boot probes teardown signing"},
+			"admission network restore guest-network integrity boot probes teardown report"},
 		{"mode preserve has no guest network preparation", testPlan(tier(1, preserved(9100, "web"))), Options{},
-			"admission network restore integrity boot probes teardown signing"},
+			"admission network restore integrity boot probes teardown report"},
 		{"a VM with no address to configure has none either", testPlan(tier(1, silent)), Options{},
-			"admission network restore integrity boot probes teardown signing"},
+			"admission network restore integrity boot probes teardown report"},
 		{"test mode has no integrity scan", testPlan(tier(1, adaptable(9100, "web"))), Options{SkipIntegrity: true},
-			"admission network restore guest-network boot probes teardown signing"},
+			"admission network restore guest-network boot probes teardown report"},
 		{"test mode that copies before boot still scans", testPlan(tier(1, copying)), Options{SkipIntegrity: true},
-			"admission network restore guest-network integrity boot probes teardown signing"},
+			"admission network restore guest-network integrity boot probes teardown report"},
 		{"copy_before_boot never does not bring the scan back", testPlan(tier(1, copyNever)), Options{SkipIntegrity: true},
-			"admission network restore guest-network boot probes teardown signing"},
+			"admission network restore guest-network boot probes teardown report"},
 		{"test mode and preserve", testPlan(tier(1, preserved(9100, "web"))), Options{SkipIntegrity: true},
-			"admission network restore boot probes teardown signing"},
+			"admission network restore boot probes teardown report"},
 		{"a grace period waits after the boots, before the probes", testPlan(grace), Options{},
-			"admission network restore guest-network integrity boot grace probes teardown signing"},
+			"admission network restore guest-network integrity boot grace probes teardown report"},
 		{"two VMs boot one after the other, then are probed one after the other, and the soak ends the tier", testPlan(soak), Options{},
 			"admission network " +
 				"restore guest-network integrity boot restore guest-network integrity boot " +
-				"grace probes probes soak teardown signing"},
+				"grace probes probes soak teardown report"},
 		{"tiers go by level, whatever order the plan lists them", testPlan(tier(2, preserved(9101, "db")), tier(1, adaptable(9100, "web"))), Options{},
-			"admission network restore guest-network integrity boot probes restore integrity boot probes teardown signing"},
+			"admission network restore guest-network integrity boot probes restore integrity boot probes teardown report"},
 		{"a tier with no VM has no grace and no soak", testPlan(empty), Options{},
-			"admission network teardown signing"},
-		{"no tiers", testPlan(), Options{}, "admission network teardown signing"},
-		{"no plan", nil, Options{}, "admission network teardown signing"},
+			"admission network teardown report"},
+		{"no tiers", testPlan(), Options{}, "admission network teardown report"},
+		{"no plan", nil, Options{}, "admission network teardown report"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if got := kindsOf(Steps(test.plan, test.opts)); got != test.want {
@@ -225,7 +225,7 @@ func TestAVMWithoutANameIsNamedByItsID(t *testing.T) {
 }
 
 // A run that stops short keeps the numbers of the phases it reached: the
-// teardown and the signing are the last two, wherever the run stopped, and a
+// teardown and the report are the last two, wherever the run stopped, and a
 // phase the run had passed or the list does not have says nothing.
 func TestARunThatStopsShortKeepsTheNumbersOfItsLastPhases(t *testing.T) {
 	tracker := NewTracker(Steps(testPlan(tier(1, adaptable(9100, "web"))), Options{}))
@@ -326,7 +326,7 @@ func TestTheShippedPlansAndTheWorkerCountTheSamePhases(t *testing.T) {
 		file string
 		want int
 	}{
-		// admission, network, restore, guest network, integrity, boot, probes, teardown, signing
+		// admission, network, restore, guest network, integrity, boot, probes, teardown, report
 		{"minimal-single-vm.yaml", 9},
 		// Three tiers of one VM, each with a grace period: 2 + 3*(4 + grace + probes) + 2.
 		{"three-tier-app.yaml", 22},

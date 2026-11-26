@@ -40,7 +40,7 @@ var ErrDisksUnknown = errors.New("cannot determine which disks hold the file sys
 //
 // The check ends when ctx does: its ZFS pool listing is a subprocess, which
 // is stopped, and the error returned is ctx's, never ErrDisksUnknown, so a
-// caller that was cancelled is not told the topology is unknown.
+// caller that was canceled is not told the topology is unknown.
 func SharedDisks(ctx context.Context, pathA, pathB string) ([]string, error) {
 	return sharedDisks(ctx, "/sys", pathA, pathB)
 }

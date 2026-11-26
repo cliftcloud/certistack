@@ -69,7 +69,7 @@ func TestScanStopsAtAFailingCallbackAndLeavesNothingRunning(t *testing.T) {
 }
 
 // The digest and the byte count are the same for every number of buffers, and
-// a scan cancelled in the middle returns the cancellation, not a result.
+// a scan canceled in the middle returns the cancellation, not a result.
 func TestScanIsTheSameForEveryBufferCount(t *testing.T) {
 	content := make([]byte, 9<<20+777)
 	for i := range content {
@@ -107,6 +107,6 @@ func TestScanIsTheSameForEveryBufferCount(t *testing.T) {
 		return nil
 	})
 	if err == nil || !errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "<nil>") {
-		t.Fatalf("a scan cancelled during its first chunk returned %v, want the cancellation", err)
+		t.Fatalf("a scan canceled during its first chunk returned %v, want the cancellation", err)
 	}
 }

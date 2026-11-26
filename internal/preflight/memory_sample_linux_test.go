@@ -10,11 +10,11 @@ import (
 	"github.com/cliftcloud/certistack/pkg/admission"
 )
 
-// A memory refusal keeps the sample that decided it, which the worker signs
+// A memory refusal keeps the sample that decided it, which the worker writes
 // into its report (admission.evaluation). A test of the worker's command with a
 // Result built by hand would stay green if the line that copies the sample into
 // the Result (r.MemoryEvaluation = &evaluation) were removed, and a refused run
-// would be signed with no measurement. This runs the real check on the real
+// would be reported with no measurement. This runs the real check on the real
 // host.
 func TestMemoryRefusalOfTheHostChecksKeepsTheSampleThatDecidedIt(t *testing.T) {
 	const impossibleMiB = 1 << 30 // a pebibyte

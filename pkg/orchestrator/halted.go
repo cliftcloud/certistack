@@ -237,10 +237,7 @@ func (o *Orchestrator) watchVMs(ctx context.Context, d time.Duration, vmids []in
 			// wait past the answer it already has. A VM never read
 			// successfully has nothing but this read to be judged by, and is
 			// failed as unobservable without one: it gets a full budget of its
-			// own, however long the VMs before it took (a healthy but
-			// slow PVE read twelve VMs at 600 ms each, and the last four, whose
-			// reads began after the shared budget had ended, were failed
-			// without being asked).
+			// own, however long the VMs before it took.
 			if observed[vmid].ok() {
 				if end := deadline.Add(vmStatusReadTimeout); end.Before(readDeadline) {
 					readDeadline = end

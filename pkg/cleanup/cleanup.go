@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package cleanup provides a LIFO stack for fail-safe resource teardown.
+// Package cleanup provides a stack of teardown steps for the resources a run
+// creates.
 package cleanup
 
 import (
@@ -10,9 +11,9 @@ import (
 	"sync"
 )
 
-// Stack manages a LIFO stack of cleanup functions that execute in reverse
-// order of registration. It provides fail-safe resource teardown for
-// ephemeral resources (loopback devices, COW files, VMs, SDN objects).
+// Stack holds the cleanup functions of ephemeral resources (loopback devices,
+// COW files, VMs, SDN objects). They run in reverse order of registration, so
+// a resource is torn down before what it depends on.
 type Stack struct {
 	mu    sync.Mutex
 	steps []step
@@ -36,20 +37,19 @@ func New() *Stack {
 	}
 }
 
-// Push registers an idempotent teardown closure with a descriptive name.
-// The closure is pushed onto the stack and will execute during Unwind()
-// in LIFO order. Push is safe to call from multiple goroutines.
+// Push registers an idempotent teardown closure with a descriptive name. Push
+// is safe to call from multiple goroutines.
 func (s *Stack) Push(name string, fn func() error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.steps = append(s.steps, step{name: name, fn: fn})
 }
 
-// Unwind executes all registered cleanup functions in LIFO order.
-// Each function is called regardless of whether previous functions
-// returned errors or panicked. The mutex is released during callback
-// execution to prevent deadlocks if a callback interacts with the stack.
-// Unwind is safe to call repeatedly; each call drains whatever steps are currently queued.
+// Unwind runs every registered cleanup function, the last registered first.
+// Each function runs whether or not the earlier ones returned an error or
+// panicked. The mutex is released while a function runs, so a function may use
+// the stack. Unwind is safe to call repeatedly; each call drains the steps
+// queued at that moment.
 func (s *Stack) Unwind() []StepError {
 	s.mu.Lock()
 	steps := s.steps

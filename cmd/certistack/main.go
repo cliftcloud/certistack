@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package main provides the certistack CLI binary—an administrative
-// interface for CertiStack disaster recovery validation plans.
+// Package main is the certistack command: restore tests of Proxmox backups, the
+// commands that set them up, and the commands that read their reports.
 package main
 
 import (
@@ -89,6 +89,12 @@ var (
 	// worker that maps backups on the node: unlike the read-only workspace of
 	// plan, check and init's discovery, it keeps a recovery journal.
 	remoteInspectionStaged atomic.Bool
+	// setupChanging is set once setup may have changed something on this
+	// controller, the node or the PBS; setupPartial is the path of
+	// controller.env.partial once it holds a token's secret. Setup's
+	// interrupt notice says what stays from these two.
+	setupChanging atomic.Bool
+	setupPartial  atomic.Value // string
 )
 
 // noteWorkerStaged records that the command is about to stage a temporary
@@ -100,14 +106,18 @@ func noteWorkerStaged() { remoteWorkerStaged.Store(true) }
 // that CertiStack is waiting for cleanup and offer to abandon it.
 // Most commands only read: they end at once and have no worker workspace, so
 // that message is untrue of them and sends an operator looking for a
-// workspace there is not. plan and init clean up only when they stage a
-// worker on a node, and init when --inspect maps backups on this node. A
-// command not named here, or none yet, is assumed to have cleanup: the claim
-// that is safe to make is the longer one.
+// workspace there is not. setup, trust-node and pve-ca write, but undo
+// nothing and wait for nothing; interruptEffects says what they leave. plan
+// and init clean up only when they stage a worker on a node, and init when
+// --inspect maps backups on this node. A command not named here, or none yet,
+// is assumed to have cleanup: the claim that is safe to make is the longer
+// one. help and the completion commands (named for their shells) print text.
 func interruptHasCleanup() bool {
 	name, _ := activeCommand.Load().(string)
 	switch name {
-	case "version", "validate", "doctor", "verify-report", "inspect", "node-plan", "node-discover", "telemetry", "report", "show", "schema", "setup", "trust-node", "pve-ca", "rbac", "node-check":
+	case "version", "validate", "doctor", "verify-report", "inspect", "node-plan", "node-discover", "telemetry", "report", "show", "schema", "rbac", "node-check",
+		"setup", "trust-node", "pve-ca",
+		"help", "completion", "bash", "zsh", "fish", "powershell", "__complete", "__completeNoDesc":
 		return false
 	case "init":
 		return remoteWorkerStaged.Load() || localInspection.Load()
@@ -115,6 +125,28 @@ func interruptHasCleanup() bool {
 		return remoteWorkerStaged.Load()
 	}
 	return true
+}
+
+// interruptEffects is what an interrupt of a command with no cleanup says
+// about the command's changes: that it makes none, or what stays.
+func interruptEffects() string {
+	name, _ := activeCommand.Load().(string)
+	switch name {
+	case "setup":
+		partial, _ := setupPartial.Load().(string)
+		switch {
+		case partial != "":
+			return "Setup undoes nothing: what it has already changed on this controller, the node and the PBS stays, and the secret of each token setup created is kept in " + partial + " (mode 0600). Run certistack setup again; it reuses what exists and offers those secrets."
+		case setupChanging.Load():
+			return "Setup undoes nothing: what it has already changed on this controller, the node and the PBS stays. Run certistack setup again; it reuses what exists."
+		}
+		return "Setup had not changed anything yet. Run certistack setup again to start over."
+	case "trust-node":
+		return "Nothing is written until you confirm the key; a known_hosts line already written stays."
+	case "pve-ca":
+		return "The CA file is written whole or not at all; one already written stays."
+	}
+	return "This command changes nothing, so there is nothing to clean up."
 }
 
 // readOnlyWorkerCleanup reports whether the cleanup an interrupt waits for is
@@ -151,7 +183,7 @@ const (
 
 // noticeWait bounds how long a signal notice may hold up what the signal asks
 // for. The operator's terminal or a supervisor's pipe can block a write (a full
-// pipe nobody reads, a stopped pager): cancelling the run, and abandoning its
+// pipe nobody reads, a stopped pager): canceling the run, and abandoning its
 // cleanup on a second interrupt, must not wait on it.
 var noticeWait = 2 * time.Second
 
@@ -193,9 +225,9 @@ func newSignalContexts(signals <-chan os.Signal, output io.Writer) (context.Cont
 			}
 			switch {
 			case !interruptHasCleanup() && sig == os.Interrupt:
-				signalNotice(output, "Interrupt received; stopping. This command changes nothing, so there is nothing to clean up.\n")
+				signalNotice(output, "Interrupt received; stopping. %s\n", interruptEffects())
 			case !interruptHasCleanup():
-				signalNotice(output, "Stop signal received (%s); stopping. This command changes nothing, so there is nothing to clean up.\n", sig)
+				signalNotice(output, "Stop signal received (%s); stopping. %s\n", sig, interruptEffects())
 			case recovering() && sig == os.Interrupt:
 				signalNotice(output, "Interrupt received; "+recoverStops+" Press Ctrl-C again to "+recoverCutsShort+"\n")
 			case recovering():
@@ -245,14 +277,30 @@ func main() {
 	ctx, cleanupCtx, stop := newSignalContexts(signals, os.Stderr)
 	defer stop()
 	if err := newRootCmd(cleanupCtx).ExecuteContext(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if line := errorLine(err, ctx.Err() != nil); line != "" {
+			fmt.Fprintln(os.Stderr, line)
+		}
 		os.Exit(exitCodeForError(err))
 	}
 }
 
-func rootCmd() *cobra.Command {
-	return newRootCmd(nil)
+// errorLine is what main prints for the error a command returned, or "" when
+// the signal notice has already said all there is: a bare "context canceled"
+// after an interrupt only repeats it as a failure, in programmer's words. The
+// exit code still says the command was interrupted.
+func errorLine(err error, signaled bool) string {
+	if signaled && errors.Is(err, context.Canceled) && (err.Error() == context.Canceled.Error() || errors.As(err, new(interruptNoticed))) {
+		return ""
+	}
+	return fmt.Sprintf("Error: %v", err)
 }
+
+// interruptNoticed ends a command whose interrupt notice said what stays and
+// how to go on, so that nothing more is printed for it.
+type interruptNoticed struct{}
+
+func (interruptNoticed) Error() string { return "interrupted" }
+func (interruptNoticed) Unwrap() error { return context.Canceled }
 
 func newRootCmd(cleanupContext context.Context) *cobra.Command {
 	var (
@@ -261,13 +309,13 @@ func newRootCmd(cleanupContext context.Context) *cobra.Command {
 
 	root := &cobra.Command{
 		Use:   "certistack",
-		Short: "CertiStack — Autonomous Disaster Recovery Validation for Proxmox VE",
-		Long: `CertiStack validates disaster recovery plans by booting ephemeral VMs
-from Proxmox Backup Server snapshots inside isolated SDN sandboxes,
-executing deterministic multi-stage probes, and writing a JSON report of what
-the run found. The Community Edition writes the report unsigned ("certistack
-report show" reads it); the Enterprise Edition signs it, and "certistack
-verify-report" checks a signed one.`,
+		Short: "Restore-test Proxmox backups in an isolated sandbox",
+		Long: `CertiStack restores the VMs of a plan from Proxmox Backup Server snapshots
+and boots them in an isolated sandbox on a Proxmox VE node, runs the plan's
+probes against them, and writes a JSON report of what the run found. The
+Community Edition writes the report unsigned ("certistack report show" reads
+it); the Enterprise Edition signs it, and "certistack verify-report" checks a
+signed one.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// --env-file "" is a script's unset variable, not "no file": the
 			// command would read the process environment instead of the file

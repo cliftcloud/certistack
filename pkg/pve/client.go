@@ -270,7 +270,7 @@ type APIError struct {
 	StatusCode int
 	Message    string
 	// Errors holds the details of PVE's errors object, one per parameter name:
-	// the names and the texts are sanitised and bounded, at most
+	// the names and the texts are sanitized and bounded, at most
 	// maxAPIErrorDetails are kept, and omitted counts those that were not.
 	Errors  map[string]string
 	omitted int
@@ -373,7 +373,7 @@ func retryInterrupted(ctx context.Context, last error) error {
 	if cause == nil || errors.Is(last, cause) {
 		return last
 	}
-	return fmt.Errorf("%w; stopped retrying because the request was cancelled: %w", last, cause)
+	return fmt.Errorf("%w; stopped retrying because the request was canceled: %w", last, cause)
 }
 
 // do sends one request. transient reports a failure that Do may retry.
@@ -401,7 +401,7 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte, re
 	req.Header.Set("Accept", "application/json")
 
 	if ctxErr := ctx.Err(); ctxErr != nil {
-		// Cancelled before anything was sent.
+		// Canceled before anything was sent.
 		return false, &transportError{method: method, path: path, cause: ctxErr, neverArrived: true}
 	}
 	resp, err := c.httpClient.Do(req)
@@ -536,9 +536,6 @@ func IsTransient(err error) bool {
 	return !refused
 }
 
-// statusText names an HTTP status, including the ones pveproxy uses when a
-// request for another cluster node fails in transit, which it often sends
-// without a message.
 // statusReason is the reason phrase of the reply's status line when it says
 // more than the standard text for its code (PVE puts its error message there),
 // or "". pveproxy's own codes 595 to 597 keep statusText's explanation, and a
@@ -555,6 +552,9 @@ func statusReason(resp *http.Response) string {
 	return reason
 }
 
+// statusText names an HTTP status, including the ones pveproxy uses when a
+// request for another cluster node fails in transit, which it often sends
+// without a message.
 func statusText(status int) string {
 	switch status {
 	case 595:
@@ -589,7 +589,7 @@ func (e *transportError) Error() string {
 }
 
 // ErrRequestNotSent marks an error of a request that provably never reached
-// PVE: the client is not configured, the request was cancelled before it was
+// PVE: the client is not configured, the request was canceled before it was
 // sent, or no connection was ever made. It is not marked when a reply was
 // lost, and a mutation whose reply was lost may have been made.
 var ErrRequestNotSent = errors.New("the request was not sent")
@@ -667,7 +667,7 @@ func sanitizeAPIErrorText(value, rawBaseURL string) string {
 // print: the response is the endpoint's to write, so a parameter name is as
 // untrusted as its text. Each name goes through sanitizeAPIErrorText like each
 // value (first line, no control characters, endpoint redacted, bounded); names
-// that become the same after sanitising are merged, their distinct texts
+// that become the same after sanitizing are merged, their distinct texts
 // joined; and at most maxAPIErrorDetails names are kept. The raw names are
 // taken in sorted order, so the same response keeps the same details. omitted
 // counts the entries that were left out for the cap.

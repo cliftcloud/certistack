@@ -52,10 +52,10 @@ func TestTheLeaseWatchTheSupervisorEmbedsRunsEndToEnd(t *testing.T) {
 	embedded := launched[0]
 	want := h.adapt(t, leaseWatchScript(workspaceShellVariables(h.lease, h.worker, h.stateDir, h.env, h.progress, h.workspace)))
 	// adapt() puts a quoted tick path inside the supervisor's single-quoted
-	// watch_script, which unquotes it there: normalise that harness artifact.
+	// watch_script, which unquotes it there: normalize that harness artifact.
 	tick := filepath.Join(h.root, "tick")
-	if normalised := strings.ReplaceAll(want, shellQuote(tick), tick); embedded != normalised {
-		t.Fatalf("the embedded watch differs from leaseWatchScript:\n--- embedded\n%s\n--- want\n%s", embedded, normalised)
+	if normalized := strings.ReplaceAll(want, shellQuote(tick), tick); embedded != normalized {
+		t.Fatalf("the embedded watch differs from leaseWatchScript:\n--- embedded\n%s\n--- want\n%s", embedded, normalized)
 	}
 	// The renewal time on the boot clock, the lease's stamp, and the worker's
 	// PID and start time.

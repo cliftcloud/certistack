@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// materialPrimaries are the solid primary colours of the pinned MkDocs
+// materialPrimaries are the solid primary colors of the pinned MkDocs
 // Material theme (requirements-docs.txt, 9.7.7; palette.*.min.css): the
 // header's and navigation's background (fg) and the text on it (bg), which
 // the theme also uses for ordinary links on a light page (fg on white). A
@@ -41,17 +41,17 @@ var materialPrimaries = map[string][2]string{
 	"blue grey":   {"#546d78", "#ffffff"},
 }
 
-// relativeLuminance is the WCAG 2 definition for an #rrggbb colour.
+// relativeLuminance is the WCAG 2 definition for an #rrggbb color.
 func relativeLuminance(t *testing.T, hex string) float64 {
 	t.Helper()
 	if len(hex) != 7 || hex[0] != '#' {
-		t.Fatalf("not an #rrggbb colour: %q", hex)
+		t.Fatalf("not an #rrggbb color: %q", hex)
 	}
 	var channel [3]float64
 	for i := range channel {
 		v, err := strconv.ParseUint(hex[1+2*i:3+2*i], 16, 8)
 		if err != nil {
-			t.Fatalf("not an #rrggbb colour: %q", hex)
+			t.Fatalf("not an #rrggbb color: %q", hex)
 		}
 		c := float64(v) / 255
 		if c <= 0.03928 {
@@ -72,7 +72,7 @@ func contrastRatio(t *testing.T, a, b string) float64 {
 	return (la + 0.05) / (lb + 0.05)
 }
 
-// The documentation theme's primary colour carries the header and navigation
+// The documentation theme's primary color carries the header and navigation
 // text, and, on the light page, every ordinary link. WCAG 2 asks 4.5:1 for such
 // text (a light blue gives white text only about 2.7:1). Every palette entry of
 // mkdocs.yml must give its text, and a link on the light page, at least that,
@@ -106,7 +106,7 @@ func TestDocsPaletteGivesTextAtLeastFourPointFiveToOne(t *testing.T) {
 		}
 		pair, known := materialPrimaries[name]
 		if !known {
-			t.Errorf("palette %q uses primary %q, whose colours this test does not know: add them from the theme's palette stylesheet", entry.Scheme, entry.Primary)
+			t.Errorf("palette %q uses primary %q, whose colors this test does not know: add them from the theme's palette stylesheet", entry.Scheme, entry.Primary)
 			continue
 		}
 		if ratio := contrastRatio(t, pair[0], pair[1]); ratio < 4.5 {
@@ -124,7 +124,7 @@ func TestDocsPaletteGivesTextAtLeastFourPointFiveToOne(t *testing.T) {
 }
 
 // customPaletteCSS is the stylesheet that defines a "custom" primary: the
-// theme then takes the header colours and the link colour from CSS variables.
+// theme then takes the header colors and the link color from CSS variables.
 const customPaletteCSS = "docs/stylesheets/extra.css"
 
 // cssVariables reads the custom properties of one selector's block, in order.
@@ -184,7 +184,7 @@ func checkCustomPalette(t *testing.T, scheme string) {
 	}
 	for _, c := range []struct{ what, value string }{{"--md-primary-fg-color", header}, {"--md-primary-bg-color", text}, {"--md-typeset-a-color", link}, {"the page background", page}} {
 		if len(c.value) != 7 || c.value[0] != '#' {
-			t.Fatalf("palette %q: %s in %s is %q, want an #rrggbb colour", scheme, c.what, customPaletteCSS, c.value)
+			t.Fatalf("palette %q: %s in %s is %q, want an #rrggbb color", scheme, c.what, customPaletteCSS, c.value)
 		}
 	}
 	if ratio := contrastRatio(t, header, text); ratio < 4.5 {

@@ -15,7 +15,7 @@ import (
 )
 
 // The VM the run creates boots the source's order of the restored disks, the
-// signed record says so, and the record is what PVE was sent. A guest with
+// record says so, and the record is what PVE was sent. A guest with
 // /boot on a second disk ("boot: order=scsi0;scsi1") restored with only
 // "order=scsi0" would never see scsi1 from SeaBIOS.
 
@@ -72,7 +72,7 @@ func TestSandboxVMBootsTheSourceOrderAndRecordsIt(t *testing.T) {
 	}
 }
 
-// The signed report says the order: two VMs that differ only in the boot order
+// The report says the order: two VMs that differ only in the boot order
 // sign different bytes, and the report carries the order that was sent.
 func TestDifferentBootOrdersSignDifferentRestoredHardware(t *testing.T) {
 	one, _ := sandboxFor(t, config.VM{VMID: 17615, BootDisk: "scsi0", BootOrder: []string{"scsi0"}}, "scsi0", "scsi1")
@@ -82,6 +82,6 @@ func TestDifferentBootOrdersSignDifferentRestoredHardware(t *testing.T) {
 		t.Fatal("VMs created with boot orders scsi0 and scsi0;scsi1 sign byte-identical reports")
 	}
 	if !bytes.Contains(bothJSON, []byte(`"boot_order":["scsi0","scsi1"]`)) || !bytes.Contains(oneJSON, []byte(`"boot_order":["scsi0"]`)) {
-		t.Fatalf("the signed reports do not carry the boot order: %s", bothJSON)
+		t.Fatalf("the reports do not carry the boot order: %s", bothJSON)
 	}
 }

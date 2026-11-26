@@ -60,16 +60,22 @@ func doctorCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "doctor [plan.yaml]",
-		Short: "Run preflight diagnostics on host, dependencies, and plan",
-		Long: `Performs read-only preflight diagnostic checks against KVM virtualization,
-host memory availability, scratch storage write/exec flags and free space,
-QEMU/PBS/PVE tooling prerequisites, and optional plan constraints.`,
+		Short: "Check this host, its tools and, with a plan, the plan before a run",
+		Long: `Reads this host and changes nothing. It checks root privileges, KVM, the
+qemu-img, proxmox-backup-client, ip and nft tools, available memory, that the
+scratch directory is private and has free space, that the runner state
+directory is private and usable, the PBS encryption key when one is set, loop
+devices left by an earlier PBS map, the PVE API and the token's privileges when
+PVE_URL is set, and the Proxmox versions. With a plan it also checks the plan,
+its sandbox network, the memory its sandbox VMs need and, on a PVE node, each
+VM's backup.
+
+It runs only on Linux.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Cobra supplies a context to a command it executes. A caller that
 			// runs this function itself (a test, an embedder) may have none, and
-			// every check below asks the context whether it has ended: a nil one
-			// panicked in the first of them.
+			// every check below asks the context whether it has ended.
 			if cmd.Context() == nil {
 				cmd.SetContext(context.Background())
 			}
@@ -192,8 +198,12 @@ QEMU/PBS/PVE tooling prerequisites, and optional plan constraints.`,
 				fmt.Fprintf(out, "  [%s] %-25s : %s\n", icon, item.Name, item.Detail)
 			}
 			fmt.Fprintln(out, "--------------------------------")
+			if !res.Ready && noCheckRan(res) {
+				fmt.Fprintln(out, "- No check was run, so there is no verdict.")
+				return out.deliver(withExitCode(errors.New("no preflight check was run"), exitCodeInfrastructure))
+			}
 			if !res.Ready {
-				fmt.Fprintln(out, "✗ Preflight checks FAILED. System is not ready for DR validation.")
+				fmt.Fprintln(out, "✗ Preflight checks FAILED. System is not ready for a run.")
 				return out.deliver(withExitCode(errors.New("preflight diagnostics failed"), exitCodeInfrastructure))
 			}
 			if plan == nil {
@@ -203,12 +213,12 @@ QEMU/PBS/PVE tooling prerequisites, and optional plan constraints.`,
 				fmt.Fprintln(out, "✓ Preflight checks PASSED. Host tools present. Run doctor with your plan (or certistack check) before a run: some checks need the plan.")
 				return out.deliver(nil)
 			}
-			fmt.Fprintln(out, "✓ Preflight checks PASSED. System is ready for DR validation.")
+			fmt.Fprintln(out, "✓ Preflight checks PASSED. System is ready for a run.")
 			return out.deliver(nil)
 		},
 	}
 
-	cmd.Flags().StringVarP(&planPath, "plan", "p", "", "path to disaster recovery plan YAML")
+	cmd.Flags().StringVarP(&planPath, "plan", "p", "", "path to the plan YAML")
 	cmd.Flags().StringVar(&envFile, "env-file", "", "allowlisted controller environment file; values are parsed literally, never shell-sourced (default: the file certistack setup recorded)")
 	cmd.Flags().StringVar(&scratchDir, "scratch", "", "private ephemeral scratch directory to check (default: CERTISTACK_SCRATCH_DIR, else the plan's storage.scratch_dir, else /var/lib/certistack/scratch)")
 	cmd.Flags().StringVar(&stateDir, "state-dir", "/var/lib/certistack", "runner state directory to check: it must be private and usable, as the worker requires")
@@ -216,6 +226,17 @@ QEMU/PBS/PVE tooling prerequisites, and optional plan constraints.`,
 	cmd.Flags().BoolVar(&jsonOutput, "json", false, "output diagnostics in JSON format")
 
 	return cmd
+}
+
+// noCheckRan reports whether every item of the result is a check that was
+// skipped, as on a platform the checks do not run on.
+func noCheckRan(res preflight.Result) bool {
+	for _, item := range res.Checks {
+		if item.Status != "skipped" {
+			return false
+		}
+	}
+	return true
 }
 
 // quietStructuredLogs keeps the structured log's info lines out of doctor's

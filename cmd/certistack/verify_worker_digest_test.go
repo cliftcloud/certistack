@@ -22,7 +22,7 @@ func TestReportAcceptanceBindsTheWorkerExecutableDigest(t *testing.T) {
 	plan := mustLoadFixturePlan()
 	digest := strings.Repeat("ab", 32)
 	other := strings.Repeat("cd", 32)
-	fixture := campaignFixture{name: "matching_control", mode: accept.OutcomePass}
+	fixture := reportFixture{name: "matching_control", mode: accept.OutcomePass}
 	for _, c := range []struct {
 		name     string
 		recorded string
@@ -35,7 +35,7 @@ func TestReportAcceptanceBindsTheWorkerExecutableDigest(t *testing.T) {
 		{"no digest recorded", "", &digest, false, "records no worker executable digest"},
 		{"no expectation stated", other, nil, true, ""},
 	} {
-		report := campaignFixtureReport(plan, fixture)
+		report := fixtureReport(plan, fixture)
 		report.WorkerSHA256 = c.recorded
 		exp := fixtureExpectations(plan, accept.OutcomePass)
 		exp.WorkerSHA256 = c.expected
@@ -62,7 +62,7 @@ func TestVerifyReportExpectWorkerSHA256(t *testing.T) {
 	}
 	dir := t.TempDir()
 	digest := strings.Repeat("ab", 32)
-	report := campaignFixtureReport(plan, campaignFixture{name: "matching_control", mode: accept.OutcomePass})
+	report := fixtureReport(plan, reportFixture{name: "matching_control", mode: accept.OutcomePass})
 	report.WorkerSHA256 = digest
 	path := writeSignedFixture(t, dir, report, private)
 	args := func(expect string) []string {

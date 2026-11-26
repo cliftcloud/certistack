@@ -79,14 +79,14 @@ func verifyAuditReport(t *testing.T, report *attest.Report, format string) strin
 	return output
 }
 
-// The human phase breakdown printed twelve lines and never read the
-// integrity verification (usually the largest phase) or the tier soak.
+// The phase breakdown includes the integrity scan (usually the largest phase)
+// and the tier soak.
 func TestVerifyReportPrintsTheIntegrityScanAndTheSoak(t *testing.T) {
 	text := verifyAuditReport(t, auditFailedReport(), "text")
 	for _, want := range []string{
-		"Image Integrity Scan:  1234.56s",
-		"Tier Soak Hold:        789.12s",
-		"Total RTO Time:        2090.34s",
+		"Image integrity scan:       1234.56s",
+		"Tier soak:                  789.12s",
+		"Total:                      2090.34s",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the phase breakdown lacks %q:\n%s", want, text)
@@ -101,20 +101,20 @@ var phaseTimingsNotShown = map[string]string{}
 
 // phaseTimingLabels is the label each phase timing is printed under.
 var phaseTimingLabels = map[string]string{
-	"admission_check_sec":            "Host Admission:",
-	"sdn_provisioning_sec":           "SDN Sandbox Setup:",
-	"pbs_mapping_sec":                "PBS Chunk Mapping:",
-	"overlay_creation_sec":           "Delta Overlay Create:",
-	"cow_guest_network_recovery_sec": "COW Guest Network Prep:",
-	"vm_registration_sec":            "VM Registration:",
-	"vm_start_sec":                   "QEMU Launch & Boot:",
-	"qmp_running_wait_sec":           "Stage 1 QMP Wait:",
-	"integrity_verification_sec":     "Image Integrity Scan:",
-	"startup_grace_period_sec":       "Startup Soak Grace:",
-	"probes_execution_sec":           "Probes Execution:",
-	"soak_time_sec":                  "Tier Soak Hold:",
-	"teardown_sec":                   "Post-Test Teardown:",
-	"total_rto_sec":                  "Total RTO Time:",
+	"admission_check_sec":            "Host admission:",
+	"sdn_provisioning_sec":           "SDN sandbox setup:",
+	"pbs_mapping_sec":                "PBS image mapping:",
+	"overlay_creation_sec":           "Overlay creation:",
+	"cow_guest_network_recovery_sec": "Guest network preparation:",
+	"vm_registration_sec":            "VM registration:",
+	"vm_start_sec":                   "VM start and boot:",
+	"qmp_running_wait_sec":           "QMP running wait:",
+	"integrity_verification_sec":     "Image integrity scan:",
+	"startup_grace_period_sec":       "Startup grace:",
+	"probes_execution_sec":           "Probes:",
+	"soak_time_sec":                  "Tier soak:",
+	"teardown_sec":                   "Teardown (after the RTO):",
+	"total_rto_sec":                  "Total:",
 }
 
 // Every PhaseTimings field, whatever is added to it next, is either printed on

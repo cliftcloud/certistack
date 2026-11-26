@@ -503,8 +503,8 @@ func TestPlanPromisesRecoveryOnlyWhereRecoveryWouldDeleteIt(t *testing.T) {
 		t.Errorf("a replacement VNet: step %+v, refusals %q; want the run refused, and why recovery does not help", step, refused)
 	}
 
-	legacy := Recovered{}
-	if p, step := sandbox(legacy); step.Status != StatusFailed || len(p.Refusals) != 1 {
+	noMarker := Recovered{}
+	if p, step := sandbox(noMarker); step.Status != StatusFailed || len(p.Refusals) != 1 {
 		t.Errorf("a journal that names no marker: step %+v, refusals %v; want the run refused, nothing promised", step, p.Refusals)
 	}
 }

@@ -51,7 +51,7 @@ func TestSiblingPlanIDs(t *testing.T) {
 	}
 }
 
-// A neighbouring plan that names its sandbox VM with the accepted
+// A neighboring plan that names its sandbox VM with the accepted
 // alias target_vmid reserves that ID as vmid does, and init, through the
 // real discovery and composer, does not hand it out again.
 func TestSiblingPlanTargetVMIDAliasIsAvoided(t *testing.T) {
@@ -113,7 +113,7 @@ func TestSiblingPlanReadIsBounded(t *testing.T) {
 	}
 	file.Close()
 	if _, err := readSiblingPlan(path); !errors.Is(err, errNotAPlanFile) {
-		t.Fatalf("an oversized neighbour: %v, want it refused as no plan", err)
+		t.Fatalf("an oversized neighbor: %v, want it refused as no plan", err)
 	}
 	if _, err := readSiblingPlan(t.TempDir()); !errors.Is(err, errNotAPlanFile) {
 		t.Fatalf("a directory: %v, want it refused as no plan", err)

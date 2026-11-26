@@ -13,9 +13,9 @@ import (
 )
 
 // A worker report in which two VM records carry one wire target would be a
-// signed duplicate pass. The controller refuses it before it
-// signs, naming the address and both VMs, however the records came to share it
-// (here the second VM's result is made to record the first VM's target).
+// duplicate pass. The controller refuses it before it writes a report, naming
+// the address and both VMs, however the records came to share it (here the
+// second VM's result is made to record the first VM's target).
 func TestControllerRefusesAWorkerReportWhoseVMRecordsShareAWireTarget(t *testing.T) {
 	opts := completedWorkerTeardownOptions(t)
 	report := workerReportFor(t, opts)

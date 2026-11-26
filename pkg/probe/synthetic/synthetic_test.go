@@ -266,13 +266,13 @@ func TestHTTPProber_LegacyInsecureFlagDoesNotBypassTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// The exported constructor retains this legacy argument only so existing
-	// callers compile. With no trusted root configured, it must not turn an
-	// httptest self-signed certificate into a passing recovery assertion.
-	prober := NewHTTPProber("127.0.0.1", port, "/healthz", true, true, http.StatusOK, 250*time.Millisecond, "legacy TLS flag", "example.com")
+	// The constructor takes an insecureSkipVerify argument and ignores it. With
+	// no trusted root configured, it must not turn an httptest self-signed
+	// certificate into a passing recovery assertion.
+	prober := NewHTTPProber("127.0.0.1", port, "/healthz", true, true, http.StatusOK, 250*time.Millisecond, "insecure TLS flag", "example.com")
 	res := prober.Probe(context.Background())
 	if res.Passed {
-		t.Fatal("legacy insecure flag bypassed TLS certificate verification")
+		t.Fatal("the insecure flag bypassed TLS certificate verification")
 	}
 }
 

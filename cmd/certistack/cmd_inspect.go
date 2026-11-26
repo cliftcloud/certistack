@@ -73,7 +73,7 @@ that journal record as well as the VM's sockets.`,
 				return err
 			}
 
-			// An explicit --state-dir is honoured with a VMID too: the journal
+			// An explicit --state-dir is honored with a VMID too: the journal
 			// is shown before the sockets, and a journal that cannot be read
 			// fails the command even if the VM answers.
 			var journalErr error

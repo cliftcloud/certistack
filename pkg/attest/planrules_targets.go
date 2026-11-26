@@ -38,13 +38,13 @@ func recordedTargetAddress(target string) (string, bool) {
 // VM records name. A wire probe shows that its target answered from the
 // worker host, not which guest answered, and the record of the VM whose probe
 // it was is credited with the answer. With one address on two records, one
-// guest or one shared listener can have satisfied both, and a signed pass
-// would not show that each named VM provided its own service. The
-// loaders refuse a plan that names an address on two VMs (config.Validate);
-// this holds a report to the same rule from its own records, so it needs no
-// plan: a report of a worker given a plan that did not pass the loader is
-// refused by the verifier and never signed by the controller. A probe that
-// failed or was skipped credits no one.
+// guest or one shared listener can have satisfied both, and a pass would not
+// show that each named VM provided its own service. The loaders refuse a plan
+// that names an address on two VMs (config.Validate); this holds a report to
+// the same rule from its own records, so it needs no plan: a report of a worker
+// given a plan that did not pass the loader is refused by the verifier and
+// never saved by the controller. A probe that failed or was skipped credits no
+// one.
 func SharedWireTargetProblems(records []probe.VMValidationRecord) []string {
 	named := make(map[string][]int)
 	var order []string

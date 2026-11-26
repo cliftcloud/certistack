@@ -30,7 +30,7 @@ var errNotAPlanFile = errors.New("cannot be a plan")
 //
 // The directory is listed by entry name, not with a glob pattern, so a
 // directory whose own name holds a glob character ("plans[") still reserves
-// its neighbours' IDs. Each candidate is opened without waiting and
+// its neighbors' IDs. Each candidate is opened without waiting and
 // read only if the open descriptor is a regular file, up to the size the plan
 // loaders accept, so a FIFO planted beside the output cannot hold init, past
 // its interrupts, in a wait for a writer, and a large plan is not

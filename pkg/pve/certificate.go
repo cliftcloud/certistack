@@ -17,9 +17,9 @@ import (
 // client keeps out of its messages.
 //
 // Such a failure is permanent. The same certificate is refused again on every
-// attempt, so Do does not retry it, and a user who forgot
-// CERTISTACK_PVE_CA_SOURCE on a stock node (whose API certificate is signed by
-// the cluster's own CA) waited half a minute for the same refusal.
+// attempt, so Do does not retry it: a stock node's API certificate is signed by
+// the cluster's own CA, and without CERTISTACK_PVE_CA_SOURCE every attempt
+// would end in the same refusal.
 func certificateProblem(err error) (string, bool) {
 	var hostname x509.HostnameError
 	var invalid x509.CertificateInvalidError

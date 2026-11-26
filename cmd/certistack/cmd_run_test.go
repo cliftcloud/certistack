@@ -53,11 +53,11 @@ func TestFormatRunErrorUsesVerifiedCleanupMessageForBareCancellation(t *testing.
 // A run whose credential-bearing controller material (the node workspace
 // with its environment, or the SSH staging directory) was not verified removed
 // exits 2 in EVERY outcome. A failed validation with verified cleanup keeps
-// exit 1, so a campaign that credits a fault or a capacity guard only on
-// status 1 never credits a run that left its credentials on the node.
+// exit 1, so a script that reads status 1 as a failed restore test never reads
+// a run that left its credentials on the node as one.
 func TestRunOutcomeErrorExitStatuses(t *testing.T) {
 	cleanupFailure := fmt.Errorf("%w: %w", controller.ErrControllerMaterialCleanupUnverified, errors.New("remove workspace: ssh: connection reset"))
-	failedValidation := errors.New("DR validation failed: probe \"LDAP\" failed")
+	failedValidation := errors.New("restore test failed: probe \"LDAP\" failed")
 	report := func(passed, cleaned bool) *controller.Result {
 		return &controller.Result{
 			ReportPath: "/reports/plan/report.json",
@@ -121,7 +121,7 @@ func TestControllerCleanupUnverifiedSentinelCarriesTheWording(t *testing.T) {
 		t.Fatalf("a run with no report exits %d", got)
 	}
 	failed := &controller.Result{ReportPath: "/r.json", Report: &attest.Report{AllPassed: false, TeardownEvidence: &attest.TeardownEvidence{AllCleaned: true}}}
-	if got := exitCodeForError(runOutcomeError(failed, errors.Join(errors.New("DR validation failed: x"), wordingOnly))); got != exitCodeValidationFailed {
+	if got := exitCodeForError(runOutcomeError(failed, errors.Join(errors.New("restore test failed: x"), wordingOnly))); got != exitCodeValidationFailed {
 		t.Fatalf("wording without the sentinel changed the status to %d", got)
 	}
 }

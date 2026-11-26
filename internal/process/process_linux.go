@@ -146,16 +146,16 @@ var processExited = recordedProcessExited
 // not treat the process as stopped.
 //
 // Without a pidfd (an old kernel, or pidfd_open blocked) a process that is
-// still the recorded one is not signalled: a signal sent by PID could land on
+// still the recorded one is not signaled: a signal sent by PID could land on
 // an unrelated process that was given the PID in between, and nothing on this
 // path can bind the signal to the process that was checked. The error says
 // so and leaves the process for the operator.
 //
 // A recorded boot identity is checked first: a PID and start ticks name a
 // process only within one boot, so a record of another boot is of a process
-// that is gone (nil, nothing signalled), and one whose boot cannot be compared
+// that is gone (nil, nothing signaled), and one whose boot cannot be compared
 // with this one (this boot's identity unreadable) is ErrBootUnreadable, not
-// signalled either. A record without a boot identity is judged by PID and
+// signaled either. A record without a boot identity is judged by PID and
 // start ticks alone, which cannot rule out a process of a later boot that has
 // both.
 func StopRecorded(p journal.Process) error {
@@ -170,7 +170,7 @@ func recordedInAnotherBoot(p journal.Process) (bool, error) {
 	}
 	boot, err := readBootID()
 	if err != nil {
-		return false, fmt.Errorf("%w (%v), so recorded process %d, which was recorded in a boot that cannot be compared with this one, is not taken for the recorded process and was not signalled: if it is the run's, stop it yourself and "+recoverhint.Again, ErrBootUnreadable, err, p.PID)
+		return false, fmt.Errorf("%w (%v), so recorded process %d, which was recorded in a boot that cannot be compared with this one, is not taken for the recorded process and was not signaled: if it is the run's, stop it yourself and "+recoverhint.Again, ErrBootUnreadable, err, p.PID)
 	}
 	return boot != p.BootID, nil
 }
@@ -194,7 +194,7 @@ func stopRecorded(
 		return nil // recorded in an earlier boot: that process ended with it
 	}
 
-	// Bind signalling to kernel process reference to avoid PID-reuse races
+	// Bind signaling to kernel process reference to avoid PID-reuse races
 	fd, err := pidfdOpen(p.PID, 0)
 	if errors.Is(err, unix.ESRCH) {
 		return nil // Process already dead
@@ -213,7 +213,7 @@ func stopRecorded(
 		if current.StartTicks != p.StartTicks {
 			return ErrPIDReused
 		}
-		return fmt.Errorf("recorded process %d is still running and pidfd_open is unavailable (%v): not signalling it by PID, because the PID could be reused by another process before the signal lands; stop it yourself (check it is the recorded process first) and "+recoverhint.Again, p.PID, err)
+		return fmt.Errorf("recorded process %d is still running and pidfd_open is unavailable (%v): not signaling it by PID, because the PID could be reused by another process before the signal lands; stop it yourself (check it is the recorded process first) and "+recoverhint.Again, p.PID, err)
 	}
 	defer unix.Close(fd)
 

@@ -427,7 +427,7 @@ func TestEveryCommandThatReadsTheControllerFileChecksItsShapes(t *testing.T) {
 
 // What a value is changed to when it is accepted: a trailing slash is not part
 // of PVE_URL, and a fingerprint reaches the PBS client in its colon form.
-func TestEnvironmentFileNormalisesAcceptedValues(t *testing.T) {
+func TestEnvironmentFileNormalizesAcceptedValues(t *testing.T) {
 	colons := strings.TrimSuffix(strings.Repeat("ab:", 32), ":")
 	for _, tc := range []struct{ name, line, variable, want string }{
 		{"a trailing slash", "PVE_URL=https://pve.example.invalid:8006/", "PVE_URL", "https://pve.example.invalid:8006"},

@@ -5,7 +5,7 @@ package telemetry
 
 import "strings"
 
-// Environment variables the report honours.
+// Environment variables the report honors.
 const (
 	// VarDoNotTrack is the console do-not-track convention (DO_NOT_TRACK=1).
 	VarDoNotTrack = "DO_NOT_TRACK"
@@ -63,7 +63,7 @@ func envValue(getenv func(string) string, name string) string {
 
 // EnvControl reads the environment: DO_NOT_TRACK forces off (any value but a
 // plain no), then CERTISTACK_TELEMETRY off, then CERTISTACK_TELEMETRY on. A
-// value it does not recognise fails closed, to off. The reason is "" only for
+// value it does not recognize fails closed, to off. The reason is "" only for
 // ControlNone.
 func EnvControl(getenv func(string) string) (Control, string) {
 	if dnt := envValue(getenv, VarDoNotTrack); dnt != "" && !isFalse(dnt) {
@@ -77,7 +77,7 @@ func EnvControl(getenv func(string) string) (Control, string) {
 	case isTrue(value):
 		return ControlOn, VarTelemetry + "=" + value
 	default:
-		return ControlOff, VarTelemetry + " has a value that is not recognised, so it counts as off"
+		return ControlOff, VarTelemetry + " has a value that is not recognized, so it counts as off"
 	}
 }
 

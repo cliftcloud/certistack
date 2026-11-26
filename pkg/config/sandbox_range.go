@@ -26,7 +26,7 @@ func sandboxRangeRefusal(format string, args ...any) *SandboxRangeError {
 }
 
 // ParseSandboxRange reads network.ip_range. It is the only reader of that text:
-// plan validation, the node-side overlap judgement, the controller's staging of
+// plan validation, the node-side overlap judgment, the controller's staging of
 // a worker and the engine's use of the range (the address put on the sandbox
 // bridge, the subnet created in PVE) all call it, so they cannot read one text
 // as two networks.

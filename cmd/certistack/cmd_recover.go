@@ -24,12 +24,8 @@ func recoveryFromPackage(ctx, abandon context.Context, stateDir string) error {
 	return recovery.RecoverContext(ctx, abandon, stateDir)
 }
 
-func recoverCmd() *cobra.Command {
-	return recoverCmdWithCleanupContext(nil)
-}
-
 // recoverCmdWithCleanupContext is recover; cleanupContext, when set, is
-// cancelled by the second interrupt, which the root handler offers.
+// canceled by the second interrupt, which the root handler offers.
 func recoverCmdWithCleanupContext(cleanupContext context.Context) *cobra.Command {
 	var (
 		stateDir string

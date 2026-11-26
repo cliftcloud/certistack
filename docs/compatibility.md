@@ -35,13 +35,13 @@ On a 14-node PVE 9.2 cluster and standalone hosts, with about 20 other VMs runni
 | Mini PC (simulated) | PVE 9.2 on 4 vCPU, 16 GiB RAM, one disk and one NIC: setup, a restore, admission refusing a VM that cannot fit before anything is created, and the removal | v0.1.1 |
 | Controller appliance | The Packer recipe built from Debian 12 and Ubuntu 24.04 templates on PVE 9.2 (with and without DHCP), first boot, restores through the appliance, upgrade, patch and removal | Development builds of v0.1.2 |
 | Restore tests | More than 10,000 VM restore tests in over 4,800 runs: 471 different VMs, up to 100 in one run, on 20 PVE hosts (PVE 9.2 and 8.4, PBS 4.x and 3.x), with over 15,000 service checks; among them a 96-VM fleet restored in one run and a PBS outage in the middle of a run | Development and pre-release builds, September to November 2026 |
-| Automated tests | Over 7,000 tests and subtests in 43 packages, none failing | The v0.1.3 release commit |
-| Fuzzing | 11 fuzz targets: the plan, environment-file and report readers, 17 parsers of PBS client output, and the DNS, LDAP, SQL Server and SMB reply parsers; more than 3.6 million generated inputs | Builds of 15 November |
-| Fault injection | Hostile inputs, misbehaving Proxmox peers and impossible backups, each case covered by a regression test. In the lab, 14 corrupt or impossible backups and 9 fault drills: each was refused before anything was made, or failed cleanly and left its node clean. No false pass anywhere | Builds of 15 November |
-| The release set | Every case passed (below) | The exact v0.1.3 binary; before it, the v0.1.2 binary |
-| The release | Built twice, byte for byte the same; the release workflow replayed with 17 failure scenarios; the installer's 16 checks | The v0.1.3 release commit |
+| Automated tests | Over 7,000 tests and subtests in 43 packages, none failing | The v0.1.4 release commit |
+| Fuzzing | 11 fuzz targets: the plan, environment-file and report readers, 17 parsers of PBS client output, and the DNS, LDAP, SQL Server and SMB reply parsers; more than 3.6 million generated inputs | Pre-release builds, November 2026 |
+| Fault injection | Hostile inputs, misbehaving Proxmox peers and impossible backups, each case covered by a regression test. In the lab, 14 corrupt or impossible backups and 9 fault drills: each was refused before anything was made, or failed cleanly and left its node clean, and none passed | Pre-release builds, November 2026 |
+| The release set | Every case passed (below) | The exact v0.1.4 binary; before it, the v0.1.3 binary |
+| The release | Built twice, byte for byte the same; the release workflow replayed with 17 failure scenarios; the installer's 16 checks | The v0.1.4 release commit |
 
-**The release set on the exact v0.1.3 binary: every case passed.** Each ended with its cleanup verified and its node left
+**The release set on the exact v0.1.4 binary: every case passed.** Each ended with its cleanup verified and its node left
 as it found it.
 
 | Area | What ran |
@@ -86,7 +86,8 @@ For a slow-starting service, raise that probe's `timeout_sec`.
 - **Guest network:** a Linux guest gets a sandbox address, written to its overlay. Windows and unrecognized guests keep
   their own: `init` sets `network_recovery.mode: preserve` for them.
 - **Not restored:** LXC containers. **Refused before boot:** a LUKS-encrypted root, or a network configuration that
-  cannot be read offline.
+  cannot be read offline; `network_recovery.mode: preserve` skips that step
+  ([Guest network recovery](plan-reference.md#guest-network-recovery)).
 - **One run per node:** a second `run` or `recover` on a busy node is refused. Different nodes may run at once if their
   plans use different sandbox VM IDs and network names.
 - **No way out:** a plan's VMs share one VNet with no gateway. A service that needs a default route (k3s) does not

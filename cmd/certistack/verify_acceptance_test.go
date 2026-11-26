@@ -25,23 +25,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// The fixture identity of the signed test reports. Release tooling outside this
-// repository builds the CLI with these exact -ldflags values and checks the
-// fixtures TestWriteCampaignEvidenceFixtures writes, so keep them in sync.
+// The fixture identity of the signed test reports.
 const (
 	fixtureNode      = "node-a"
-	fixtureVersion   = "v0.1.0-campaign-fixture"
+	fixtureVersion   = "v0.1.0-fixture"
 	fixtureCommit    = "0123456789ab"
 	fixtureBuildDate = "2026-09-29T00:00:00Z"
 	fixturePlanPath  = "../../testdata/plans/valid_plan.yaml"
 )
 
-// campaignFixture is one signed report variant. Mode is the campaign mode
-// (and verify-report --expect-outcome) that evaluates it; accepted is the
-// correct verdict. The first thirteen are the basic campaign cases, built as
-// the controller really builds reports: a fault drill's target VM is "failed"
-// and its later tiers never start.
-type campaignFixture struct {
+// reportFixture is one signed report variant. Mode is the outcome
+// verify-report --expect-outcome names to evaluate it; accepted is the correct
+// verdict. The first thirteen are the basic cases, built as the controller
+// really builds reports: the target VM of a fault plan is "failed" and its
+// later tiers never start.
+type reportFixture struct {
 	name      string
 	mode      string
 	accepted  bool
@@ -49,7 +47,7 @@ type campaignFixture struct {
 	untrusted bool
 	// unbound is a report verify-report accepts on what it records while its
 	// verdict lists a NOT BOUND entry (an earlier schema, or no plan digest):
-	// a campaign must not credit it.
+	// accepted, but not as evidence bound to the plan.
 	unbound bool
 	// reason is the signed failure reason of a denied (capacity guard) fixture.
 	reason string
@@ -64,7 +62,7 @@ const (
 	fixtureSDNFailure      = "SDN sandbox setup failed: create zone csSb01: 500 zone already exists"
 )
 
-var campaignFixtures = []campaignFixture{
+var reportFixtures = []reportFixture{
 	{name: "matching_control", mode: accept.OutcomePass, accepted: true},
 	{name: "wrong_build", mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.EngineVersion, r.GitCommit = "v0.0.9", "1111111" }},
 	{name: "wrong_node", mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.NodeFQDN = "unrequested-node" }},
@@ -92,7 +90,7 @@ var campaignFixtures = []campaignFixture{
 	}},
 	{name: "fault_protocol_control", mode: accept.OutcomeFault, mutate: func(r *attest.Report) { r.VMRecords[0].ProbeResults[0].Type = "http" }},
 
-	// Further cases the campaign must reject.
+	// Further cases that must be rejected.
 	{name: "fault_collateral_failure", mode: accept.OutcomeFault, mutate: func(r *attest.Report) {
 		r.VMRecords[0].ProbeResults[1].Passed = false
 		r.VMRecords[0].ProbeResults[1].Error = "unexpected second failure"
@@ -148,8 +146,8 @@ var campaignFixtures = []campaignFixture{
 	}},
 	{name: "schema_newer_minor", mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.ReportSchemaVersion = "1.99" }},
 	// An accepted verdict is not necessarily a bound one: a report that predates
-	// the evidence is accepted on what it records, and the campaign helper must
-	// not credit it.
+	// the evidence is accepted on what it records, and its verdict
+	// lists what it could not check.
 	{name: "unbound_older_schema", mode: accept.OutcomePass, accepted: true, unbound: true, mutate: func(r *attest.Report) {
 		r.ReportSchemaVersion, r.PlanSHA256 = "1.5", ""
 	}},
@@ -290,11 +288,11 @@ func failedRecord(record probe.VMValidationRecord) probe.VMValidationRecord {
 	return record
 }
 
-// campaignFixtureReport builds the unsigned report for one fixture. A pass
+// fixtureReport builds the unsigned report for one fixture. A pass
 // fixture records every planned VM verified; a fault fixture records the
 // fault plan's target (VM 9001, first probe) failed and, as the orchestrator
 // stops at a failing tier, nothing from later tiers.
-func campaignFixtureReport(plan *config.Plan, fixture campaignFixture) *attest.Report {
+func fixtureReport(plan *config.Plan, fixture reportFixture) *attest.Report {
 	report := &attest.Report{
 		ReportSchemaVersion: attest.CurrentReportSchemaVersion,
 		ReportID:            uuid.NewString(),
@@ -364,16 +362,16 @@ func fixtureExpectations(plan *config.Plan, outcome string) accept.Expectations 
 	return accept.Expectations{Outcome: outcome, Plan: plan, PlanSHA256: fixturePlanDigest(), Node: &node, Version: &version, Commit: &commit, BuildDate: &buildDate, ValidationMode: &mode}
 }
 
-// Each campaign fixture receives the correct verdict when bound to the
+// Each fixture receives the correct verdict when bound to the
 // requested plan, node, build, and mode.
-func TestReportAcceptanceCampaignFixtures(t *testing.T) {
+func TestReportAcceptanceFixtures(t *testing.T) {
 	plan := mustLoadFixturePlan()
-	for _, fixture := range campaignFixtures {
+	for _, fixture := range reportFixtures {
 		if fixture.untrusted {
 			continue // A signature failure, covered by TestVerifyReportAcceptanceCLI.
 		}
 		t.Run(fixture.name, func(t *testing.T) {
-			report := campaignFixtureReport(plan, fixture)
+			report := fixtureReport(plan, fixture)
 			acceptance := accept.Evaluate(report, fixtureExpectations(plan, fixture.mode))
 			if accepted := acceptance.Verdict == accept.Accepted; accepted != fixture.accepted {
 				t.Fatalf("verdict = %s, want accepted=%v; reasons: %q", acceptance.Verdict, fixture.accepted, acceptance.Reasons)
@@ -386,7 +384,7 @@ func TestReportAcceptanceCampaignFixtures(t *testing.T) {
 			}
 			if fixture.unbound {
 				// Accepted on what it records, and the verdict says what it
-				// could not check, so a campaign does not credit it.
+				// could not check.
 				unbound := 0
 				for _, binding := range acceptance.Bindings {
 					if strings.HasPrefix(binding, accept.UnboundPrefix) {
@@ -409,11 +407,11 @@ func TestReportAcceptanceCampaignFixtures(t *testing.T) {
 // through a numeric prefix; the reasons name both VMs as integers.
 func TestReportAcceptanceFaultComparesVMIDsAsIntegers(t *testing.T) {
 	plan := mustLoadFixturePlan()
-	for _, fixture := range campaignFixtures {
+	for _, fixture := range reportFixtures {
 		if fixture.name != "fault_vmid_prefix" {
 			continue
 		}
-		acceptance := accept.Evaluate(campaignFixtureReport(plan, fixture), fixtureExpectations(plan, accept.OutcomeFault))
+		acceptance := accept.Evaluate(fixtureReport(plan, fixture), fixtureExpectations(plan, accept.OutcomeFault))
 		joined := strings.Join(acceptance.Reasons, "\n")
 		if acceptance.Verdict != accept.Rejected || !strings.Contains(joined, "the failed probe is on VM 90010, not the fault plan's target VM 9001") {
 			t.Fatalf("VM 90010 fault was not rejected for its VM: %s %q", acceptance.Verdict, acceptance.Reasons)
@@ -427,26 +425,26 @@ func TestReportAcceptanceFaultComparesVMIDsAsIntegers(t *testing.T) {
 func TestReportAcceptanceNamesIdentityMismatches(t *testing.T) {
 	plan := mustLoadFixturePlan()
 	cases := map[string]string{
-		"wrong_build":        `the report was produced by CertiStack version "v0.0.9", not the expected "v0.1.0-campaign-fixture"`,
+		"wrong_build":        `the report was produced by CertiStack version "v0.0.9", not the expected "v0.1.0-fixture"`,
 		"wrong_node":         `the report was produced on node "unrequested-node", not the expected node "node-a"`,
 		"no_vms":             "the report records no VM",
 		"incomplete_vm":      `VM 9001 verification_status is "incomplete", not "verified"`,
 		"wrong_plan_control": `the report is for plan "different-plan", not the expected plan "acme-erp-full-stack-dr"`,
 		"unclean_control":    "teardown_evidence.all_cleaned is false",
 	}
-	for _, fixture := range campaignFixtures {
+	for _, fixture := range reportFixtures {
 		want, ok := cases[fixture.name]
 		if !ok {
 			continue
 		}
-		acceptance := accept.Evaluate(campaignFixtureReport(plan, fixture), fixtureExpectations(plan, fixture.mode))
+		acceptance := accept.Evaluate(fixtureReport(plan, fixture), fixtureExpectations(plan, fixture.mode))
 		if !strings.Contains(strings.Join(acceptance.Reasons, "\n"), want) {
 			t.Errorf("%s: reasons %q do not include %q", fixture.name, acceptance.Reasons, want)
 		}
 	}
-	for _, fixture := range campaignFixtures {
+	for _, fixture := range reportFixtures {
 		if fixture.name == "failed_probe_under_pass" {
-			acceptance := accept.Evaluate(campaignFixtureReport(plan, fixture), fixtureExpectations(plan, fixture.mode))
+			acceptance := accept.Evaluate(fixtureReport(plan, fixture), fixtureExpectations(plan, fixture.mode))
 			if !strings.Contains(strings.Join(acceptance.Reasons, "\n"), "top-level all_passed contradicts") {
 				t.Errorf("failed probe under all_passed=true was not called a contradiction: %q", acceptance.Reasons)
 			}
@@ -458,11 +456,11 @@ func TestReportAcceptanceNamesIdentityMismatches(t *testing.T) {
 // contradictory evidence, and says that it bound nothing.
 func TestReportAcceptanceWithoutExpectations(t *testing.T) {
 	plan := mustLoadFixturePlan()
-	for _, fixture := range campaignFixtures {
+	for _, fixture := range reportFixtures {
 		if fixture.mode != accept.OutcomePass || fixture.untrusted {
 			continue
 		}
-		acceptance := accept.Evaluate(campaignFixtureReport(plan, fixture), accept.Expectations{})
+		acceptance := accept.Evaluate(fixtureReport(plan, fixture), accept.Expectations{})
 		wantAccepted := fixture.accepted
 		switch fixture.name {
 		case "wrong_build", "wrong_node", "wrong_plan_control", "missing_probe_result", "wrong_source_vm", "probe_target_mismatch":
@@ -485,30 +483,30 @@ func TestReportAcceptanceWithoutExpectations(t *testing.T) {
 
 func TestReportAcceptanceTestModeAndDenied(t *testing.T) {
 	plan := mustLoadFixturePlan()
-	testMode := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass, testMode: true})
-	lab := attest.ValidationModeTestSkipIntegrity
+	testMode := fixtureReport(plan, reportFixture{mode: accept.OutcomePass, testMode: true})
+	skipIntegrity := attest.ValidationModeTestSkipIntegrity
 	exp := fixtureExpectations(plan, accept.OutcomePass)
-	exp.ValidationMode, exp.AllowTestMode = &lab, true
+	exp.ValidationMode, exp.AllowTestMode = &skipIntegrity, true
 	if acceptance := accept.Evaluate(testMode, exp); acceptance.Verdict != accept.Accepted {
 		t.Fatalf("allowed test-mode report was rejected: %q", acceptance.Reasons)
 	}
-	full := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+	full := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 	if acceptance := accept.Evaluate(full, exp); acceptance.Verdict != accept.Rejected {
-		t.Fatal("a full-integrity report was accepted for a test-mode campaign")
+		t.Fatal("a full-integrity report was accepted for a test-mode expectation")
 	}
 
-	denied := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+	denied := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 	denied.AllPassed, denied.VMRecords = false, nil
 	denied.FailureReason = fixtureAdmissionReason
 	if acceptance := accept.Evaluate(denied, fixtureExpectations(plan, accept.OutcomeDenied)); acceptance.Verdict != accept.Accepted {
 		t.Fatalf("clean denial was rejected: %q", acceptance.Reasons)
 	}
-	started := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault})
+	started := fixtureReport(plan, reportFixture{mode: accept.OutcomeFault})
 	if acceptance := accept.Evaluate(started, fixtureExpectations(plan, accept.OutcomeDenied)); acceptance.Verdict != accept.Rejected {
 		t.Fatal("a run that restored a VM was accepted as a denial")
 	}
 
-	unsupported := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+	unsupported := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 	unsupported.ReportSchemaVersion = "2.0"
 	if acceptance := accept.Evaluate(unsupported, fixtureExpectations(plan, accept.OutcomePass)); acceptance.Verdict != accept.Rejected {
 		t.Fatal("an unsupported report schema was accepted")
@@ -518,7 +516,7 @@ func TestReportAcceptanceTestModeAndDenied(t *testing.T) {
 // A VM whose every result is a skipped optional guest-agent probe
 // proved nothing about its service, even though no probe failed.
 func TestReportAcceptanceRequiresAProbeThatRan(t *testing.T) {
-	report := campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass})
+	report := fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass})
 	report.VMRecords[0].ProbeResults = []probe.Result{{Type: "qga", Target: "ping", Description: "qga verification probe", Passed: true, Skipped: true}}
 	acceptance := accept.Evaluate(report, accept.Expectations{})
 	if acceptance.Verdict != accept.Rejected || !strings.Contains(strings.Join(acceptance.Reasons, "\n"), "VM 9001 has no guest-level assertion that ran") {
@@ -565,7 +563,7 @@ func TestVerifyReportAcceptanceCLI(t *testing.T) {
 	trusted := hex.EncodeToString(public)
 	expectArgs := []string{"--expect-plan", fixturePlanPath, "--expect-node", fixtureNode, "--expect-version", fixtureVersion, "--expect-commit", fixtureCommit, "--expect-build-date", fixtureBuildDate, "--expect-validation-mode", attest.ValidationModeFullIntegrity}
 
-	for _, fixture := range campaignFixtures {
+	for _, fixture := range reportFixtures {
 		t.Run(fixture.name, func(t *testing.T) {
 			key := private
 			if fixture.untrusted {
@@ -573,7 +571,7 @@ func TestVerifyReportAcceptanceCLI(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			path := writeSignedFixture(t, dir, campaignFixtureReport(plan, fixture), key)
+			path := writeSignedFixture(t, dir, fixtureReport(plan, fixture), key)
 			args := append([]string{"--format", "json", "--trusted-key", trusted, "--expect-outcome", fixture.mode}, expectArgs...)
 			output, err := runVerifyReport(append(args, path)...)
 			if fixture.untrusted {
@@ -611,12 +609,12 @@ func TestVerifyReportAcceptanceCLI(t *testing.T) {
 	}
 
 	// The summary exposes the signed build and node identity.
-	path := writeSignedFixture(t, dir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass}), private)
+	path := writeSignedFixture(t, dir, fixtureReport(plan, reportFixture{mode: accept.OutcomePass}), private)
 	output, err := runVerifyReport("--format", "json", "--trusted-key", trusted, path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"node_fqdn":"node-a"`, `"engine_version":"v0.1.0-campaign-fixture"`, `"git_commit":"0123456789ab"`, `"build_date":"2026-09-29T00:00:00Z"`, `"acceptance":{"verdict":"accepted","expected_outcome":"pass","bindings":[],"authenticated":true}`} {
+	for _, want := range []string{`"node_fqdn":"node-a"`, `"engine_version":"v0.1.0-fixture"`, `"git_commit":"0123456789ab"`, `"build_date":"2026-09-29T00:00:00Z"`, `"acceptance":{"verdict":"accepted","expected_outcome":"pass","bindings":[],"authenticated":true}`} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("summary lacks %s: %s", want, output)
 		}
@@ -624,7 +622,7 @@ func TestVerifyReportAcceptanceCLI(t *testing.T) {
 
 	// Without an expectation, a rejected verdict keeps the usual exit status:
 	// the signature is valid, and the verdict is informational.
-	rejected := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }})
+	rejected := fixtureReport(plan, reportFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }})
 	path = writeSignedFixture(t, dir, rejected, private)
 	output, err = runVerifyReport("--trusted-key", trusted, path)
 	if err != nil {
@@ -644,7 +642,7 @@ func TestVerifyReportRejectsUnusableExpectations(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := mustLoadFixturePlan()
-	path := writeSignedFixture(t, t.TempDir(), campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass}), private)
+	path := writeSignedFixture(t, t.TempDir(), fixtureReport(plan, reportFixture{mode: accept.OutcomePass}), private)
 	trusted := hex.EncodeToString(public)
 	cases := map[string][]string{
 		"empty node":               {"--expect-node", ""},
@@ -661,73 +659,6 @@ func TestVerifyReportRejectsUnusableExpectations(t *testing.T) {
 		if err == nil || output != "" {
 			t.Errorf("%s: err=%v output=%q", name, err, output)
 		}
-	}
-}
-
-// TestWriteCampaignEvidenceFixtures writes signed fixture reports for release
-// tooling that runs them through the real verifier. It is skipped unless
-// CERTISTACK_CAMPAIGN_FIXTURES names an output directory. The signing key is
-// generated here and never written.
-func TestWriteCampaignEvidenceFixtures(t *testing.T) {
-	dir := os.Getenv("CERTISTACK_CAMPAIGN_FIXTURES")
-	if dir == "" {
-		t.Skip("CERTISTACK_CAMPAIGN_FIXTURES is not set")
-	}
-	plan := mustLoadFixturePlan()
-	public, private, err := attesttest.GenerateKeyPair()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "trusted.pub"), []byte(hex.EncodeToString(public)+"\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	var index strings.Builder
-	for _, fixture := range campaignFixtures {
-		key := private
-		if fixture.untrusted {
-			if _, key, err = attesttest.GenerateKeyPair(); err != nil {
-				t.Fatal(err)
-			}
-		}
-		report := campaignFixtureReport(plan, fixture)
-		// The executable the campaign helper runs and hashes; a real report
-		// signs the digest of the controller that produced it.
-		if digest := os.Getenv("CERTISTACK_CAMPAIGN_WORKER_SHA256"); digest != "" {
-			report.WorkerSHA256 = digest
-		}
-		if err := attesttest.SignReport(report, key); err != nil {
-			t.Fatal(err)
-		}
-		data, err := json.MarshalIndent(report, "", "  ")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, fixture.name+".json"), append(data, '\n'), 0600); err != nil {
-			t.Fatal(err)
-		}
-		// What the campaign helper must do with it: the verifier's acceptance,
-		// unless the verdict is not a bound one.
-		verdict := "reject"
-		if fixture.accepted && !fixture.unbound {
-			verdict = "accept"
-		}
-		// The campaign mode that evaluates the fixture: a pass is a positive
-		// case, a denial a capacity guard.
-		mode := fixture.mode
-		switch mode {
-		case accept.OutcomePass:
-			mode = "positive"
-		case accept.OutcomeDenied:
-			mode = "guard"
-		}
-		testMode := "full"
-		if fixture.testMode {
-			testMode = "test"
-		}
-		fmt.Fprintf(&index, "%s\t%s\t%s\t%s\t%s\n", fixture.name, mode, verdict, testMode, fixture.reason)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "fixtures.tsv"), []byte(index.String()), 0600); err != nil {
-		t.Fatal(err)
 	}
 }
 

@@ -73,8 +73,8 @@ func newUnsignedMatrix(t *testing.T) unsignedMatrix {
 	if err := os.WriteFile(m.keyring, []byte(m.public+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	m.unsigned = writeReportFile(t, dir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass}))
-	signedReport := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+	m.unsigned = writeReportFile(t, dir, fixtureReport(plan, reportFixture{mode: accept.OutcomePass}))
+	signedReport := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 	if err := attesttest.SignReport(signedReport, private); err != nil {
 		t.Fatal(err)
 	}
@@ -126,12 +126,12 @@ func TestVerifyReportUnsignedJudgesTheReportByTheAcceptanceRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an unsigned passing report was not accepted: %v\n%s", err, stdout)
 	}
-	for _, want := range []string{"Trust Source: " + unsignedTrustLine, "Acceptance:  ACCEPTED on its contents only (UNSIGNED: the run's own claim, not authenticated evidence)", "judged as pass evidence", "All Passed:  true"} {
+	for _, want := range []string{"! Report NOT SIGNED (--unsigned)", "Trust Source: " + unsignedTrustLine, "Acceptance:  ACCEPTED on its contents only (UNSIGNED: the run's own claim, not authenticated evidence)", "judged as pass evidence", "All Passed:  true"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("the output lacks %q:\n%s", want, stdout)
 		}
 	}
-	for _, forbidden := range []string{"Signature VALID", "Signer Identity", "TRUSTED", "Signer Key"} {
+	for _, forbidden := range []string{"signature VALID", "Signer Identity", "TRUSTED", "Signer Key"} {
 		if strings.Contains(stdout, forbidden) {
 			t.Errorf("an unsigned report's output says %q:\n%s", forbidden, stdout)
 		}
@@ -164,7 +164,7 @@ func TestVerifyReportUnsignedJudgesTheReportByTheAcceptanceRules(t *testing.T) {
 		"cleanup unproven": func(r *attest.Report) { r.TeardownEvidence.AllCleaned = false },
 		"another node":     func(r *attest.Report) { r.NodeFQDN = "someone-elses-node" },
 	} {
-		report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+		report := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 		mutate(report)
 		path := writeReportFile(t, m.dir, report)
 		_, _, err := runVerifyStreams(append(append([]string{"--unsigned", "--format", "json", "--expect-outcome", "pass"}, expectArgsForFixture...), path)...)
@@ -174,13 +174,13 @@ func TestVerifyReportUnsignedJudgesTheReportByTheAcceptanceRules(t *testing.T) {
 	}
 
 	// A fault drill is judged against its plan, as for a signed report.
-	fault := writeReportFile(t, m.dir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault}))
+	fault := writeReportFile(t, m.dir, fixtureReport(plan, reportFixture{mode: accept.OutcomeFault}))
 	if _, _, err := runVerifyStreams(append(append([]string{"--unsigned", "--format", "json", "--expect-outcome", "fault"}, expectArgsForFixture...), fault)...); err != nil {
 		t.Errorf("an unsigned fault drill report: %v", err)
 	}
 
 	// Test mode keeps its own gate: refused unless it is allowed, exit 2.
-	testMode := writeReportFile(t, m.dir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass, testMode: true}))
+	testMode := writeReportFile(t, m.dir, fixtureReport(plan, reportFixture{mode: accept.OutcomePass, testMode: true}))
 	if _, _, err := runVerifyStreams("--unsigned", "--format", "json", testMode); err == nil || exitOf(err) != exitCodeInfrastructure {
 		t.Errorf("an unsigned test-mode report: exit %d (%v), want %d", exitOf(err), err, exitCodeInfrastructure)
 	}
@@ -194,7 +194,7 @@ func TestVerifyReportUnsignedJudgesTheReportByTheAcceptanceRules(t *testing.T) {
 // and the note does not claim that a signature was valid.
 func TestVerifyReportUnsignedWithoutExpectationsKeepsItsStatusAndSaysSo(t *testing.T) {
 	m := newUnsignedMatrix(t)
-	report := campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }})
+	report := fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }})
 	path := writeReportFile(t, m.dir, report)
 	stdout, stderr, err := runVerifyStreams("--unsigned", path)
 	if err != nil {

@@ -91,10 +91,10 @@ func TestPlanOutputCheckIsStrict(t *testing.T) {
 	}
 }
 
-// The neighbours' plans are found without a glob built from the output's
+// The neighbors' plans are found without a glob built from the output's
 // directory, so a directory whose own name holds a glob character (an
-// unmatched "[" makes a pattern invalid) still reserves its neighbours' IDs,
-// and init does not hand out an ID a neighbour already uses.
+// unmatched "[" makes a pattern invalid) still reserves its neighbors' IDs,
+// and init does not hand out an ID a neighbor already uses.
 func TestSiblingReservationsSurviveGlobCharactersInTheDirectory(t *testing.T) {
 	const sibling = "network:\n  zone_id: csZone1\n  vnet_id: csVnet1\ntiers:\n  - vms:\n      - vmid: 9100\n"
 	for _, name := range []string{"plans", "plans[", "plans]", "pl*ans", "pl?ans", "[plans]", `pl\ans`} {
@@ -112,7 +112,7 @@ func TestSiblingReservationsSurviveGlobCharactersInTheDirectory(t *testing.T) {
 			}
 			d, err := initplan.Discover(context.Background(), siblingInventory{}, siblingInventory{}, initplan.Request{Node: "pve1", VMIDs: []int{100}, AvoidVMIDs: avoid, AvoidSDNIDs: sdnIDs}, t.TempDir())
 			if err != nil || len(d.SandboxVMIDs) != 1 || d.SandboxVMIDs[0] != 9101 {
-				t.Fatalf("init chose %v (%v), want 9101, past the neighbour's 9100", d.SandboxVMIDs, err)
+				t.Fatalf("init chose %v (%v), want 9101, past the neighbor's 9100", d.SandboxVMIDs, err)
 			}
 		})
 	}
@@ -135,7 +135,7 @@ func TestSiblingReservationsSurviveGlobCharactersInTheDirectory(t *testing.T) {
 	}
 }
 
-// The scan honours cancellation and reports what it cannot list.
+// The scan honors cancellation and reports what it cannot list.
 func TestSiblingScanStopsWithItsContext(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "a.yaml"), []byte("tiers: []\n"), 0o644); err != nil {
@@ -144,7 +144,7 @@ func TestSiblingScanStopsWithItsContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, _, _, err := siblingPlanIDs(ctx, filepath.Join(dir, "new.yaml")); err == nil || !strings.Contains(err.Error(), "canceled") {
-		t.Fatalf("a cancelled scan: %v", err)
+		t.Fatalf("a canceled scan: %v", err)
 	}
 	// A directory that is not there is for the write to report.
 	if avoid, sdn, _, err := siblingPlanIDs(context.Background(), filepath.Join(dir, "missing", "new.yaml")); err != nil || len(avoid)+len(sdn) != 0 {
@@ -156,6 +156,6 @@ func TestSiblingScanStopsWithItsContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, _, _, err := siblingPlanIDs(context.Background(), filepath.Join(file, "new.yaml")); err == nil {
-		t.Fatal("an unlistable directory was treated as having no neighbours")
+		t.Fatal("an unlistable directory was treated as having no neighbors")
 	}
 }

@@ -211,11 +211,11 @@ func TestFirstApplyFailureTearsDownUnderALock(t *testing.T) {
 
 // A lock request is journaled before it is sent. When PVE takes the
 // lock but its answer never arrives (the connection closed, a truncated
-// reply, the client's timeout, the caller cancelling), the run is not
+// reply, the client's timeout, the caller canceling), the run is not
 // clean, and its journal says the lock may be held; PVE's own refusal, or a
 // known token, is settled.
 func TestLostLockReplyLeavesTheRunUnclean(t *testing.T) {
-	for _, scenario := range []string{"closed", "truncated", "timeout", "cancelled", "refused", "known token, zone refused"} {
+	for _, scenario := range []string{"closed", "truncated", "timeout", "canceled", "refused", "known token, zone refused"} {
 		t.Run(scenario, func(t *testing.T) {
 			fake := sdntest.New()
 			ctx, cancel := context.WithCancel(context.Background())
@@ -229,7 +229,7 @@ func TestLostLockReplyLeavesTheRunUnclean(t *testing.T) {
 			case "timeout":
 				timeout = 100 * time.Millisecond
 				fake.Fault("POST cluster/sdn/lock", sdntest.Fault{Delay: 300 * time.Millisecond})
-			case "cancelled":
+			case "canceled":
 				fake.Fault("POST cluster/sdn/lock", sdntest.Fault{Delay: 300 * time.Millisecond, Before: func() {
 					go func() { time.Sleep(100 * time.Millisecond); cancel() }()
 				}})

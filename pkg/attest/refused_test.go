@@ -22,7 +22,7 @@ const refusedRunID = "run-6f1a0c52-3a0e-4d6b-9d58-7a2b6c1f9e10"
 func TestARefusedResultIsKeptMarkedAndPrivate(t *testing.T) {
 	base := t.TempDir()
 	raw := []byte("{\"report\":{\"plan_id\":\"x\"},\n\"error\":\"\"}\r\n\x00\xff trailing \"bytes\"")
-	path, err := SaveRefusedResult(base, refusedRunID, "the report names node \"a\"\nand run \"b\"‮; and more", raw)
+	path, err := SaveRefusedResult(base, refusedRunID, "the report names node \"a\"\nand run \"b\"\u202e; and more", raw)
 	if err != nil {
 		t.Fatal(err)
 	}

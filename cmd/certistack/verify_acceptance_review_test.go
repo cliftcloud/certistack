@@ -30,7 +30,7 @@ import (
 // the verifier must judge by what it really proves.
 
 func passReport(plan *config.Plan) *attest.Report {
-	return campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+	return fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 }
 
 func verdictReasons(t *testing.T, report *attest.Report, exp accept.Expectations) (bool, string) {
@@ -91,11 +91,11 @@ func TestReportAcceptanceComparesProbeTargets(t *testing.T) {
 }
 
 // The targets the verifier expects are the ones the probers record. Each
-// real prober runs against an already-cancelled context, which records its
+// real prober runs against an already-canceled context, which records its
 // target and sends nothing, so a change to a prober's target format fails here
 // instead of silently rejecting every real report.
 func TestExpectedProbeTargetMatchesProbers(t *testing.T) {
-	cancelled, cancel := context.WithCancel(context.Background())
+	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	const timeout = 200 * time.Millisecond
 	socket := filepath.Join(t.TempDir(), "absent.qga")
@@ -147,10 +147,10 @@ func TestExpectedProbeTargetMatchesProbers(t *testing.T) {
 		case "qga":
 			prober = qga.NewQGAProber(socket, configured.Command, configured.ExpectedOutput, configured.RequireQGA, timeout, configured.Description)
 		}
-		result := prober.Probe(cancelled)
+		result := prober.Probe(canceled)
 		want, carried := attest.ExpectedProbeTarget(configured)
 		if !carried || result.Target != want {
-			t.Errorf("%s %+v: the prober recorded target %q; expectedProbeTarget = %q (carried %v)", configured.Type, configured, result.Target, want, carried)
+			t.Errorf("%s %+v: the prober recorded target %q; attest.ExpectedProbeTarget = %q (carried %v)", configured.Type, configured, result.Target, want, carried)
 		}
 		if result.Type != configured.Type {
 			t.Errorf("%s: the prober records type %q", configured.Type, result.Type)
@@ -311,7 +311,7 @@ func TestReportAcceptanceDeniedNeedsACapacityDenial(t *testing.T) {
 	plan := mustLoadFixturePlan()
 	exp := fixtureExpectations(plan, accept.OutcomeDenied)
 	denied := func(reason string) *attest.Report {
-		return campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeDenied, reason: reason})
+		return fixtureReport(plan, reportFixture{mode: accept.OutcomeDenied, reason: reason})
 	}
 	accepted := []string{
 		fixtureAdmissionReason,
@@ -413,8 +413,8 @@ func TestVerifyReportExitStatuses(t *testing.T) {
 	plan := mustLoadFixturePlan()
 	dir := t.TempDir()
 	trusted := hex.EncodeToString(public)
-	write := func(fixture campaignFixture, key ed25519.PrivateKey) string {
-		return writeSignedFixture(t, dir, campaignFixtureReport(plan, fixture), key)
+	write := func(fixture reportFixture, key ed25519.PrivateKey) string {
+		return writeSignedFixture(t, dir, fixtureReport(plan, fixture), key)
 	}
 	expect := []string{"--expect-plan", fixturePlanPath, "--expect-node", fixtureNode}
 
@@ -424,12 +424,12 @@ func TestVerifyReportExitStatuses(t *testing.T) {
 		args []string
 		want int
 	}{
-		{"accepted", write(campaignFixture{mode: accept.OutcomePass}, private), append([]string{"--expect-outcome", "pass"}, expect...), 0},
-		{"rejected verdict", write(campaignFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }}, private), expect, exitCodeValidationFailed},
-		{"a guard plan that failed on SDN setup", write(campaignFixture{mode: accept.OutcomeDenied, reason: fixtureSDNFailure}, private), append([]string{"--expect-outcome", "denied"}, expect...), exitCodeValidationFailed},
-		{"a test-mode report without --allow-test-mode", write(campaignFixture{mode: accept.OutcomePass, testMode: true}, private), expect, exitCodeInfrastructure},
-		{"an untrusted signer", write(campaignFixture{mode: accept.OutcomePass}, otherKey), expect, exitCodeInfrastructure},
-		{"an unsupported outcome", write(campaignFixture{mode: accept.OutcomePass}, private), []string{"--expect-outcome", "passed"}, exitCodeInfrastructure},
+		{"accepted", write(reportFixture{mode: accept.OutcomePass}, private), append([]string{"--expect-outcome", "pass"}, expect...), 0},
+		{"rejected verdict", write(reportFixture{mode: accept.OutcomePass, mutate: func(r *attest.Report) { r.VMRecords = nil }}, private), expect, exitCodeValidationFailed},
+		{"a guard plan that failed on SDN setup", write(reportFixture{mode: accept.OutcomeDenied, reason: fixtureSDNFailure}, private), append([]string{"--expect-outcome", "denied"}, expect...), exitCodeValidationFailed},
+		{"a test-mode report without --allow-test-mode", write(reportFixture{mode: accept.OutcomePass, testMode: true}, private), expect, exitCodeInfrastructure},
+		{"an untrusted signer", write(reportFixture{mode: accept.OutcomePass}, otherKey), expect, exitCodeInfrastructure},
+		{"an unsupported outcome", write(reportFixture{mode: accept.OutcomePass}, private), []string{"--expect-outcome", "passed"}, exitCodeInfrastructure},
 	}
 	for _, test := range cases {
 		args := append([]string{"--format", "json", "--trusted-key", trusted}, test.args...)
@@ -447,7 +447,7 @@ func TestReportAcceptanceFaultPlanShapes(t *testing.T) {
 	// VM 9002; level 1's VM 9001 ran before it and passed; level 3 never began.
 	reordered := mustLoadFixturePlan()
 	reordered.Tiers[0], reordered.Tiers[1] = reordered.Tiers[1], reordered.Tiers[0]
-	report := campaignFixtureReport(reordered, campaignFixture{mode: accept.OutcomeFault})
+	report := fixtureReport(reordered, reportFixture{mode: accept.OutcomeFault})
 	report.VMRecords = []probe.VMValidationRecord{passedRecordFor(reordered, 9001), failedRecord(passedRecordFor(reordered, 9002))}
 	expectAccepted(t, "tiers written out of level order", report, fixtureExpectations(reordered, accept.OutcomeFault))
 
@@ -457,7 +457,7 @@ func TestReportAcceptanceFaultPlanShapes(t *testing.T) {
 	peer.VMID, peer.SourceVMID = 9005, 500
 	peers.Tiers[0].VMs = append(peers.Tiers[0].VMs, peer)
 	peers.Tiers = append(peers.Tiers[:1], peers.Tiers[2:]...)
-	report = campaignFixtureReport(peers, campaignFixture{mode: accept.OutcomeFault})
+	report = fixtureReport(peers, reportFixture{mode: accept.OutcomeFault})
 	report.VMRecords = []probe.VMValidationRecord{failedRecord(passedRecordFor(peers, 9001)), passedRecordFor(peers, 9005)}
 	expectAccepted(t, "a clean same-tier peer", report, fixtureExpectations(peers, accept.OutcomeFault))
 	report.VMRecords = report.VMRecords[:1]

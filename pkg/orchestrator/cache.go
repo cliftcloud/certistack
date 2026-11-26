@@ -20,8 +20,7 @@ import (
 // Each sandbox boots from the cache its scan filled. The kernel keeps
 // a scan's pages on the NUMA node the scan runs on, and that node's kswapd
 // evicts the oldest of them once the node is full, even while other nodes
-// are free (a test node reclaimed 14 GiB on node 0 with 103 GiB free on
-// node 1). The first-scanned disks' reads then go back to PBS at boot.
+// are free. The first-scanned disks' reads then go back to PBS at boot.
 type tierCache struct {
 	level       int
 	budgetKnown bool // false until beginTierCache reads the node's memory

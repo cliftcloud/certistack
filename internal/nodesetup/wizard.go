@@ -260,7 +260,7 @@ func CheckStorageID(id string) error {
 // the script does.
 func CheckDatastore(name string) error {
 	if !validDatastore(name) {
-		return fmt.Errorf("%q is not a PBS datastore name (3 to 32 letters, digits, - _ and ., starting with a letter or digit)", name)
+		return fmt.Errorf("%q is not a PBS datastore name (3 to 32 letters, digits, - _ and ., not starting with - or .)", name)
 	}
 	return nil
 }

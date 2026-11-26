@@ -45,7 +45,7 @@ broken, anyone can fork the last Community release.
    notifications and tenants. The engine, the report format and the verifier stay in Community, and verifying
    evidence never needs an account or a license.
 4. Improvements to the restore-test engine land in Community first. Anything Enterprise-only is announced as such
-   before release, never by relabelling an existing feature.
+   before release, never by relabeling an existing feature.
 5. No usage statistics are sent unless you opt in, and no feature depends on them ([usage statistics](telemetry.md)).
 6. Contributors keep the copyright in their work. The
    [contributor license agreement](https://github.com/cliftcloud/certistack/blob/main/CLA.md) lets Clift Cloud license

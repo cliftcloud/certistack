@@ -26,9 +26,9 @@ LDFLAGS := -ldflags "-w \
 build:
 	go build -trimpath -buildvcs=false $(LDFLAGS) -o bin/certistack ./cmd/certistack/
 
-# Cross-compile the controller and temporary node-worker binary for Linux.
-# Both targets are static. Releases sign amd64; arm64 is a source-build target
-# for offline commands.
+# Cross-compile the controller and the temporary node-worker binary for Linux.
+# Both targets build static executables. A release ships amd64 only; arm64 is
+# for building from source and runs the offline commands.
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false $(LDFLAGS) -o bin/certistack-linux-amd64 ./cmd/certistack/
 

@@ -136,7 +136,7 @@ func (c *Client) ValidateOverlayStorage(ctx context.Context, node, storage strin
 	}
 	switch {
 	case !fileOverlayStorageTypes[status.Type]:
-		return nil, fmt.Errorf("overlay storage %q is type %q; it must be file-based (dir, nfs, cifs, cephfs, btrfs)", storage, status.Type)
+		return nil, fmt.Errorf("overlay storage %q is type %q; it must be file-based (dir, nfs, cifs, cephfs, btrfs, glusterfs)", storage, status.Type)
 	case !contentIncludes(status.Content, "images"):
 		return nil, fmt.Errorf("overlay storage %q does not allow disk images (content %q); add \"images\" content", storage, status.Content)
 	case status.Active != 1:

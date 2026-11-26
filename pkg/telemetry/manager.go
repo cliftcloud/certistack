@@ -66,7 +66,7 @@ type Decision struct {
 	Unwritable string
 	// KeptByEnvironment: off here, because this process does not set
 	// CERTISTACK_TELEMETRY, but the state file holds the install that runs
-	// which set it keep (a scheduled unit's), and those runs report.
+	// which set it keep (a scheduled job's), and those runs report.
 	KeptByEnvironment bool
 }
 
@@ -130,7 +130,7 @@ func environmentInstallReason(path string, st State) string {
 	if st.LastSent != "" {
 		sent = "last sent " + st.LastSent
 	}
-	return "the state at " + path + " holds an install kept by " + VarTelemetry + "=1 (" + sent + "): reports are sent by runs that set it, such as the scheduled unit; this shell does not set it"
+	return "the state at " + path + " holds an install kept by " + VarTelemetry + "=1 (" + sent + "): reports are sent by runs that set it, such as a scheduled job; this shell does not set it"
 }
 
 // environmentDecision is CERTISTACK_TELEMETRY=1 with no stored yes. The report
@@ -229,6 +229,22 @@ func (m *Manager) Show() (Snapshot, []byte, error) {
 		}
 	}
 	return snap, m.payload(st).Encode(), nil
+}
+
+// Sample is what the first report would be if the user opted in now and a run
+// then completed today: a sample install id, random on each call (opting in
+// makes the real one), this version, one cluster, today's UTC date and business
+// use no. `telemetry show` prints it while the report is off, so that the five
+// fields can be read before the question is answered.
+func (m *Manager) Sample() ([]byte, error) {
+	st, err := NewInstall(false)
+	if err != nil {
+		return nil, err
+	}
+	p := m.payload(st)
+	p.ClusterCount = 1
+	p.LastTestRun = m.now().UTC().Format(DateLayout)
+	return p.Encode(), nil
 }
 
 // Enable stores a yes. An installation that is already enabled keeps its

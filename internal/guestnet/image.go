@@ -305,7 +305,7 @@ func guestfishDrivesOf(access, format string, images []string) []string {
 
 // InspectionError says, in words for a plan's comment, why guestfish could
 // not open or inspect a backup's disks. A guest it cannot read whatever is
-// tried (an encrypted volume, no operating system it recognises, several, a
+// tried (an encrypted volume, no operating system it recognizes, several, a
 // partition layout it cannot read) is a refusal (IsRefusal), as network
 // recovery's dependencyError makes one; a missing guestfish names the package.
 func InspectionError(err error) error {

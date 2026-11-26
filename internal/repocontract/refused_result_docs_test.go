@@ -14,7 +14,7 @@ import (
 // A report the controller refuses keeps its raw worker result as a file that is
 // not evidence. Where the file is kept is documented where an operator meets the
 // refusal and where the files are listed, in the code's own names; the
-// behaviours are pinned by pkg/attest (refused_test.go), pkg/controller
+// behaviors are pinned by pkg/attest (refused_test.go), pkg/controller
 // (refused_result_test.go) and cmd/certistack (verify_refused_test.go).
 func TestKeptRefusedResultsAreDocumented(t *testing.T) {
 	read := func(parts ...string) string {

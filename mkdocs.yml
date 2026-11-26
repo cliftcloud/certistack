@@ -4,7 +4,7 @@
 # Documentation site for the Community Edition. Build locally with
 #   python3 -m pip install -r requirements-docs.txt && make docs
 site_name: CertiStack Docs
-site_description: Disaster Recovery Validation for Proxmox VE & PBS
+site_description: Restore-test your Proxmox VE backups in an isolated sandbox
 site_author: Clift Cloud LLC
 site_url: https://certistack.dev/docs/
 repo_name: cliftcloud/certistack

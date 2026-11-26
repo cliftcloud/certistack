@@ -15,10 +15,10 @@ the project. Signing this Agreement grants Clift Cloud those rights
 without taking away any right you have in your own contribution.
 
 By submitting a contribution (via pull request or any other means) to a
-Clift Cloud LLC-maintained CertiStack repository, and by clicking "I agree"
-through the CLA verification process configured on that repository, You
-accept and agree to the following terms for any past and future
-contribution You submit.
+Clift Cloud LLC-maintained CertiStack repository, and by replying on your
+pull request with the signature text the CLA bot asks for, You accept and
+agree to the following terms for any past and future contribution You
+submit.
 
 ## 1. Definitions
 

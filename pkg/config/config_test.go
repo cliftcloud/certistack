@@ -805,11 +805,14 @@ tiers:
 	}
 }
 
-func TestHarmonizedSchema_BlueprintCompat(t *testing.T) {
+// A plan written with the alias spellings (the `certistack/v1` version, the
+// `admission` block, `subnet_cidr`, `tier` and `target_vmid`) loads as one
+// written with the canonical ones.
+func TestAPlanInTheAliasSpellingsLoads(t *testing.T) {
 	yamlStr := `
 version: "certistack/v1"
-plan_id: "enterprise-cluster-lab-01"
-name: "Autonomous DR Verification"
+plan_id: "alias-spellings"
+name: "Restore test in alias spellings"
 
 admission:
   max_host_ram_percent: 85.0
@@ -855,7 +858,7 @@ compliance:
 `
 	p, err := LoadFromReader(strings.NewReader(yamlStr))
 	if err != nil {
-		t.Fatalf("expected blueprint-style plan to parse and validate successfully, got: %v", err)
+		t.Fatalf("expected the plan in alias spellings to parse and validate successfully, got: %v", err)
 	}
 
 	if p.Version != "certistack/v1" {
@@ -1081,12 +1084,12 @@ func TestValidation_RejectsAProbeSetThatCanAllBeSkipped(t *testing.T) {
 	}
 }
 
-// Qmp says QEMU runs the VM (Stage 1 already required it) and a
-// screendump only captures a framebuffer: a guest in a boot loop or at a
-// "No bootable device" screen passes both. A VM with only such probes, or
-// with them beside an optional QGA probe that can be skipped, has nothing
-// that asserts anything in the guest, so its plan is refused, naming the
-// way out. Any wire probe, or a QGA probe that cannot be skipped, is enough.
+// Qmp says QEMU runs the VM and a screendump only captures a framebuffer: a
+// guest in a boot loop or at a "No bootable device" screen passes both. A VM
+// with only such probes, or with them beside an optional QGA probe that can be
+// skipped, has nothing that asserts anything in the guest, so its plan is
+// refused, naming the way out. Any wire probe, or a QGA probe that cannot be
+// skipped, is enough.
 func TestValidation_RejectsAVMWhoseProbesNeverAssertAnythingInTheGuest(t *testing.T) {
 	qmp := Probe{Type: "qmp", TimeoutSec: 30, Description: "VM runs"}
 	qmpAlias := Probe{Type: "qmp_status", TimeoutSec: 30, Description: "VM runs"}
@@ -1349,7 +1352,7 @@ func secondVM(p *Plan) VM {
 	return vm
 }
 
-func TestValidation_RejectsSelectorsTheRunnerCannotHonour(t *testing.T) {
+func TestValidation_RejectsSelectorsTheRunnerCannotHonor(t *testing.T) {
 	for name, tc := range map[string]struct {
 		mutate    func(*Plan)
 		wantField string
@@ -1405,9 +1408,8 @@ func TestValidation_OverlayStorageMustBeAPVEStorageID(t *testing.T) {
 	}
 }
 
-// An accepted plan with a loopback sandbox range once ran end to end, and its
-// TCP probe passed against a listener on the worker host, with no guest
-// present.
+// A sandbox range in loopback or other host-local space is refused: a TCP probe
+// would pass against a listener on the worker host, with no guest present.
 func TestValidateRejectsHostLocalSandboxRanges(t *testing.T) {
 	for _, tc := range []struct{ ipRange, probeIP, target string }{
 		{"127.0.0.0/24", "127.0.0.1", "127.0.0.10"},

@@ -132,7 +132,7 @@ func TestRecover_UnreadableSDNStateFailsClosed(t *testing.T) {
 }
 
 // node-run reconciles the journal before preflight, so recovery is the first
-// PVE request a worker can make and must honour the insecure-TLS opt-in too.
+// PVE request a worker can make and must honor the insecure-TLS opt-in too.
 func TestRecover_InsecureTLSWithoutLabOptInSendsNoRequest(t *testing.T) {
 	requests := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -503,7 +503,7 @@ func TestRecoverLockedWithAnUnresolvedMapIntentAndNoMap(t *testing.T) {
 }
 
 // hostWithProcs points recovery's view of the host at a fake process tree
-// under root, signalling through signal, and at fake maps. It restores the
+// under root, signaling through signal, and at fake maps. It restores the
 // real host when the test ends.
 func hostWithProcs(t *testing.T, root string, signal func(journal.Process, syscall.Signal) error) fakeMaps {
 	t.Helper()
@@ -592,7 +592,7 @@ func TestRecoverLockedRetriesAJournaledMapProcess(t *testing.T) {
 		t.Fatalf("recovery = %v, want the journaled process reported", err)
 	}
 	if fmt.Sprint(signaled) != "[201 201]" {
-		t.Fatalf("signalled %v, want SIGINT and SIGKILL to 201 only", signaled)
+		t.Fatalf("signaled %v, want SIGINT and SIGKILL to 201 only", signaled)
 	}
 	if record, err := journal.Load(path); err != nil || record.Phase != "cleanup_failed" {
 		t.Fatalf("journal = %+v, %v; want it kept unclean", record, err)
@@ -624,7 +624,7 @@ func TestRecoverLockedLeavesAnotherOperationsMapAlone(t *testing.T) {
 		t.Fatalf("recovery = %v, want it complete", err)
 	}
 	if fmt.Sprint(signaled) != "[100]" || !present(root, 101) || !present(root, 102) {
-		t.Fatalf("signalled %v; 101 present %v, 102 present %v; want only the run's own 100 stopped", signaled, present(root, 101), present(root, 102))
+		t.Fatalf("signaled %v; 101 present %v, 102 present %v; want only the run's own 100 stopped", signaled, present(root, 101), present(root, 102))
 	}
 }
 
@@ -663,9 +663,9 @@ func TestRecoverLockedOfATokenlessJournalStopsNoMapProcess(t *testing.T) {
 }
 
 // The identity a retry needs is on disk before the process is
-// signalled: a recovery killed in the middle of its stop (the journal is
+// signaled: a recovery killed in the middle of its stop (the journal is
 // what survives) still names it.
-func TestRecoverLockedJournalsAMapProcessBeforeSignallingIt(t *testing.T) {
+func TestRecoverLockedJournalsAMapProcessBeforeSignalingIt(t *testing.T) {
 	root, stateDir := t.TempDir(), t.TempDir()
 	at := reaperBoot.Add(10 * time.Hour)
 	fakeMapProc(t, root, 100, mapArgv(ownRepo), at.Add(time.Second), ownRepo, "team-a", ownToken)
@@ -693,7 +693,7 @@ func TestRecoverLockedJournalsAMapProcessBeforeSignallingIt(t *testing.T) {
 		t.Fatalf("recovery: %v", err)
 	}
 	if !journaled {
-		t.Fatal("the process was signalled before the journal named it")
+		t.Fatal("the process was signaled before the journal named it")
 	}
 }
 

@@ -16,9 +16,8 @@ import (
 // includes (interfaces(5)): "source" names files, with shell wildcards, and
 // "source-directory" names directories whose files are included. The default
 // directory /etc/network/interfaces.d is convention, active only when the
-// main file sources it; reading it unconditionally credited a stale fragment
-// with an interface the guest never configures, and ignoring "source" missed
-// the profile that was in fact included.
+// main file sources it, so a fragment there that nothing includes does not
+// count.
 //
 // Relative paths are resolved from the directory of the file that names them.
 // The walk reads only what the include graph reaches, once per file, within

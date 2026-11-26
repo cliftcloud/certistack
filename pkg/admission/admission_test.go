@@ -114,6 +114,6 @@ func TestReservationFitsTellsNeverFromNotNow(t *testing.T) {
 		t.Fatalf("249 GiB on a 361 GiB node = %v, want it to fit", err)
 	}
 	if err := reservationFits(0, 254976, 80); err != nil {
-		t.Fatalf("unknown node memory = %v, want no judgement", err)
+		t.Fatalf("unknown node memory = %v, want no judgment", err)
 	}
 }

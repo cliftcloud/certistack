@@ -120,9 +120,9 @@ func TestStdoutPastTheResultLimitStopsTheCommand(t *testing.T) {
 }
 
 // A valid event reaches a progress writer that blocks, and the context is
-// cancelled: runCommand returns at once, with the writer still blocked, and
+// canceled: runCommand returns at once, with the writer still blocked, and
 // does not wait for the writer to be let go.
-func TestCancelledCommandReturnsWhileTheProgressWriterIsBlocked(t *testing.T) {
+func TestCanceledCommandReturnsWhileTheProgressWriterIsBlocked(t *testing.T) {
 	shortFlush(t, 200*time.Millisecond)
 	eventLine, err := progresspkg.Encode(progresspkg.Event{Level: "INFO", Stage: "blocking-writer", Message: "synthetic worker progress"})
 	if err != nil {
@@ -151,14 +151,14 @@ func TestCancelledCommandReturnsWhileTheProgressWriterIsBlocked(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the progress writer was never given the event")
 	}
-	cancelled := time.Now()
+	canceled := time.Now()
 	cancel()
 	select {
 	case got := <-done:
 		if got.err == nil || !strings.Contains(got.err.Error(), "signal: killed") || len(got.output) != 0 {
 			t.Fatalf("runCommand = %d bytes, %v; want the killed child", len(got.output), got.err)
 		}
-		if took := time.Since(cancelled); took > 3*time.Second {
+		if took := time.Since(canceled); took > 3*time.Second {
 			t.Fatalf("runCommand returned %s after the cancellation", took)
 		}
 	case <-time.After(10 * time.Second):

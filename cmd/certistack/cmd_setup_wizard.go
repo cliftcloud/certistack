@@ -306,7 +306,11 @@ func (w *setupWizardContext) keepPartial(vars ...nodesetup.EnvVar) error {
 		}
 		fmt.Fprintf(&b, "%s=%s\n", v.Name, v.Value)
 	}
-	return nodesetup.WriteSecretFile(w.partialPath, []byte(b.String()))
+	if err := nodesetup.WriteSecretFile(w.partialPath, []byte(b.String())); err != nil {
+		return err
+	}
+	setupPartial.Store(w.partialPath)
+	return nil
 }
 
 // partialHas reports whether controller.env.partial holds the variable.
@@ -343,6 +347,8 @@ func runSetupWizard(ctx context.Context, out io.Writer, in io.Reader, opts setup
 	}
 	u := &wizardUI{ctx: ctx, out: out, in: newLineReader(in), yes: opts.Yes, deps: deps}
 	w := &setupWizardContext{}
+	setupChanging.Store(false)
+	setupPartial.Store("")
 
 	u.say("CertiStack setup connects this controller to one Proxmox VE node and its Proxmox Backup Server,")
 	u.say("and ends with certistack check. It changes nothing on a host before you say yes to that change;")
@@ -637,6 +643,7 @@ func wizardDirectory(u *wizardUI, w *setupWizardContext, opts setupWizardOptions
 			continue
 		}
 		dir = filepath.Clean(dir)
+		setupChanging.Store(true)
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			u.say("Cannot create %s: %v. Create it first (sudo install -d -m 0700 -o \"$USER\" %s) or name a directory you own.", dir, err, dir)
 			if u.yes {
@@ -709,6 +716,9 @@ func wizardDirectory(u *wizardUI, w *setupWizardContext, opts setupWizardOptions
 			}
 		}
 		u.say("Note: %s holds what an unfinished setup kept (%s); setup offers to use it.", w.partialPath, strings.Join(names, ", "))
+		if len(w.partial) > 0 {
+			setupPartial.Store(w.partialPath)
+		}
 	}
 	return nil
 }
@@ -1289,7 +1299,7 @@ func wizardPVEAccess(u *wizardUI, w *setupWizardContext, opts setupWizardOptions
 			return fmt.Errorf("remove the old token: %w", err)
 		}
 	}
-	script, err := nodesetup.RBACScript(nodesetup.RBACParams{Node: w.facts.Name, OverlayStorage: w.overlayID, Part: nodesetup.PartPVE, Capture: true, Command: "certistack setup"})
+	script, err := nodesetup.RBACScript(nodesetup.RBACParams{Node: w.facts.Name, OverlayStorage: w.overlayID, Part: nodesetup.PartPVE, Capture: true, Command: "certistack setup", SecretKept: secret != ""})
 	if err != nil {
 		return err
 	}
@@ -1357,10 +1367,6 @@ func wizardPBS(u *wizardUI, w *setupWizardContext, opts setupWizardOptions) erro
 		scope = "the namespace " + w.pbs.Namespace + " of the datastore " + w.pbs.Datastore
 	}
 	u.say("On the PBS, setup creates the user %s and its token %s with DatastoreReader on %s: read-only.", nodesetup.PBSUser, nodesetup.PBSTokenID, scope)
-	script, err := nodesetup.RBACScript(nodesetup.RBACParams{Node: w.facts.Name, OverlayStorage: w.overlayID, PBSDatastore: w.pbs.Datastore, PBSNamespace: w.pbs.Namespace, Part: nodesetup.PartPBS, Capture: true, Command: "certistack setup"})
-	if err != nil {
-		return err
-	}
 	repository := w.pbs.Repository(nodesetup.PBSTokenID)
 	// A kept secret is offered only for the same PBS server, where the token
 	// is the same. The PBS is left as it is only when nothing about the grant
@@ -1381,6 +1387,12 @@ func wizardPBS(u *wizardUI, w *setupWizardContext, opts setupWizardOptions) erro
 		if keep {
 			secret, leave = prevSecret, same
 		}
+	}
+	// Built once the kept secret is known: with one, the script reports the
+	// existing token as kept instead of advising to replace it.
+	script, err := nodesetup.RBACScript(nodesetup.RBACParams{Node: w.facts.Name, OverlayStorage: w.overlayID, PBSDatastore: w.pbs.Datastore, PBSNamespace: w.pbs.Namespace, Part: nodesetup.PartPBS, Capture: true, Command: "certistack setup", SecretKept: secret != ""})
+	if err != nil {
+		return err
 	}
 	target, overSSH := pbsSSHTarget(w, opts), false
 	if !leave && !opts.PBSManual {
@@ -1847,7 +1859,7 @@ func pbsByHand(u *wizardUI, w *setupWizardContext, have string) (string, error) 
 	if u.yes {
 		return "", errors.New("the PBS part needs ssh to the PBS when setup runs unattended (--pbs-ssh root@HOST)")
 	}
-	script, err := nodesetup.RBACScript(nodesetup.RBACParams{Node: w.facts.Name, OverlayStorage: w.overlayID, PBSDatastore: w.pbs.Datastore, PBSNamespace: w.pbs.Namespace, Part: nodesetup.PartPBS, Command: "certistack setup"})
+	script, err := nodesetup.RBACScript(nodesetup.RBACParams{Node: w.facts.Name, OverlayStorage: w.overlayID, PBSDatastore: w.pbs.Datastore, PBSNamespace: w.pbs.Namespace, Part: nodesetup.PartPBS, Command: "certistack setup", SecretKept: have != ""})
 	if err != nil {
 		return "", err
 	}

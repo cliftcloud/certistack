@@ -11,10 +11,9 @@ import (
 // listingEntries are the entries of a guestfish "ls" result. guestfish prints
 // one entry per line, exactly as the file system holds it, so a name with a
 // space in it ("Wired connection 1.nmconnection", NetworkManager's own default
-// for an automatic connection) is one entry. Splitting on white space instead
-// (strings.Fields) cut it into "Wired", "connection" and "1.nmconnection" and
-// sent the seed copy to a file that does not exist. A name is never
-// trimmed: a trailing space is part of it.
+// for an automatic connection) is one entry, so the output is split on line
+// breaks and not on white space. A name is never trimmed: a trailing space is
+// part of it.
 func listingEntries(output string) []string {
 	var entries []string
 	for _, line := range strings.Split(output, "\n") {

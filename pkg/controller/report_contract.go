@@ -41,26 +41,26 @@ type reportExpectation struct {
 }
 
 // checkWorkerReport holds a worker's report to what the controller requested
-// before it signs it: the run, node, mode and plan it asked for, a timestamp
-// from its own run, the population of VMs and probes the plan defines, and
-// the report's own consistency. The worker is the less-trusted tier, and a
-// signature over its words certifies them as the controller's: a report that
-// names another node or run, comes from another time, relabels its mode, or
-// omits, adds or contradicts the work requested is refused, never repaired
-// by overwriting what it says. What the worker observed on
-// the node, such as a probe's result or an image digest, is still its
-// observation, which no check here can independently confirm.
+// before it saves it: the run, node, mode and plan it asked for, a timestamp
+// from its own run, the population of VMs and probes the plan defines, and the
+// report's own consistency. The worker is the less-trusted tier, and a
+// signature over its words would certify them as the controller's: a report
+// that names another node or run, comes from another time, relabels its mode,
+// or omits, adds or contradicts the work requested is refused, never repaired
+// by overwriting what it says. What the worker observed on the node, such as a
+// probe's result or an image digest, is still its observation, which no check
+// here can independently confirm.
 //
-// A report that does not claim a pass is checked for identity and
-// consistency, and for the backup each of its VM records names,
-// only: a run that failed partway legitimately has a partial population, and
-// partial probe results.
+// A report that does not claim a pass is checked only for identity and
+// consistency, and for the backup each of its VM records names: a run that
+// failed partway legitimately has a partial population, and partial probe
+// results.
 //
 // The report's schema is exactly the one this build writes. The worker is the
 // controller's own executable, uploaded for the run, so a worker that declares
-// another schema is not that executable, and an older schema would be signed
-// as a report that never recorded the evidence this build's verifier holds a
-// report to.
+// another schema is not that executable, and an older schema would be saved
+// (and, in the Enterprise Edition, signed) as a report that never recorded the
+// evidence this build's verifier holds a report to.
 func checkWorkerReport(report *attest.Report, want reportExpectation) error {
 	var problems []string
 	problem := func(format string, args ...any) {
@@ -72,13 +72,13 @@ func checkWorkerReport(report *attest.Report, want reportExpectation) error {
 	// The worker never signs: only a controller's Signer does, after these checks.
 	// A report that comes back carrying a signature, a key, a fingerprint or a
 	// timestamp of one is not the report of the executable that was uploaded, and
-	// without a Signer nothing would overwrite the members, so they would be saved
-	// as if the run had signed.
+	// without a Signer nothing would overwrite the members, so they would be
+	// saved as if the run had signed.
 	for _, member := range signatureMembersOf(report) {
 		problem("the report carries a signature member (%q), and the worker never signs: it is not the report of the worker that was started", member)
 	}
 	if report.ValidatedPlanSHA256 == "" || report.ResolvedPlanSHA256 == "" {
-		problem("the report records no complete validated and resolved worker-plan digests")
+		problem("the report does not record both the validated and the resolved worker-plan digest")
 	}
 	if report.NodeFQDN != want.node {
 		problem("the report names node %q, and the run was on node %q", boundedText(report.NodeFQDN), want.node)

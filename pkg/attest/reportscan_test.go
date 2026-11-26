@@ -138,7 +138,7 @@ func truncateForLog(data []byte) string {
 func randomDocument(rng *rand.Rand, depth int) string {
 	keys := []string{`"a"`, `"b"`, `"c"`, `"a"`, `"A"`, `"k1"`, `"k1"`, `"é"`, `"é"`, "\"\xff\"", "\"\xfe\"", `"�"`, `"\ud800"`, `""`, `"x y"`, `"run_id"`}
 	numbers := []string{"0", "-0", "1", "-1", "1.5", "2e3", "1E+2", "0.000001", "9007199254740991", "9007199254740992", "9007199254740993", "-9007199254740993", "1e16", "1e400", "123456789012345678901", "01", "1.", "-", ".5", "1e", "0.1e-5"}
-	strs := []string{`""`, `"plain"`, `"with \"quote\" and \\ slash"`, `"é€"`, `"😀"`, `"\ud800"`, `"<tag>&amp;"`, `"  "`, "\"caf\xc3\xa9\"", "\"\xc3\x28\"", `"\q"`, "\"\x01\"", `"tab	"`}
+	strs := []string{`""`, `"plain"`, `"with \"quote\" and \\ slash"`, `"é€"`, `"😀"`, `"\ud800"`, `"<tag>&amp;"`, "\"\u2028\u2029\"", "\"caf\xc3\xa9\"", "\"\xc3\x28\"", `"\q"`, "\"\x01\"", `"tab	"`}
 	switch pick := rng.Intn(12); {
 	case pick < 4 && depth < 6:
 		var b strings.Builder
@@ -371,7 +371,7 @@ func TestVerifyReportAtTheMemberLimitVerifiesQuickly(t *testing.T) {
 }
 
 // A valid signed report with a 16 MiB failure artifact is within the
-// documented limits and verifies without tokenizing, decoding and marshalling
+// documented limits and verifies without tokenizing, decoding and marshaling
 // the report three times over (which costs about 38 times the report), under
 // verifyAllocationCeiling.
 func TestVerifyingALargeReportStaysUnderTheAllocationCeiling(t *testing.T) {
@@ -510,9 +510,9 @@ func TestCanonicalFormIsUnchangedForWrittenReports(t *testing.T) {
 	pub, priv := newKey(t)
 	records := []probe.VMValidationRecord{{
 		VMID: 9001, VerificationStatus: "verified", AllPassed: true,
-		ProbeResults: []probe.Result{{Type: "http", Target: "https://10.0.0.1/<a>&b", Description: "café   \U0001f600 ‮", Passed: true, Origin: "worker_host"}},
+		ProbeResults: []probe.Result{{Type: "http", Target: "https://10.0.0.1/<a>&b", Description: "café \u2028 \U0001f600 \u202e", Passed: true, Origin: "worker_host"}},
 	}}
-	for _, name := range []string{"plain", "café 中文 \U0001f600", "<script>&'\"</script>", "line sep ", "tab\tnew\nline", "\x7f\u0080\u009f", "ends with slash\\"} {
+	for _, name := range []string{"plain", "café 中文 \U0001f600", "<script>&'\"</script>", "line\u2028sep\u2029", "tab\tnew\nline", "\x7f\u0080\u009f", "ends with slash\\"} {
 		report := BuildReport(&config.Plan{PlanID: "canon", Name: name, Compliance: config.Compliance{Frameworks: []string{"SOC2", name}, RetentionDays: 2555}}, "node-é.example", 1500*time.Millisecond, true, records, "")
 		report.RTOSeconds = 1234.5678e-3
 		if err := report.SignReport(priv); err != nil {

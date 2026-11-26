@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package screendump captures virtual machine console framebuffers upon test failure for forensic triage.
+// Package screendump captures a sandbox VM's console through QMP and converts
+// the frame to PNG.
 package screendump
 
 import (
@@ -92,7 +93,7 @@ func Capture(ctx context.Context, client *qmp.Client, vmid int, outputDir string
 	}
 
 	// Unique to this capture (two within one second, or two runs, never share a
-	// name), and of a form recovery recognises as a diagnostic file of CertiStack's.
+	// name), and of a form recovery recognizes as a diagnostic file of CertiStack's.
 	var nonce [4]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
 		return nil, fmt.Errorf("screendump of VM %d not taken: %w", vmid, err)
@@ -170,7 +171,6 @@ func Capture(ctx context.Context, client *qmp.Client, vmid int, outputDir string
 	}, nil
 }
 
-// ConvertPPMToPNG parses a P6 binary PPM image and encodes it to PNG format.
 const (
 	// MaxPPMWidth defines the maximum allowable screendump width (4K resolution)
 	MaxPPMWidth = 4096

@@ -21,7 +21,7 @@ import (
 	"github.com/cliftcloud/certistack/pkg/pve"
 )
 
-// Manager coordinates SDN zone, VNet, and subnet provisioning with zero external leakage.
+// Manager creates and removes the sandbox's SDN zone, VNet and subnet.
 type Manager struct {
 	client *pve.Client
 	// lockToken is the token of PVE's SDN configuration lock while this
@@ -530,9 +530,9 @@ func (m *Manager) UsedIDs(ctx context.Context) (map[string]bool, error) {
 
 // ensureAbsent fails unless no zone or VNet (resource) named id exists. It
 // reads PVE's list, not the object: PVE answers a read of a missing zone
-// with HTTP 500 "sdn zone '<id>' does not exist", not 404, so a read made
-// every free ID look like an error. An ID equal but for case counts as
-// taken.
+// with HTTP 500 "sdn zone '<id>' does not exist", not 404, so a read of the
+// object cannot tell a free ID from an error. An ID equal but for case counts
+// as taken.
 func (m *Manager) ensureAbsent(ctx context.Context, resource, id string) error {
 	if err := validateSDNIdentifier(resource, id); err != nil {
 		return err

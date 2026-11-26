@@ -11,11 +11,11 @@ import (
 	"github.com/cliftcloud/certistack/pkg/attest"
 )
 
-// A signed report keeps why a run failed: the top-level failure reason, each
-// failed probe's error and detail, and the cleanup errors. verify-report shows
-// them, so the default view says why a run failed and not only that it
-// did. They are the report's own words, signed but not made safe by the
-// signature: a probe's detail can be text a guest or a service produced. Every
+// A report keeps why a run failed: the top-level failure reason, each failed
+// probe's error and detail, and the cleanup errors. verify-report shows them,
+// so the default view says why a run failed and not only that it did. They are
+// the report's own words, which a signature does not make safe: a probe's
+// detail can be text a guest or a service produced. Every
 // one is flattened to one line with control and format characters removed
 // (sanitizeVerifyText) and cut to a length, and no more than maxDiagnosticItems
 // of a kind are listed, with a count of the rest, so a hostile or merely huge
@@ -30,7 +30,7 @@ const (
 	maxDiagnosticItems = 20
 )
 
-// boundedDiagnostic makes a value of a signed report fit on a line: control and
+// boundedDiagnostic makes a value of a report fit on a line: control and
 // format characters removed, line breaks flattened, at most limit characters.
 func boundedDiagnostic(value string, limit int) string {
 	value = sanitizeVerifyText(value)
@@ -75,7 +75,7 @@ func writeProxmoxVersions(out io.Writer, report *attest.Report) {
 	fmt.Fprintf(out, "  Proxmox:     %s\n", line)
 }
 
-// writeFailureReason prints the signed top-level failure reason, beside the
+// writeFailureReason prints the top-level failure reason, beside the
 // verdict it explains.
 func writeFailureReason(out io.Writer, report *attest.Report) {
 	if report.FailureReason != "" {

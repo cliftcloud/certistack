@@ -162,9 +162,9 @@ for dir in "$root/root/.ssh" "$root/home" "$root/etc/ssh"; do
 done
 
 # 5. Postconditions. Each reads the guest's state afresh.
-# 5a. The build key is in no authorized_keys file. The search lists file names
-# with find -exec, so an unusual name cannot hide a file from it, and it runs
-# only over a tree with no link it would not follow.
+# The build key is in no authorized_keys file. The search lists file names with
+# find -exec, so an unusual name cannot hide a file from it, and it runs only
+# over a tree with no link it would not follow.
 refuse_linked_ssh_paths
 for dir in "$root/root/.ssh" "$root/home" "$root/etc/ssh"; do
     [ -d "$dir" ] || continue
@@ -173,9 +173,9 @@ for dir in "$root/root/.ssh" "$root/home" "$root/etc/ssh"; do
     [ -z "$left" ] || fail "the build key is still authorized in: $left"
 done
 
-# 5b. /etc/machine-id exists and is empty or "uninitialized", and D-Bus's copy,
-# if there is one, says the same, so systemd makes a new ID on each clone's
-# first boot.
+# /etc/machine-id exists and is empty or "uninitialized", and D-Bus's copy, if
+# there is one, says the same, so systemd makes a new ID on each clone's first
+# boot.
 [ -f "$root/etc/machine-id" ] || fail "$root/etc/machine-id is missing, and a clone would boot without a network"
 for id_file in "$root/etc/machine-id" "$root/var/lib/dbus/machine-id"; do
     if [ -e "$id_file" ]; then
@@ -187,8 +187,8 @@ for id_file in "$root/etc/machine-id" "$root/var/lib/dbus/machine-id"; do
     fi
 done
 
-# 5c. cloud-init has nothing left to say about the build instance: no state or
-# seed file, no instance link, no log.
+# Cloud-init has nothing left to say about the build instance: no state or seed
+# file, no instance link, no log.
 if [ -d "$root/var/lib/cloud" ]; then
     left=$(find "$root/var/lib/cloud" -mindepth 1 ! -type d) ||
         fail 'could not search /var/lib/cloud'
@@ -198,7 +198,7 @@ for log in "$root/var/log/cloud-init.log" "$root/var/log/cloud-init-output.log";
     if [ -e "$log" ] || [ -L "$log" ]; then fail "$log remains"; fi
 done
 
-# 5d. No SSH host key and no journal file of the build remain.
+# No SSH host key and no journal file of the build remain.
 for key in "$root"/etc/ssh/ssh_host_*; do
     if [ -e "$key" ] || [ -L "$key" ]; then fail "the SSH host key $key remains"; fi
 done
@@ -208,7 +208,7 @@ if [ -d "$root/var/log/journal" ]; then
     [ -z "$left" ] || fail "journal files remain: $(printf '%s\n' "$left" | head -n 5 | tr '\n' ' ')"
 fi
 
-# 5e. What the template will carry is what was checked above.
+# What the template will carry is what was checked above.
 [ "$(cat "$root/etc/certistack/controller-image")" = "$image" ] ||
     fail 'the recorded controller image is not the one that was checked'
 [ -s "$manifest" ] || fail 'the build manifest is empty'

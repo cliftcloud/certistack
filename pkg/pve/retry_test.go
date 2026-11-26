@@ -159,11 +159,11 @@ func TestDoStopsWaitingWhenCanceled(t *testing.T) {
 	}
 }
 
-// A retryable HTTP 596, then the caller is cancelled during the retry delay.
+// A retryable HTTP 596, then the caller is canceled during the retry delay.
 // The error is not the 596 alone, so everything that classifies an
 // interruption by errors.Is(err, context.Canceled) (the signal classifier, the
 // signed failure reason, the CLI's exit status 130) sees one.
-func TestDoCancelledDuringRetryBackoffStaysACancellation(t *testing.T) {
+func TestDoCanceledDuringRetryBackoffStaysACancellation(t *testing.T) {
 	var hits atomic.Int32
 	firstReply := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -204,7 +204,7 @@ func TestDoCancelledDuringRetryBackoffStaysACancellation(t *testing.T) {
 }
 
 // A cancellation that the failed request itself reports is not wrapped twice.
-func TestDoCancelledDuringARequestIsNotWrappedAgain(t *testing.T) {
+func TestDoCanceledDuringARequestIsNotWrappedAgain(t *testing.T) {
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
 	defer server.Close()

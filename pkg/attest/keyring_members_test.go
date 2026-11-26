@@ -74,9 +74,9 @@ func TestKeyringMembersThatFoldToADocumentedNameAreRefused(t *testing.T) {
 	}
 }
 
-// A revocation mark is not evaluated, so a key marked
-// revoked would silently stay trusted; the entry is refused, and the error says
-// to remove the entry to revoke a key.
+// A revocation mark is not evaluated, so a key marked revoked would silently
+// stay trusted; the entry is refused, and the error says to remove the entry to
+// revoke a key.
 func TestKeyringRevokedMemberIsRefused(t *testing.T) {
 	a, _ := newKey(t)
 	for name, member := range map[string]string{

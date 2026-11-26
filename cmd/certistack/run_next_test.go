@@ -46,8 +46,8 @@ const nextWhyStopped = "Next: certistack report show " + nextReport + "   (shows
 
 // What a run says to do next, by how it ended.
 func TestRunNextSteps(t *testing.T) {
-	failure := errors.New("DR validation failed: probe \"web\" failed")
-	cleanupUnverified := errors.New("DR validation ended with unverified temporary resource cleanup: a VM remains")
+	failure := errors.New("restore test failed: probe \"web\" failed")
+	cleanupUnverified := errors.New("restore test ended with unverified temporary resource cleanup: a VM remains")
 	for _, test := range []struct {
 		name   string
 		result *controller.Result
@@ -134,7 +134,7 @@ func TestRunPrintsNextStepsToStandardErrorOnly(t *testing.T) {
 	}{
 		{"a pass", savedReport(true, nextReport), nil,
 			"Next: certistack report show " + nextReport + "\n", 0},
-		{"a failed validation", savedReport(false, nextReport), errors.New("DR validation failed: probe failed"),
+		{"a failed validation", savedReport(false, nextReport), errors.New("restore test failed: probe failed"),
 			"Next: certistack report show " + nextReport + "   (shows which probe failed, and why)\n" + nextTroubleOne + "\n", exitCodeValidationFailed},
 	} {
 		t.Run(test.name, func(t *testing.T) {

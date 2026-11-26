@@ -62,7 +62,7 @@ func TestRecoverReceivesBothInterrupts(t *testing.T) {
 		t.Fatal("recover never ran the recovery")
 	}
 	if gotCtx.Err() != nil || gotAbandon.Err() != nil {
-		t.Fatal("recovery was given a context that was already cancelled")
+		t.Fatal("recovery was given a context that was already canceled")
 	}
 	signals <- os.Interrupt
 	select {
@@ -71,7 +71,7 @@ func TestRecoverReceivesBothInterrupts(t *testing.T) {
 		t.Fatal("the first interrupt never reached recovery's command context")
 	}
 	if gotAbandon.Err() != nil {
-		t.Fatal("the first interrupt cancelled the abandon context")
+		t.Fatal("the first interrupt canceled the abandon context")
 	}
 	signals <- os.Interrupt
 

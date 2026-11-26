@@ -23,12 +23,12 @@ output "certistack_acl_paths" {
 }
 
 output "reference_vm_id" {
-  description = "VMID of the provisioned golden test VM, or null when none was requested"
+  description = "VM ID of the reference VM, or null when none was requested"
   value       = one(proxmox_virtual_environment_vm.reference_golden_vm[*].vm_id)
 }
 
 output "controller_connection" {
-  description = "Non-secret values to enter in the controller secret manager"
+  description = "Non-secret values for the controller's environment file"
   value = {
     pve_url         = var.pve_api_endpoint
     pve_node        = var.pve_node_name

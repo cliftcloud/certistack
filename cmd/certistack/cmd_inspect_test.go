@@ -77,10 +77,10 @@ func runInspect(t *testing.T, args ...string) (string, error) {
 	return out.String(), err
 }
 
-// An explicit --state-dir is honoured when a VMID is also given: the
+// An explicit --state-dir is honored when a VMID is also given: the
 // journal there is shown, and a journal that cannot be read fails the
 // command, instead of being silently ignored.
-func TestInspectHonoursStateDirWithVMID(t *testing.T) {
+func TestInspectHonorsStateDirWithVMID(t *testing.T) {
 	qmpSocket := fakeQMPSocket(t)
 	missingQGA := filepath.Join(t.TempDir(), "missing.qga")
 	stateDir := t.TempDir()

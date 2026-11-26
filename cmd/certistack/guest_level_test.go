@@ -15,7 +15,7 @@ import (
 // The run marks a VM verified only by a guest-level assertion
 // (config.IsGuestLevelProbe, which the orchestrator and plan validation
 // use), and the verdict on a signed report applies the same rule to the
-// result types the probers record (probeIsGuestLevel). The two agree for
+// result types the probers record (attest.ProbeIsGuestLevel). The two agree for
 // every result type a report can hold.
 func TestVerdictAndRunAgreeOnWhichProbesAreGuestLevel(t *testing.T) {
 	for resultType, want := range map[string]bool{

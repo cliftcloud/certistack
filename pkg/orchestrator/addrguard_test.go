@@ -575,7 +575,7 @@ func TestGuardStopWaitsForAnInFlightCheckAndRepairsNothingAfterIt(t *testing.T) 
 	select {
 	case <-stopped:
 	case <-time.After(10 * time.Second):
-		t.Fatal("stop did not return: the blocked check was not cancelled")
+		t.Fatal("stop did not return: the blocked check was not canceled")
 	}
 	select {
 	case <-rig.guard.done:
@@ -610,7 +610,7 @@ func TestGuardStopsWhenTheContextEnds(t *testing.T) {
 	}
 	rig.host.reload()
 	if err := rig.guard.check(ctx); err == nil || rig.host.count("restore") != 0 {
-		t.Fatalf("a repair ran under a cancelled context: %v %v", err, rig.host.log())
+		t.Fatalf("a repair ran under a canceled context: %v %v", err, rig.host.log())
 	}
 }
 

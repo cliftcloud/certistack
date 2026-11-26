@@ -14,11 +14,11 @@ import (
 	"github.com/cliftcloud/certistack/pkg/attest/attesttest"
 )
 
-// The decoder reads a report's members without regard to
-// case ("Signature" fills the same field as "signature"), so the checks that say
-// whether a report is signed or unsigned must read them the same way: a
-// signature that is there under another spelling is not an unsigned report, and
-// a signature member that holds no usable signature is not a missing one.
+// The decoder reads a report's members without regard to case ("Signature"
+// fills the same field as "signature"), so the checks that say whether a report
+// is signed or unsigned must read them the same way: a signature that is there
+// under another spelling is not an unsigned report, and a signature member that
+// holds no usable signature is not a missing one.
 
 // insertMember puts member (a `"name":value` text) into a report document.
 func insertMember(t *testing.T, document []byte, member string) []byte {

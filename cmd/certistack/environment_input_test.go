@@ -54,7 +54,7 @@ func TestEnvironmentFileRefusesMalformedTypedValues(t *testing.T) {
 			}
 		})
 	}
-	// Valid values, and empty ones, still load and are honoured.
+	// Valid values, and empty ones, still load and are honored.
 	path := writeEnvFile(t, "CERTISTACK_SSH_PORT=2222\nCERTISTACK_SSH_SUDO=True\nPVE_TLS_INSECURE=false\nCERTISTACK_PROGRESS_EVENTS=1\nCERTISTACK_SSH_USER=\n")
 	if err := applyTestControllerEnvironment(t, path); err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ func TestEnvironmentFileRefusesMalformedTypedValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	if port != 2222 || !sudo {
-		t.Fatalf("valid values were not honoured: port %d, sudo %v", port, sudo)
+		t.Fatalf("valid values were not honored: port %d, sudo %v", port, sudo)
 	}
 }
 

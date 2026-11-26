@@ -22,7 +22,7 @@ const (
 	DefaultURL = "https://certistack.dev/api/telemetry"
 	// ContentType is the constant request content type.
 	ContentType = "application/json"
-	// UserAgentPrefix is followed by the sanitised version; it is the only
+	// UserAgentPrefix is followed by the sanitized version; it is the only
 	// user agent the report ever sends.
 	UserAgentPrefix = "certistack-telemetry/"
 	// SendTimeout bounds one request end to end: dial, TLS, request, response.
@@ -83,7 +83,7 @@ func ResolveEndpoint(getenv func(string) string) (string, error) {
 	return u.String(), nil
 }
 
-// newTransport honours the standard proxy environment (HTTPS_PROXY, NO_PROXY),
+// newTransport honors the standard proxy environment (HTTPS_PROXY, NO_PROXY),
 // asks for no compression, and keeps no connection open after the one report.
 func newTransport(timeout time.Duration) *http.Transport {
 	return &http.Transport{
@@ -97,7 +97,7 @@ func newTransport(timeout time.Duration) *http.Transport {
 }
 
 // Client posts one report. It does not retry, does not follow a redirect,
-// honours the standard proxy environment, and reads at most maxResponseBytes
+// honors the standard proxy environment, and reads at most maxResponseBytes
 // of the answer, which it ignores.
 type Client struct {
 	URL       string

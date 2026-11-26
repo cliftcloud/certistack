@@ -259,7 +259,7 @@ func (d *detection) backendDirectory(ctx context.Context, strategy string) (stri
 // and answers from it. It costs a few guestfish runs, in this order:
 // one for what exists, one for the snippet directories' listings, one for what
 // each snippet is, and one for the contents; a guest with no configuration
-// files costs the single run the directory check always did.
+// files costs a single run.
 func (d *detection) networkManagerSettings(ctx context.Context) (*nmSettings, error) {
 	if d.nm != nil || d.nmErr != nil {
 		return d.nm, d.nmErr
@@ -275,8 +275,8 @@ func (d *detection) readNetworkManagerSettings(ctx context.Context) (*nmSettings
 		return nil, err
 	}
 	settings := &nmSettings{keyfileDir: networkManagerDir}
-	// The conventional directory counts as there only when it is a directory; a
-	// link there is what the check always refused.
+	// The conventional directory counts as there only when it is a directory;
+	// a link there is refused.
 	defaultDirExists := kinds[0] == kindDirectory
 
 	// The snippet directories, lowest priority first, and the files each holds.

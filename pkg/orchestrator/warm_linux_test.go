@@ -14,9 +14,9 @@ import (
 )
 
 // The test-mode label warm-up read a map with no way to stop, so a read waiting
-// on PBS held a cancelled run too. A FIFO with no writer stands in for that
+// on PBS held a canceled run too. A FIFO with no writer stands in for that
 // read.
-func TestWarmDiskLabelsStopsWhenCancelled(t *testing.T) {
+func TestWarmDiskLabelsStopsWhenCanceled(t *testing.T) {
 	fifo := filepath.Join(t.TempDir(), "loop9")
 	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
 		t.Fatal(err)

@@ -41,11 +41,7 @@ var remoteDiscover = func(ctx context.Context, opts controller.RunOptions, req i
 	return controller.NewExecutor().Discover(ctx, opts, req)
 }
 
-func initCmd() *cobra.Command {
-	return initCmdWithCleanupContext(nil)
-}
-
-// initCmdWithCleanupContext is init; cleanupContext, when set, is cancelled
+// initCmdWithCleanupContext is init; cleanupContext, when set, is canceled
 // by a second interrupt, which abandons the cleanup of an inspection on a
 // node as it abandons a run's.
 func initCmdWithCleanupContext(cleanupContext context.Context) *cobra.Command {

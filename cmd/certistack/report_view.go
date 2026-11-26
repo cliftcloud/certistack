@@ -22,9 +22,9 @@ import (
 // or renames one raises it.
 const reportViewVersion = 1
 
-// Bounds on what the text view prints of a report: a signed report may carry
-// thousands of records, and a viewer of one must not flood a terminal. The JSON
-// view carries every record.
+// Bounds on what the text view prints of a report: a report may carry
+// thousands of records, and a viewer must not flood a terminal. The JSON view
+// carries every record.
 const (
 	maxViewVMs         = 200
 	maxViewProbesPerVM = 100
@@ -532,7 +532,7 @@ func humanDuration(seconds float64) string {
 	return fmt.Sprintf("%dh %02dm", whole/60, whole%60)
 }
 
-// textRows writes labelled rows with the labels in a column.
+// textRows writes labeled rows with the labels in a column.
 type textRows struct {
 	out   io.Writer
 	label int

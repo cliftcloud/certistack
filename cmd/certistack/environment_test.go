@@ -19,15 +19,15 @@ func TestLoadControllerEnvironmentTreatsValuesAsLiteralsAndResolvesLocalPaths(t 
 	}
 
 	dir := t.TempDir()
-	path := filepath.Join(dir, "lab.env")
+	path := filepath.Join(dir, "controller.env")
 	contents := "# no shell syntax is evaluated\n" +
 		"PVE_URL=\"https://pve.example:8006\"\n" +
 		"PVE_TOKEN_ID='automation@pve!lab'\n" +
 		"PVE_TOKEN_SECRET='literal-$(not-a-command)-${NO_EXPANSION}'\n" +
 		"PBS_REPOSITORY=backup@pbs@pbs.example:store\n" +
 		"PBS_PASSWORD='pa$$word'\n" +
-		"CERTISTACK_SSH_KNOWN_HOSTS=.lab/known_hosts\n" +
-		"CERTISTACK_OUTPUT_DIR=.lab/reports\n"
+		"CERTISTACK_SSH_KNOWN_HOSTS=secure/known_hosts\n" +
+		"CERTISTACK_OUTPUT_DIR=secure/reports\n"
 	if err := os.WriteFile(path, []byte(contents), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -38,10 +38,10 @@ func TestLoadControllerEnvironmentTreatsValuesAsLiteralsAndResolvesLocalPaths(t 
 	if got := os.Getenv("PVE_TOKEN_SECRET"); got != "literal-$(not-a-command)-${NO_EXPANSION}" {
 		t.Fatalf("secret was not treated as a literal: %q", got)
 	}
-	if got, want := os.Getenv("CERTISTACK_SSH_KNOWN_HOSTS"), filepath.Join(dir, ".lab", "known_hosts"); got != want {
+	if got, want := os.Getenv("CERTISTACK_SSH_KNOWN_HOSTS"), filepath.Join(dir, "secure", "known_hosts"); got != want {
 		t.Fatalf("known_hosts path = %q, want %q", got, want)
 	}
-	if got, want := os.Getenv("CERTISTACK_OUTPUT_DIR"), filepath.Join(dir, ".lab", "reports"); got != want {
+	if got, want := os.Getenv("CERTISTACK_OUTPUT_DIR"), filepath.Join(dir, "secure", "reports"); got != want {
 		t.Fatalf("output directory = %q, want %q", got, want)
 	}
 	if got := os.Getenv("PBS_FINGERPRINT"); got != "" {

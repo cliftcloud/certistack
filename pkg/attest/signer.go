@@ -105,7 +105,7 @@ func callSigner(signer Signer, report *Report) (err error) {
 func restoreReport(report *Report, snapshot []byte) {
 	*report = Report{}
 	if err := json.Unmarshal(snapshot, report); err != nil {
-		// The snapshot is this package's own marshalling of a Report.
+		// The snapshot is this package's own marshaling of a Report.
 		report.clearSignature()
 		return
 	}
@@ -120,15 +120,17 @@ func (r *Report) clearSignature() {
 
 // ApplySigner has signer attest the finished report, once. With no signer (a nil
 // interface) it signs nothing and leaves the report unsigned: that is the
-// Community Edition, which has no signer. A signer that is an interface holding
-// a nil pointer is an error, not "no signer". A report is unsigned then, always: a signature member the
-// report carried, as one decoded from a node worker's result can, is cleared,
-// so that the saved report never carries signature members unless a Signer put
-// them there. Whoever signs a report calls this one function,
-// so the rule is made once: a signer that returns an error, that returns without
-// signing, or that leaves a signature that does not verify under the public key
-// the report carries, fails the call and leaves the report with no signature
-// members at all. A report is never left half signed.
+// Community Edition, which has no signer. The report then carries no signature
+// members, even if it arrived with some, as one decoded from a node worker's
+// result can, so a saved report never carries signature members unless a Signer
+// put them there. A signer that is an interface holding a nil pointer is an
+// error, not "no signer".
+//
+// Whoever signs a report calls this one function, so the rule is made once: a
+// signer that returns an error, that returns without signing, or that leaves a
+// signature that does not verify under the public key the report carries, fails
+// the call and leaves the report with no signature members at all. A report is
+// never left half signed.
 func ApplySigner(report *Report, signer Signer) error {
 	if signer == nil {
 		if report != nil {
@@ -152,9 +154,9 @@ func ApplySigner(report *Report, signer Signer) error {
 	// earlier signing is not carried into this one.
 	report.clearSignature()
 	// What the signer is asked to attest: the content the controller checked. A
-	// signer attests it; it does not rewrite it. The canonical
-	// form is the content without the unsigned members, so a signer that adds
-	// only the signature members leaves it as it was.
+	// signer attests it; it does not rewrite it. The canonical form is the
+	// content without the unsigned members, so a signer that adds only the
+	// signature members leaves it as it was.
 	before, err := report.CanonicalForm()
 	if err != nil {
 		return fmt.Errorf("the report cannot be signed: %w", err)

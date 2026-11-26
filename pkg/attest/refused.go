@@ -135,12 +135,8 @@ func saveKeptResult(banner, reportsBaseDir, runID, reason string, raw []byte) (s
 	return path, nil
 }
 
-// refusedResultBytes assembles the file, cutting the worker's bytes so that it
-// is not larger than limit.
-func refusedResultBytes(reason string, raw []byte, limit int) []byte {
-	return keptResultBytes(RefusedBanner, reason, raw, limit)
-}
-
+// keptResultBytes assembles the file, cutting the worker's bytes so that it is
+// not larger than limit.
 func keptResultBytes(banner, reason string, raw []byte, limit int) []byte {
 	header := banner + "\n" +
 		"Reason: " + boundedRefusedText(progress.SingleLine(reason), maxRefusedReasonBytes) + "\n" +

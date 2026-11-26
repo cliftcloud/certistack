@@ -174,7 +174,7 @@ func TestARestoredConfigurationThatIsNotARegularFileIsRefused(t *testing.T) {
 }
 
 // The parsers keep the same total limit for any caller, and their
-// behaviour at the boundary is exact.
+// behavior at the boundary is exact.
 func TestTheConfigurationParsersHaveATotalLimit(t *testing.T) {
 	if _, err := ParseVMLayout([]byte(paddedConfig(t, maxRestoredConfigBytes))); err != nil {
 		t.Errorf("ParseVMLayout at the limit: %v", err)
@@ -295,10 +295,10 @@ func TestCancellingTheRestoreOfTheConfigurationStopsItAndLeavesNothing(t *testin
 					t.Errorf("the partial configuration was used: %+v", profile)
 				}
 			case <-time.After(10 * time.Second):
-				t.Fatal("cancelling the context did not stop the restore")
+				t.Fatal("canceling the context did not stop the restore")
 			}
 			if ctx.Err() == nil {
-				t.Error("the context was not cancelled")
+				t.Error("the context was not canceled")
 			}
 			// The client is gone, not left running.
 			if _, err := os.Stat("/proc/self"); err == nil {

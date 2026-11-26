@@ -51,7 +51,7 @@ func TestAskFlow(t *testing.T) {
 }
 
 func TestTheQuestionsAreWordForWord(t *testing.T) {
-	if QuestionShare != "Share anonymous usage statistics with Clift Cloud? Nothing but the five fields shown by `certistack telemetry show` is sent. [y/N] " {
+	if QuestionShare != "Share usage statistics with Clift Cloud? Nothing but the five fields shown by `certistack telemetry show` is sent. [y/N] " {
 		t.Errorf("share question = %q", QuestionShare)
 	}
 	if QuestionBusiness != "Do you use CertiStack for a business or commercial purpose? [y/N] " {

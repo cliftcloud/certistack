@@ -32,12 +32,12 @@ const (
 	maxGuestOutputBytes  = 1 << 20
 	// maxReportOutputBytes bounds how much guest-controlled stdout/stderr
 	// text is embedded in a probe's Error/Detail fields, which flow directly
-	// into the signed report. maxGuestOutputBytes already bounds what is
+	// into the report. maxGuestOutputBytes already bounds what is
 	// decoded from the wire, but that limit exists to protect the worker
 	// process's memory, not to size a report field; a hostile or malformed
 	// guest answering with up to 1 MiB of text per probe should not be able
-	// to inflate a signed certificate by that much, across every probe on
-	// every VM in the plan.
+	// to inflate the report by that much, across every probe on every VM in
+	// the plan.
 	maxReportOutputBytes = 4 << 10
 	// maxSyncDiscardBytes bounds the earlier data guest-sync reads past
 	// while it looks for its own reply.
@@ -55,8 +55,8 @@ func newSyncID() int64 {
 	return rand.Int63n(maxSyncID) + 1
 }
 
-// CleanGuestText makes text a guest controls fit to print and to sign. Guest
-// text reaches signed reports and the operator's terminal, so it is cleaned
+// CleanGuestText makes text a guest controls fit to print and to record. Guest
+// text reaches the report and the operator's terminal, so it is cleaned
 // wherever it enters them: invalid UTF-8 becomes U+FFFD, and every character
 // that could hide or reorder what a reader sees is dropped (control characters
 // other than newline and tab, so no terminal escape sequence survives; the
@@ -78,7 +78,7 @@ func CleanGuestText(s string) string {
 // SanitizeGuestText is CleanGuestText bounded to maxReportOutputBytes, cut at
 // a character boundary: the form in which guest-controlled text is embedded in
 // a probe result. The full text is still available at the point this is
-// called; only what would be signed is capped.
+// called; only what goes into the report is capped.
 func SanitizeGuestText(s string) string {
 	s = CleanGuestText(s)
 	if len(s) <= maxReportOutputBytes {
@@ -131,7 +131,7 @@ func decodeReply(line []byte, command string, result any) error {
 		return fmt.Errorf("failed to unmarshal %s response: %w", command, err)
 	}
 	if reply.Error != nil {
-		// The agent's own words reach the probe's error, and so a signed report.
+		// The agent's own words reach the probe's error, and so the report.
 		return &AgentError{Command: command, Desc: SanitizeGuestText(reply.Error.Desc)}
 	}
 	if len(reply.Return) == 0 || string(reply.Return) == "null" {
@@ -408,7 +408,7 @@ const maxHostNameBytes = 255
 var ErrInvalidHostName = errors.New("QGA guest-get-host-name returned something that is not a host name")
 
 // GetHostNameContext is GetHostName within ctx: a reply after ctx ends does
-// not count. The name is guest-controlled text bound for a signed report and a
+// not count. The name is guest-controlled text bound for the report and a
 // terminal, so one that is empty, longer than a host name can be, or holds
 // control, format or invalid UTF-8 characters is refused with
 // ErrInvalidHostName (its text, cleaned and bounded, is in the error).
@@ -510,7 +510,7 @@ func (c *Client) GetNetworkInterfacesContext(ctx context.Context, timeout time.D
 	if err := decodeReply(line, "guest-network-get-interfaces", &interfaces); err != nil {
 		return nil, err
 	}
-	// Names and addresses are guest text that the diagnostic prints and signs.
+	// Names and addresses are guest text that the diagnostic prints and records.
 	for i := range interfaces {
 		interfaces[i].Name = SanitizeGuestText(interfaces[i].Name)
 		interfaces[i].HardwareAddress = SanitizeGuestText(interfaces[i].HardwareAddress)
@@ -660,8 +660,8 @@ func IsPingCommand(command string) bool {
 	return false
 }
 
-// Probe executes the command inside the guest.
-// If QGA is not available, marks the probe as Skipped per blueprint §4.4.
+// Probe executes the command inside the guest. When the guest agent is not
+// available and the plan does not require it, the probe is skipped.
 func (p *QGAProber) Probe(ctx context.Context) probe.Result {
 	start := time.Now()
 
@@ -698,9 +698,9 @@ func (p *QGAProber) Probe(ctx context.Context) probe.Result {
 			res.Error = fmt.Sprintf("required QGA channel is unavailable: %v%s", err, unavailableAdvice(err))
 			return res
 		}
-		// Blueprint §4.4: "If QGA is not installed or responsive within the guest,
-		// Stage 3 is marked as skipped, and overall pass/fail status falls back strictly to Stage 2 wire verification."
-		slog.Warn("QGA socket unavailable, marking Stage 3 probe as skipped", "socket", p.SocketPath, "error", err)
+		// An agent the plan does not require may be missing: the probe is
+		// skipped, and the verdict rests on the network probes.
+		slog.Warn("QGA socket unavailable, skipping the guest-agent probe", "socket", p.SocketPath, "error", err)
 		res.Skipped = true
 		res.Passed = true // Skipped probes do not fail the overall plan
 		res.Detail = fmt.Sprintf("QGA skipped (channel unavailable): %v%s", err, unavailableAdvice(err))
@@ -854,7 +854,7 @@ func (p *QGAProber) probeWindowsService(ctx context.Context, client *Client, ser
 		res.Detail = fmt.Sprintf("Windows service %s is RUNNING (sc.exe query via QGA)", service)
 		if p.ExpectedOutput != "" {
 			// The substring is an assertion of its own, beyond RUNNING: two
-			// plans that require different ones must not sign the same result.
+			// plans that require different ones must not give the same result.
 			res.Detail += fmt.Sprintf("; the output contained the expected %q", truncateForReport(p.ExpectedOutput))
 		}
 	}

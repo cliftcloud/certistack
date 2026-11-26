@@ -99,7 +99,7 @@ next:
 }
 
 // namedFailure is a failure reported in CertiStack's words. It keeps the
-// error that ended the command (an exit status, or the cancelled context)
+// error that ended the command (an exit status, or the canceled context)
 // reachable to errors.Is and errors.As without printing it.
 type namedFailure struct {
 	message string

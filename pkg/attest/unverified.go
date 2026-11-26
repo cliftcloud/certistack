@@ -14,11 +14,10 @@ import (
 
 // DecodeReportUnverified reads a report's contents WITHOUT checking its
 // signature. It exists for commands that only show or tally reports (report
-// show, and the Enterprise Edition's per-VM history) and say so when no
-// trusted key was given: what it returns is
-// whatever the file says, and anyone can write a file that says anything. It
-// must never be used to decide that a report is evidence; VerifyReport is the
-// only function that does.
+// show, and the Enterprise Edition's per-VM history) and say so when no trusted
+// key was given: what it returns is whatever the file says, and anyone can
+// write a file that says anything. It must never be used to decide that a
+// report is evidence; VerifyReport is the only function that does.
 //
 // The bytes still pass through the same structure and size checks a verifier
 // applies before anything is decoded (the limits of MaxReportFileBytes and its

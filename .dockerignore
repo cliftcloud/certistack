@@ -1,6 +1,5 @@
 .git
 .github
-.lab
 # Only the release binary a `make container-release` image is built around.
 bin/*
 !bin/certistack-linux-amd64
@@ -15,11 +14,9 @@ coverage.out
 *.env
 *.key
 *.ed25519
-*.lic
 **/*.env
 **/*.key
 **/*.ed25519
-**/*.lic
 **/id_*
 deploy/controller/secrets/
 deploy/controller/state/

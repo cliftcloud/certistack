@@ -172,8 +172,8 @@ func TestStuckWorkerIsReportedAndNothingIsRecovered(t *testing.T) {
 	}
 }
 
-// A worker that ended after the supervisor gave up on it is
-// recovered as any other, and the run still fails.
+// A worker that ended after the supervisor gave up on it is recovered as any
+// other, and the run still fails.
 func TestStuckWorkerThatHasEndedIsRecovered(t *testing.T) {
 	opts := completedWorkerTeardownOptions(t)
 	fake := &fakeCommandRunner{

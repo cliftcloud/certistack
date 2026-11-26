@@ -11,6 +11,9 @@
 # prints it: a role that exists is set to the current privilege list, a user or
 # token that exists is left as it is (a token's secret cannot be shown a second
 # time, so the script says how to replace it instead), and the ACLs are set again.
+# A token that exists gets the ACLs only if you hold its secret: then run the
+# script with CERTISTACK_KEEP_TOKEN=yes in front. Without it the script stops
+# before any grant, so a token made for another controller gains no access.
 # If a step fails the script stops and says which one; run it again once the
 # cause is fixed.
 #
@@ -44,15 +47,20 @@ fi
 
 # generate-token prints the token's secret ONCE. It is PBS_PASSWORD. A token that
 # exists is not created again (PBS cannot show its secret a second time); the
-# script says how to replace it and goes on with the ACLs.
+# ACLs below are given to it only if its secret is held.
 STEP='creating the PBS API token certistack-ro@pbs!ro'
 if proxmox-backup-manager user list-tokens certistack-ro@pbs --output-format json | grep -Eq '"(certistack-ro@pbs!)?ro"'; then
   echo 'Found the existing PBS API token certistack-ro@pbs!ro: it exists already, so it was not created again.' >&2
   echo 'It was not examined or changed: its expiry, its privilege separation and its comment stay as they are.' >&2
   echo 'PBS shows the secret of a token only once, when it is created; it cannot be shown again.' >&2
-  echo 'If you still have that secret, it is your PBS_PASSWORD and nothing more is needed.' >&2
-  echo 'If you lost it, replace the token: run  proxmox-backup-manager user delete-token certistack-ro@pbs ro (or in the PBS web UI: Configuration, Access Control, API Token)' >&2
-  echo 'and then run this script again; it creates a new token and prints its new secret.' >&2
+  if [ "${CERTISTACK_KEEP_TOKEN:-}" != yes ]; then
+    echo 'Nothing was granted to it: a token whose secret is held elsewhere gains no access from this script.' >&2
+    echo 'If you hold its secret (your PBS_PASSWORD), run this script again with CERTISTACK_KEEP_TOKEN=yes in front, for example: CERTISTACK_KEEP_TOKEN=yes sh -s < this-script.sh' >&2
+    echo 'If you lost it, replace the token: run  proxmox-backup-manager user delete-token certistack-ro@pbs ro (or in the PBS web UI: Configuration, Access Control, API Token)' >&2
+    echo 'and then run this script again; it creates a new token and prints its new secret.' >&2
+    exit 3
+  fi
+  echo 'CERTISTACK_KEEP_TOKEN=yes: you hold its secret, so the grants below are given to it.' >&2
 else
   echo 'Creating the PBS API token certistack-ro@pbs!ro. Its secret is printed once, below: copy it now.'
   proxmox-backup-manager user generate-token certistack-ro@pbs ro

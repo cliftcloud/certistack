@@ -113,7 +113,7 @@ func TestAnEarlierLinkFileDoesNotDefeatTheRequestedName(t *testing.T) {
 		t.Fatalf("udev applies %s, which names the NIC:\n%s\nwant the generated rule naming requested0", name, text)
 	}
 	if !containsString(result.Files, name) {
-		t.Fatalf("the signed result %v does not list the rule udev applies, %s", result.Files, name)
+		t.Fatalf("the reported result %v does not list the rule udev applies, %s", result.Files, name)
 	}
 	if guest.files[earlier] != earlierText {
 		t.Fatal("the guest's own .link file was changed")

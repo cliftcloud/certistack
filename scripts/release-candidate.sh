@@ -12,7 +12,7 @@
 # its version and the commit and its commit time as its identity, and none of
 # that varies with the machine or the moment, so the release workflow rebuilds
 # it and gets the same digest. A maintainer runs this on the release commit,
-# runs the test campaign on bin/certistack-linux-amd64, and proposes the
+# runs the release tests on bin/certistack-linux-amd64, and proposes the
 # printed line for release/candidates.txt; the workflow refuses a tag whose
 # rebuilt line is not the registered one.
 #

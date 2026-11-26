@@ -67,7 +67,7 @@ func TestNodeWithAClockFarAheadOfTheControllerIsRefusedBeforeTheRunStarts(t *tes
 		offset time.Duration
 		side   string
 	}{
-		"ahead":   {reportClockSkew + maxReportJudgementLag + 2*time.Minute, "ahead of"},
+		"ahead":   {reportClockSkew + maxReportJudgmentLag + 2*time.Minute, "ahead of"},
 		"a day":   {24 * time.Hour, "ahead of"},
 		"in 2100": {24 * 365 * 70 * time.Hour, "ahead of"},
 	} {
@@ -152,7 +152,7 @@ func TestNodeClockThatCannotBeReadIsSaidAndTheRunGoesOn(t *testing.T) {
 	}
 }
 
-// A run that is cancelled while the clock is read is cancelled, not warned about.
+// A run that is canceled while the clock is read is canceled, not warned about.
 func TestNodeClockReadEndedByCancellationEndsTheRun(t *testing.T) {
 	opts := completedWorkerTeardownOptions(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -169,7 +169,7 @@ func TestNodeClockReadEndedByCancellationEndsTheRun(t *testing.T) {
 		t.Fatalf("Run = %v; want the cancellation", err)
 	}
 	if command, started := startedAnything(fake); started {
-		t.Fatalf("the run went on after it was cancelled: %s", command)
+		t.Fatalf("the run went on after it was canceled: %s", command)
 	}
 }
 
@@ -180,7 +180,7 @@ func TestNodeClockReadEndedByCancellationEndsTheRun(t *testing.T) {
 // node behind is warned of, however far.
 func TestNodeClockDifferenceIsBoundedByTheExchange(t *testing.T) {
 	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
-	const limit = reportClockSkew + maxReportJudgementLag
+	const limit = reportClockSkew + maxReportJudgmentLag
 	type exchange struct {
 		reading       time.Time // the node's whole seconds
 		sent, arrived time.Time

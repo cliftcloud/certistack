@@ -27,7 +27,7 @@ func wholeNumberPlan(t *testing.T) any {
 }
 
 // planWith is the fixture with the key at path written as raw, the text of the
-// number exactly as an author would type it (a marshalled float would drop the
+// number exactly as an author would type it (a marshaled float would drop the
 // ".0").
 func planWith(t *testing.T, path, raw string) string {
 	t.Helper()

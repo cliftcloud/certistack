@@ -75,10 +75,10 @@ func secretInArguments(command string) bool {
 	return regexp.MustCompile(`(?i)(^|\s)-var(\s+|=)['"]?[a-z_]*(secret|password|passphrase|token(_value)?)=`).MatchString(command)
 }
 
-// The build example passed the PVE token secret with -var, which puts
-// it in the process's argument list for every local user and every process
-// accounting tool to read. The guide's examples supply it from a variable
-// file, and the detector is checked against the forms that leak.
+// -var on the command line puts a value in the process's argument list, where
+// every local user and every process accounting tool can read it. The guide's
+// examples supply the PVE token secret from a variable file instead, and the
+// detector is checked against the forms that leak.
 func TestApplianceReadmeKeepsTheTokenOutOfArguments(t *testing.T) {
 	for _, leaking := range []string{
 		`packer build -var 'proxmox_token_secret=REDACTED' .`,

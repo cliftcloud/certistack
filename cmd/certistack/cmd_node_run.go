@@ -34,7 +34,7 @@ var acquireHostLock = journal.Lock
 // nodeRunCmd is the intentionally hidden half of the controller/worker split.
 // A controller uploads the same controller binary into a single protected node
 // workspace, calls this command over SSH, and receives exactly one JSON result
-// on stdout. It is not a supported human-facing installation command.
+// on stdout. It is not meant to be run by hand.
 func nodeRunCmd() *cobra.Command {
 	var (
 		planPath       string
@@ -51,7 +51,7 @@ func nodeRunCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:    "node-run",
-		Short:  "Execute one temporary node-worker validation",
+		Short:  "Run one restore test as the temporary node worker",
 		Hidden: true,
 		Args:   cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

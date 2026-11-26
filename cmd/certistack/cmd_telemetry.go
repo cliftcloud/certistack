@@ -193,11 +193,12 @@ func telemetryStatusCmd() *cobra.Command {
 func telemetryShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show",
-		Short: "Print the exact JSON that would be sent now",
+		Short: "Print the exact JSON that would be sent now (while off, what a report would hold)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := newCheckedOutput(cmd.OutOrStdout())
-			snap, body, err := newTelemetryManager().Show()
+			manager := newTelemetryManager()
+			snap, body, err := manager.Show()
 			if err != nil {
 				return err
 			}
@@ -206,7 +207,15 @@ func telemetryShowCmd() *cobra.Command {
 				return out.deliver(nil)
 			}
 			if body == nil {
+				// The first-run question sends the reader here to read the
+				// fields before answering, so they are shown while it is off.
+				sample, err := manager.Sample()
+				if err != nil {
+					return err
+				}
 				fmt.Fprintf(out, "nothing is sent: disabled (%s)\n", snap.Decision.Reason)
+				fmt.Fprintln(out, "If you opt in, a report after a completed run holds these five fields and nothing else. The values are an example: opting in makes a random install_id, and a report counts your own clusters and last test.")
+				out.Write(sample)
 				return out.deliver(nil)
 			}
 			out.Write(body)

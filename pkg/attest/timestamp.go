@@ -25,9 +25,8 @@ import (
 // signs a statement that a digest existed at a time, and the statement can be
 // checked later without trusting the signer's clock.
 //
-// This file is the seam where that plugs in, and nothing more. The real
-// authority (an RFC 3161 client and the hosted service it talks to) is not
-// implemented here. Community reports carry no timestamp
+// This file is the seam where that plugs in, and nothing more: no RFC 3161
+// client is implemented here. Community reports carry no timestamp
 // (NoTimestamper), and the one implementation here, StubTimestamper, is a
 // test double that proves nothing.
 //
@@ -413,8 +412,8 @@ func EvaluateTimestamp(r *Report, verifiers ...TimestampVerifier) (TimestampStat
 // signature does not cover: the signing block, and the timestamp of the
 // signature. Canonicalization drops them (and only them) before it signs or
 // verifies, so a report is the same canonical bytes with them and without.
-// Every consumer of the list, the signer, the verifier and any independent
-// verification script (docs/reports.md), must drop the same four.
+// Every consumer of the list, the signer, the verifier and any other
+// implementation of the signature check, must drop the same four.
 var unsignedReportMembers = [...]string{"signature", "public_key", "signer_fingerprint", TimestampMember}
 
 // UnsignedReportMembers returns the members dropped from a report before its

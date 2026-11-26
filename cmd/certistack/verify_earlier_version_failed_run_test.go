@@ -46,7 +46,7 @@ func TestASchema15FailedRunThatNamesNoBackupIsNotAcceptedAsEvidence(t *testing.T
 	dir := t.TempDir()
 	flags := []string{"--format", "json", "--trusted-key", trusted, "--expect-outcome", accept.OutcomeFault, "--expect-plan", fixturePlanPath}
 
-	named := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault, mutate: earlierFailedRun(true)})
+	named := fixtureReport(plan, reportFixture{mode: accept.OutcomeFault, mutate: earlierFailedRun(true)})
 	if acceptance := accept.Evaluate(named, accept.Expectations{Outcome: accept.OutcomeFault, Plan: plan}); acceptance.Verdict != accept.Accepted {
 		t.Fatalf("the control, a schema 1.5 failure after the restore, was rejected: %q", acceptance.Reasons)
 	}
@@ -56,7 +56,7 @@ func TestASchema15FailedRunThatNamesNoBackupIsNotAcceptedAsEvidence(t *testing.T
 		t.Fatalf("the control through the CLI: err=%v decode=%v acceptance=%+v", err, decodeErr, summary.Acceptance)
 	}
 
-	unnamed := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault, mutate: earlierFailedRun(false)})
+	unnamed := fixtureReport(plan, reportFixture{mode: accept.OutcomeFault, mutate: earlierFailedRun(false)})
 	acceptance := accept.Evaluate(unnamed, accept.Expectations{Outcome: accept.OutcomeFault, Plan: plan})
 	reasons := strings.Join(acceptance.Reasons, "\n")
 	if acceptance.Verdict != accept.Rejected ||

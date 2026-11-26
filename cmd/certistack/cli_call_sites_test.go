@@ -25,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// This file tests each call site of a shared behaviour, command by command, so
+// This file tests each call site of a shared behavior, command by command, so
 // that a change at any one of them fails a test, not only a change at its ends
 // or at one command.
 

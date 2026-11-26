@@ -51,7 +51,7 @@ resource "proxmox_virtual_environment_role" "certistack_role" {
 # 2. Service account
 resource "proxmox_virtual_environment_user" "certistack_user" {
   user_id = "certistack-svc@pve"
-  comment = "Autonomous DR validation service account for CertiStack"
+  comment = "CertiStack restore tests"
 
   # The provider reads a user's ACL entries back into this resource's `acl`
   # blocks. The entries are managed by proxmox_acl.certistack_user below;
@@ -75,7 +75,7 @@ resource "proxmox_virtual_environment_user" "certistack_user" {
 resource "proxmox_user_token" "certistack_token" {
   user_id               = proxmox_virtual_environment_user.certistack_user.user_id
   token_name            = "automation"
-  comment               = "CertiStack autonomous validation execution token"
+  comment               = "CertiStack restore tests"
   privileges_separation = true
 }
 
@@ -135,8 +135,7 @@ resource "proxmox_acl" "certistack_token" {
 # clone of it, so it boots the template's installed OS. Terraform cannot
 # install an OS or the guest agent on an isolated bridge; the template must
 # already have cloud-init, an enabled qemu-guest-agent, and the service a
-# probe will check. Back the VM up to PBS afterwards (see
-# docs/manual-setup.md).
+# probe will check. Back the VM up to PBS afterwards, as you would any VM.
 resource "proxmox_virtual_environment_vm" "reference_golden_vm" {
   count = var.reference_template_vmid == null ? 0 : 1
 

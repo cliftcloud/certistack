@@ -110,7 +110,7 @@ func TestEnforceRTOTargetRefusesANonFiniteTarget(t *testing.T) {
 }
 
 // guardedContext bounds a call that must be refused before it reaches any
-// node: if the refusal under test were missing the run would start dialling
+// node: if the refusal under test were missing the run would start dialing
 // the plan's PVE endpoint and retrying, so the test fails fast on the deadline
 // (an error that does not name the field) instead of hanging.
 func guardedContext(t *testing.T) context.Context {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package attest builds the report of a disaster recovery validation, defines the
-// Signer through which the Enterprise Edition signs it, and verifies a signed one.
+// Package attest builds the report of a restore test run, defines the Signer
+// through which the Enterprise Edition signs it, and verifies a signed one.
 // The Community Edition has no code that reads a private key, generates a key pair
 // or makes a signature; see signer.go and the attesttest package.
 package attest
@@ -62,7 +62,8 @@ func VerifyCanonical(canonicalBytes []byte, hexSig string, pubKey ed25519.Public
 	return valid, nil
 }
 
-// Fingerprint returns the RFC-compliant SHA-256 fingerprint of an Ed25519 public key.
+// Fingerprint returns the SHA-256 fingerprint of an Ed25519 public key: "SHA256:"
+// and 64 hexadecimal digits.
 func Fingerprint(pubKey ed25519.PublicKey) string {
 	hash := sha256.Sum256(pubKey)
 	return fmt.Sprintf("SHA256:%s", hex.EncodeToString(hash[:]))
@@ -86,7 +87,7 @@ type TrustedSigner struct {
 	CreatedAt   string `json:"created_at,omitempty"`
 }
 
-// Keyring represents a collection of authorized signers for DR audit reports.
+// Keyring is the collection of signers trusted to sign reports.
 type Keyring struct {
 	TrustedSigners []TrustedSigner `json:"trusted_signers"`
 }

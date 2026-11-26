@@ -68,7 +68,7 @@ func startTicks(t *testing.T, pid int) string {
 // when it starts the worker, and the stop script compares that with the
 // current boot, not two readings of its own, which differ only if the node
 // rebooted while the script ran. A PID file from an earlier boot names
-// whatever the node started since, and nothing is signalled (here, a process
+// whatever the node started since, and nothing is signaled (here, a process
 // that is the worker's own binary by name, as the script's other checks cannot
 // tell it from the worker).
 func TestWorkerStopComparesTheBootTheSupervisorRecorded(t *testing.T) {
@@ -282,8 +282,8 @@ func TestWorkerStopPinsTheWorkerAgainstAReplacementWithItsPIDBinaryAndStartTime(
 
 		// The script's first TERM is where the worker ends and is replaced:
 		// the hook sends it, tells the test, and waits for it to be done.
-		signalled, resume := filepath.Join(dir, "signalled"), filepath.Join(dir, "resume")
-		for _, fifo := range []string{signalled, resume} {
+		signaled, resume := filepath.Join(dir, "signaled"), filepath.Join(dir, "resume")
+		for _, fifo := range []string{signaled, resume} {
 			_ = os.Remove(fifo)
 			if err := syscall.Mkfifo(fifo, 0o600); err != nil {
 				t.Fatal(err)
@@ -292,7 +292,7 @@ func TestWorkerStopPinsTheWorkerAgainstAReplacementWithItsPIDBinaryAndStartTime(
 		hook := "hook_done=\nkill() {\n" +
 			"  if [ -z \"$hook_done\" ]; then\n" +
 			"    hook_done=1\n    command kill \"$@\"\n" +
-			"    echo ended > " + shellQuote(signalled) + "\n" +
+			"    echo ended > " + shellQuote(signaled) + "\n" +
 			"    read -r hook_go < " + shellQuote(resume) + "\n" +
 			"  else\n    command kill \"$@\"\n  fi\n}\n"
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -307,7 +307,7 @@ func TestWorkerStopPinsTheWorkerAgainstAReplacementWithItsPIDBinaryAndStartTime(
 		// it) leaves the fifo unread: open it without blocking forever.
 		gate := make(chan struct{})
 		go func() {
-			if f, err := os.Open(signalled); err == nil {
+			if f, err := os.Open(signaled); err == nil {
 				buf := make([]byte, 8)
 				_, _ = f.Read(buf)
 				_ = f.Close()
@@ -318,7 +318,7 @@ func TestWorkerStopPinsTheWorkerAgainstAReplacementWithItsPIDBinaryAndStartTime(
 		case <-gate:
 		case <-time.After(10 * time.Second):
 			cancel()
-			t.Fatalf("the stop script never signalled the worker: %s", output.String())
+			t.Fatalf("the stop script never signaled the worker: %s", output.String())
 		}
 		_ = first.Wait() // ended by the TERM, and reaped: its PID is free
 		var second *exec.Cmd

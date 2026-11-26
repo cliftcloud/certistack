@@ -24,8 +24,8 @@ func readRAMUsagePercent() (float64, error) {
 }
 
 // readRAMCapacityMB returns host memory totals in MiB. Keeping this separate
-// from the utilization percentage lets admission reserve future recovery VM
-// memory before it starts allocating sandbox processes.
+// from the utilization percentage lets admission reserve the sandbox VMs'
+// memory before any of them is started.
 func readRAMCapacityMB() (totalMB, availableMB float64, err error) {
 	file, err := os.Open("/proc/meminfo")
 	if err != nil {

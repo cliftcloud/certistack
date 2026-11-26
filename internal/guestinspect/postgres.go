@@ -155,8 +155,8 @@ func pgStripComment(line string) string {
 	return line
 }
 
-// pgValue is a setting's value: a quoted string (” and \' are a quote in
-// it), or the first word.
+// pgValue is a setting's value: a quoted string (a doubled single quote and \'
+// are a quote in it), or the first word.
 func pgValue(rest string) string {
 	rest = strings.TrimSpace(rest)
 	if !strings.HasPrefix(rest, "'") {

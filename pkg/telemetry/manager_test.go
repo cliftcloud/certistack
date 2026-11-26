@@ -45,7 +45,7 @@ func TestDefaultAndDeclinedStatesSendZeroRequests(t *testing.T) {
 			mustEnable(t, h, true)
 			h.env[VarTelemetry] = "off"
 		},
-		"enabled, CERTISTACK_TELEMETRY unrecognised": func(t *testing.T, h *harness) {
+		"enabled, CERTISTACK_TELEMETRY unrecognized": func(t *testing.T, h *harness) {
 			mustEnable(t, h, false)
 			h.env[VarTelemetry] = "perhaps"
 		},
@@ -653,7 +653,7 @@ func TestClusterHashesAndTheSaltNeverLeaveTheMachine(t *testing.T) {
 	}
 }
 
-func TestVersionAndUserAgentAreSanitised(t *testing.T) {
+func TestVersionAndUserAgentAreSanitized(t *testing.T) {
 	srv := newFakeServer(t, 200)
 	h := newHarness(t, srv.URL)
 	h.Version = "1.0\r\nX-Evil: 1é"

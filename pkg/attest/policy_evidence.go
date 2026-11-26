@@ -14,11 +14,9 @@ import (
 	"github.com/cliftcloud/certistack/pkg/config"
 )
 
-// The policy a run is judged by is signed with its result (schema 1.7). A pass
-// that does not say which recovery time objective or which host admission
-// limits it passed under cannot be told from a pass under much looser ones:
-// two plans that differ only in rto_target_seconds (60 or 300) or in
-// max_host_ram_percent (70 or 90) once produced byte-identical signed reports.
+// The policy a run is judged by is recorded with its result (schema 1.7). A
+// pass that does not say which recovery time objective or which host admission
+// limits it passed under cannot be told from a pass under much looser ones.
 
 // AdmissionEvidence is the host admission policy a run was held to, the
 // recovery memory it had to reserve, and what the last admission check
@@ -80,8 +78,7 @@ type AdmissionEvaluation struct {
 	Decision string `json:"decision"`
 	// HostTotalMiB and HostAvailableMiB are MemTotal and MemAvailable of the
 	// node at the check that held the reservation to the limit. They are read
-	// after the I/O wait sample (about half a second later) than
-	// HostRAMPercent.
+	// after the I/O wait sample, about half a second after HostRAMPercent.
 	HostTotalMiB         float64 `json:"host_total_mib"`
 	HostAvailableMiB     float64 `json:"host_available_mib"`
 	RequiredAvailableMiB float64 `json:"required_available_mib,omitempty"`

@@ -27,7 +27,7 @@ func failedRunReport(t *testing.T, opts RunOptions, status string) *attest.Repor
 	record := &report.VMRecords[0]
 	record.AllPassed = false
 	record.VerificationStatus = "failed"
-	record.ProbeResults = []probe.Result{{Type: "recovery", Target: "vm/9001", Description: "Recovery bootstrap and Stage 1 verification", Error: "PBS map error for scsi0"}}
+	record.ProbeResults = []probe.Result{{Type: "recovery", Target: "vm/9001", Description: "Recovery bootstrap and verification", Error: "PBS map error for scsi0"}}
 	record.SourceDisks[0].IntegrityStatus = status
 	// A worker writes "verified" together with the image digest (and the
 	// manifest reference every disk entry carries); any other status has none.
@@ -120,7 +120,7 @@ func TestControllerSignsAFailedRunWithTheBackupItWasGiven(t *testing.T) {
 			}
 			report := failedRunReport(t, opts, status)
 			result, err := runAgainst(t, opts, report)
-			if err == nil || !strings.Contains(err.Error(), "DR validation failed: recovery tier 1 failed") {
+			if err == nil || !strings.Contains(err.Error(), "the run failed: recovery tier 1 failed") {
 				t.Fatalf("status %s pinned %v: err = %v", status, pinned, err)
 			}
 			if result == nil || !signatureVerifies(t, result.Report, opts.Signer) {
@@ -197,7 +197,7 @@ func TestControllerLeavesTheProbePolicyOfAFailedVMAlone(t *testing.T) {
 	opts := completedWorkerTeardownOptions(t)
 	report := failedRunReport(t, opts, probe.DiskVerificationFailed)
 	report.VMRecords[0].ProbeResults = []probe.Result{{Type: "tcp", Target: "192.0.2.10:389", Description: "LDAP TCP handshake on domain controller", TimeoutSec: 1, Error: "timed out"}}
-	if _, err := runAgainst(t, opts, report); err == nil || !strings.Contains(err.Error(), "DR validation failed: recovery tier 1 failed") {
+	if _, err := runAgainst(t, opts, report); err == nil || !strings.Contains(err.Error(), "the run failed: recovery tier 1 failed") {
 		t.Fatalf("err = %v, want the failed run signed and reported", err)
 	}
 }

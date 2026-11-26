@@ -43,10 +43,10 @@ func TestDoctorsOverlayDiskCheckEndsWithItsContext(t *testing.T) {
 	}
 }
 
-// A plan that was cancelled is the context's error, not a refusal a run would
+// A plan that was canceled is the context's error, not a refusal a run would
 // give: `certistack plan` does not print "a run would refuse this plan" for it.
 func TestComputePlanReturnsTheContextErrorNotARefusal(t *testing.T) {
-	plan := &config.Plan{PlanID: "cancelled"} // not a plan a run accepts: PlanRun fails at once
+	plan := &config.Plan{PlanID: "canceled"} // not a plan a run accepts: PlanRun fails at once
 	run := func(ctx context.Context) error {
 		cmd := &cobra.Command{}
 		cmd.SetContext(ctx)
@@ -69,6 +69,6 @@ func TestComputePlanReturnsTheContextErrorNotARefusal(t *testing.T) {
 	cancel()
 	err := run(ctx)
 	if !errors.Is(err, context.Canceled) || exitCodeForError(err) != exitCodeInterrupted {
-		t.Fatalf("a cancelled context: %v (exit %d); want the context's error and the interrupted status", err, exitCodeForError(err))
+		t.Fatalf("a canceled context: %v (exit %d); want the context's error and the interrupted status", err, exitCodeForError(err))
 	}
 }

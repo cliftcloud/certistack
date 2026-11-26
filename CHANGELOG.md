@@ -8,6 +8,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-26
+
+### Fixed
+
+- Security: `setup` and the scripts `setup rbac` prints no longer grant a new datastore, namespace, node or storage to
+  a token that exists already when its secret is not held. On a PBS (or cluster) that several controllers share, such
+  as a second customer's, setup granted the new datastore to the first controller's read-only token before asking
+  whether to replace it, so that controller could read the new backups. Setup now grants nothing to that token and asks;
+  a printed script stops before any grant unless `CERTISTACK_KEEP_TOKEN=yes` says the secret is held.
+- `report show` with no file looks in the reports directory that `setup` recorded (`CERTISTACK_OUTPUT_DIR`), so the
+  last step of the quickstart finds the report on an install without sudo; `--reports-dir` still names another
+  directory, and the command says which one it read.
+- Ctrl-C during `setup`, `setup trust-node` or `setup pve-ca` says what stays and how to go on, instead of "This command
+  changes nothing"; at setup's first question it says that nothing was changed yet. No `Error: context canceled` line
+  follows an interrupt's notice.
+- `setup` run again with the kept secret of a token that exists says it keeps that secret, instead of showing the
+  advice to replace a token whose secret was lost.
+- `doctor` built for another system than Linux says no check was run instead of reporting that every check passed.
+- `setup` accepts a PBS datastore name that starts with `_`, as PBS does.
+- `verify-report` prints the phase timings under the names `report show` uses.
+
+### Changed
+
+- The first-run question asks "Share usage statistics with Clift Cloud?" (it said "anonymous"): the report carries a
+  random install ID. `certistack telemetry show`, which the question names, now prints the five fields while the
+  statistics are off too, with example values, so they can be read before answering. Nothing else about the usage
+  statistics (telemetry) changed: off by default, sent only after a yes.
+- Plainer program text: `certistack --help` and `doctor --help` say what the commands do; progress lines name the step
+  (`QMP check`, `Network probes`, `Guest-agent probes`, `Console image`) instead of "Stage 1" to "Stage 4"; a run that
+  passes says `Run passed` (it said "DR validation plan passed"); memory sizes in messages are in MiB.
+- A plan's alias keys (`tier`, `target_vmid`, `subnet_cidr`, `admission`, `source_pbs.drive`,
+  `max_host_io_wait_percent`) are no longer marked deprecated in `certistack schema`; they remain supported aliases.
+- Terraform module: the PVE user's and token's comments read "CertiStack restore tests"; an existing state updates
+  the two comments in place.
+- Documentation: a VM passes when the probes you chose pass, so an encrypted VM fails only a probe that uses its data;
+  what stays on the node between runs; the sandbox VM IDs come from the plan; removal without sudo; the setup-by-hand
+  `setup trust-node` command names its `known_hosts` file; corrected wording on the licensing page, in the CLA's
+  signing step and in the examples.
+
+### Removed
+
+- The orchestrator package's `DryRun` option, which had no effect (`certistack plan` shows what a run would do).
+
 ## [0.1.3] - 2026-11-24
 
 ### Fixed
@@ -23,13 +66,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   state needs no change: the plan after the upgrade is empty.
 - `init`'s next step says the plan is valid as written and that the probes marked `CHANGE` are where to check the
   service a VM provides; `plan`'s version line reads `tested: the pair the release evidence covers`.
-- Documentation: that installing setup's packages rebuilds the node's initramfs and boot menu, how to remove them
-  with their configuration, the PBS host keys and `/secure` that stay after a removal, and how long a first run takes.
-
-### Privacy
-
-- The opt-in usage statistics are unchanged: off by default; `certistack telemetry show` prints exactly what would be
-  sent.
+- Documentation covers that installing setup's packages rebuilds the node's initramfs and boot menu, how to remove
+  them with their configuration, what stays after a removal (the PBS host keys and `/secure`), and how long a first
+  run takes.
 
 ## [0.1.2] - 2026-11-22
 
@@ -66,20 +105,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Supported versions: Proxmox VE 8.1, 8.2 and 8.3 are tested with PBS 3.x and 4.x, like 8.4 and 9.x. Proxmox VE 8.0
   is refused: it ships `proxmox-backup-client` 2.x and no SDN support; update such a node to 8.1 or later.
-
 - Terraform module: `bpg/proxmox` 0.122, with the ACL and token resources under their current names. `moved.tf` moves
   existing state without replacing anything, which needs Terraform 1.8 or OpenTofu 1.10.
 - Controller appliance recipe: `packer validate` refuses a `proxmox_url` without `/api2/json` and a `source_template`
   given as a VM ID. The Packer role in the guide adds `VM.Config.Cloudinit` and `VM.Config.CDROM`.
 - The appliance guide covers the whole path, from the build machine's prerequisites to removal, and removes each
   Packer token's grants with the token.
-- Documentation: what setup changes on PVE 8 (apt replaces `fuse` with `fuse3`) and what stays after a removal, a
+- Documentation covers what setup changes on PVE 8 (apt replaces `fuse` with `fuse3`), what stays after a removal, a
   second PBS for one node, the two kinds of admission refusal, and how to run `doctor` on a node.
-
-### Privacy
-
-- The opt-in usage statistics are unchanged: off by default; `certistack telemetry show` prints exactly what would be
-  sent.
 
 ## [0.1.1] - 2026-11-18
 
@@ -134,9 +167,9 @@ with a warning; PVE 7 and PBS 2 are refused.
 
 ### Privacy
 
-Anonymous usage statistics are opt-in and off by default: five fields, shown by `certistack telemetry show`, sent at
-most once a day after a completed run and never from the PVE node. Clusters are counted by their CA certificate.
-`DO_NOT_TRACK=1` turns them off outright.
+Usage statistics are opt-in and off by default: five fields, shown by `certistack telemetry show`, sent at most once a
+day after a completed run and never from the PVE node. Clusters are counted by their CA certificate. `DO_NOT_TRACK=1`
+turns them off outright.
 
 ### Security
 
@@ -155,7 +188,8 @@ most once a day after a completed run and never from the PVE node. Clusters are 
 
 The full list is in [Compatibility](https://certistack.dev/docs/compatibility/#known-limits).
 
-[Unreleased]: https://github.com/cliftcloud/certistack/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/cliftcloud/certistack/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/cliftcloud/certistack/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/cliftcloud/certistack/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/cliftcloud/certistack/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/cliftcloud/certistack/releases/tag/v0.1.1

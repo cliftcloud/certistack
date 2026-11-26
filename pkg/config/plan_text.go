@@ -9,7 +9,7 @@ import "fmt"
 // expected output, the names it gives PBS) is printed by validate, plan, run
 // and report show, and recorded in reports. A control character in it (an
 // escape sequence, a carriage return, a NUL) or a bidirectional control would
-// reach the terminal that prints it, where it can recolour, retitle or
+// reach the terminal that prints it, where it can recolor, retitle or
 // rewrite what the operator reads, so validate refuses it. A description and
 // an expected output may run over lines: they may hold line feeds and tabs.
 
@@ -43,7 +43,7 @@ func textControlProblem(text string, multiLine bool) string {
 		if multiLine && (r == '\n' || r == '\t') {
 			continue
 		}
-		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) || isBidiControl(r) || r == ' ' || r == ' ' {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) || isBidiControl(r) || r == '\u2028' || r == '\u2029' {
 			what := "a control character"
 			if isBidiControl(r) {
 				what = "a bidirectional control"
@@ -57,7 +57,7 @@ func textControlProblem(text string, multiLine bool) string {
 // isBidiControl reports the Unicode bidirectional formatting characters,
 // which reorder the text around them on display.
 func isBidiControl(r rune) bool {
-	return r == '؜' || r == '‎' || r == '‏' || (r >= '‪' && r <= '‮') || (r >= '⁦' && r <= '⁩')
+	return r == '\u061c' || r == '\u200e' || r == '\u200f' || (r >= '\u202a' && r <= '\u202e') || (r >= '\u2066' && r <= '\u2069')
 }
 
 // textControlErrors are the free-text keys of p that textControlProblem

@@ -95,8 +95,8 @@ func viewFixtureReports() map[string]*attest.Report {
 	objective.AllPassed = false
 	objective.FailureReason = "recovery time objective exceeded: 342.9s over the 300.0s objective"
 
-	campaign := campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass})
-	campaign.ReportID = "5c1a2e30-0b7d-4a43-9d5e-3f0c1b2a4d66" // the fixture builder draws a random one
+	threeVM := fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass})
+	threeVM.ReportID = "5c1a2e30-0b7d-4a43-9d5e-3f0c1b2a4d66" // the fixture builder draws a random one
 
 	return map[string]*attest.Report{
 		"twin-pass":        twinReport(twinPassID, twinPassTime, true, 342.945584747),
@@ -105,7 +105,7 @@ func viewFixtureReports() map[string]*attest.Report {
 		"schema-1.5":       older,
 		"denied":           denied,
 		"objective-missed": objective,
-		"campaign-3vm":     campaign,
+		"three-vm":         threeVM,
 	}
 }
 
@@ -127,7 +127,7 @@ func TestReportShowGoldenOutputs(t *testing.T) {
 		{"schema-1.5", "schema-1.5.unverified.txt", false, false},
 		{"denied", "denied.keyring.txt", true, false},
 		{"objective-missed", "objective-missed.keyring.txt", true, false},
-		{"campaign-3vm", "campaign-3vm.keyring.txt", true, false},
+		{"three-vm", "three-vm.keyring.txt", true, false},
 	}
 	reports := viewFixtureReports()
 	for _, tc := range cases {

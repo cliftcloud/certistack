@@ -44,7 +44,7 @@ func paddedValidPlan(t *testing.T, path string, size int) {
 	}
 }
 
-// The neighbour scan reads as much of each plan as a loader accepts, which is
+// The neighbor scan reads as much of each plan as a loader accepts, which is
 // what makes a file a plan, so the sandbox VM IDs and SDN IDs of a valid plan
 // over 4 MiB beside the output are not handed out again.
 func TestSiblingScanReadsEveryPlanALoaderAccepts(t *testing.T) {
@@ -148,9 +148,9 @@ func TestSiblingScanNamesWhatItCouldNotRead(t *testing.T) {
 	}
 }
 
-// init tells the operator, before it goes on, which neighbours it could not
+// init tells the operator, before it goes on, which neighbors it could not
 // read: the one place the scan's answer reaches a person.
-func TestInitSaysWhichNeighbouringPlansItCouldNotRead(t *testing.T) {
+func TestInitSaysWhichNeighboringPlansItCouldNotRead(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Symlink(filepath.Join(dir, "gone.yaml"), filepath.Join(dir, "moved-plan.yaml")); err != nil {
 		t.Skipf("no symbolic links here: %v", err)
@@ -172,7 +172,7 @@ func TestInitSaysWhichNeighbouringPlansItCouldNotRead(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 	if !strings.Contains(stderr.String(), "Warning: could not read "+filepath.Join(dir, "moved-plan.yaml")) || !strings.Contains(stderr.String(), "are not avoided") {
-		t.Errorf("init did not say which neighbour it could not read:\n%s", stderr.String())
+		t.Errorf("init did not say which neighbor it could not read:\n%s", stderr.String())
 	}
 	if asked.Node != "pve1" {
 		t.Errorf("discovery was not asked for node pve1: %+v", asked)

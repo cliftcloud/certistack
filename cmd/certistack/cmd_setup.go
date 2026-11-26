@@ -54,7 +54,8 @@ Strict SSH host-key checking stays on throughout.
 
 Every answer has a flag; with --yes the defaults are taken (--fingerprint is
 required then, and so is a PBS namespace: --pbs-namespace NAME, or / for the
-root namespace, which lets the PBS user read every namespace of the datastore). The manual steps are subcommands:
+root namespace, which lets the PBS user read every namespace of the datastore).
+The manual steps are subcommands:
 
   setup trust-node   read the node's SSH host key, show its fingerprint and
                      record it in known_hosts after you confirm it
@@ -70,7 +71,12 @@ root namespace, which lets the PBS user read every namespace of the datastore). 
 			deps.check = func(ctx context.Context, envPath string, w io.Writer) error {
 				return runCheck(cmd, w, envPath, "", ctx)
 			}
-			return runSetupWizard(cmd.Context(), cmd.OutOrStdout(), cmd.InOrStdin(), opts, deps)
+			err := runSetupWizard(cmd.Context(), cmd.OutOrStdout(), cmd.InOrStdin(), opts, deps)
+			if err != nil && errors.Is(err, context.Canceled) && cmd.Context().Err() != nil {
+				// The interrupt notice has said what stays and how to go on.
+				return interruptNoticed{}
+			}
+			return err
 		},
 	}
 	f := cmd.Flags()
@@ -264,7 +270,7 @@ func runTrustNode(ctx context.Context, out io.Writer, in io.Reader, req trustNod
 }
 
 // confirmTyped asks a question and is satisfied only by the answer yes. End of
-// input, a cancelled context and every other answer decline. The prompt is
+// input, a canceled context and every other answer decline. The prompt is
 // written to out and the answer read from in; the read stops waiting when ctx
 // ends, so Ctrl-C does not leave the command stuck on the terminal.
 func confirmTyped(ctx context.Context, out io.Writer, in io.Reader, prompt string) (bool, error) {

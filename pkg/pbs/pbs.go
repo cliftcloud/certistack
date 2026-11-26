@@ -72,7 +72,7 @@ func New(cfg Config) *Client {
 // can intentionally replay a historical recovery test.
 //
 // A latest selector is either the literal "latest" with a source VM ID, or a
-// legacy group selector such as "vm/100/latest".
+// group selector such as "vm/100/latest".
 func (c *Client) ResolveSnapshot(ctx context.Context, selector string, sourceVMID int) (string, error) {
 	selector = strings.TrimSpace(selector)
 	if selector == "" {
@@ -360,7 +360,7 @@ func (c *Client) MapWithToken(ctx context.Context, snapshot, drive, token string
 // it still backs the file recorded for the map (sysutil.LoopBacking, journaled
 // when the map was made). A loop number can be reused by another operation's
 // map or an ordinary loop once the run's map is gone: it is then not the
-// run's, and nothing is signalled or detached. A device that is gone
+// run's, and nothing is signaled or detached. A device that is gone
 // is released already (false, nil); one whose identity cannot be established
 // is an error.
 func stillRecorded(loopDevice, backing string) (bool, error) {
@@ -572,15 +572,15 @@ func hashMappedImage(ctx context.Context, f *os.File, progress func(bytesVerifie
 	return readMappedImage(ctx, f, progress, nil)
 }
 
-// readMappedImage is hashMappedImage that also hands each chunk and its
-// offset to onChunk, when set, before the chunk's pages are released. It
-// stops when ctx ends, a read in progress included, and never reports a
-// read that ended after that as complete.
 // scanBuffers is how many 4 MiB buffers the scan's two halves share: one being
 // read, one being hashed, one in between. One makes the scan strictly serial;
 // tests that act between a chunk's processing and the next read use that.
 var scanBuffers = 3
 
+// readMappedImage is hashMappedImage that also hands each chunk and its
+// offset to onChunk, when set, before the chunk's pages are released. It
+// stops when ctx ends, a read in progress included, and never reports a
+// read that ended after that as complete.
 func readMappedImage(ctx context.Context, f *os.File, progress func(bytesVerified int64), onChunk func(p []byte, off int64) error) (string, int64, error) {
 	h := sha256.New()
 	var total int64
@@ -727,7 +727,7 @@ func startImageReadahead(f *os.File) *imageReadahead {
 	return startReadahead(f, size, readaheadChunk, workers, readaheadWindow)
 }
 
-// readCancelGrace is how long a cancelled scan waits for its read in
+// readCancelGrace is how long a canceled scan waits for its read in
 // progress. A read of a mapped image waits on PBS through the loop device and
 // FUSE, and nothing in this process can interrupt it; most finish within
 // this. One that does not is left to finish on its own: releasing the map,
@@ -783,13 +783,13 @@ func (r *imageReader) read(ctx context.Context, buf []byte) (imageRead, error) {
 		return chunk, nil
 	case <-ctx.Done():
 	}
-	cancelled := fmt.Errorf("read mapped PBS image: %w", ctx.Err())
+	canceled := fmt.Errorf("read mapped PBS image: %w", ctx.Err())
 	select {
 	case <-r.results:
-		return imageRead{}, cancelled
+		return imageRead{}, canceled
 	case <-time.After(readCancelGrace):
-		slog.Warn("a cancelled scan's read of a mapped PBS image is still waiting; it ends when the map is released", "device", r.f.Name(), "waited", readCancelGrace)
-		return imageRead{}, fmt.Errorf("%w (a read of %s was still waiting %v later; it ends when the PBS map is released)", cancelled, r.f.Name(), readCancelGrace)
+		slog.Warn("a canceled scan's read of a mapped PBS image is still waiting; it ends when the map is released", "device", r.f.Name(), "waited", readCancelGrace)
+		return imageRead{}, fmt.Errorf("%w (a read of %s was still waiting %v later; it ends when the PBS map is released)", canceled, r.f.Name(), readCancelGrace)
 	}
 }
 
@@ -861,7 +861,7 @@ var knownClientFailures = []struct{ marker, reason string }{
 // repository and the namespace. The namespace goes as --ns, which every
 // command that lists, restores or maps takes, because the 3.x client (the one
 // on every PVE 8 node) ignores PBS_NAMESPACE and silently reads the root
-// namespace; 4.x honours the variable, and buildEnv still sets it. Only
+// namespace; 4.x honors the variable, and buildEnv still sets it. Only
 // `unmap`, `version` and `group list` take no --ns: none is given them, and
 // none of them reads backup data of a namespace.
 func (c *Client) targetArgs() []string {

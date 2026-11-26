@@ -289,7 +289,7 @@ func (m *Manager) tryLock(ctx context.Context) error {
 	}
 	if err != nil && pve.NotSent(err) {
 		// The request provably never reached PVE (the client is not
-		// configured, the call was cancelled before it was sent, or no
+		// configured, the call was canceled before it was sent, or no
 		// connection was made): it left no lock behind, and the journal
 		// need not say it may have.
 		m.lockUnknown = wasUnknown
@@ -328,7 +328,7 @@ func (m *Manager) tryLock(ctx context.Context) error {
 // definite reports whether err is PVE's own answer, so that a request it
 // refused changed nothing: an HTTP error status, other than a gateway's or
 // pveproxy's report of a request or reply lost in transit. A transport
-// error, a reply that cannot be read, or a cancelled request is not.
+// error, a reply that cannot be read, or a canceled request is not.
 func definite(err error) bool {
 	var apiErr *pve.APIError
 	if !errors.As(err, &apiErr) {
@@ -668,7 +668,7 @@ func (m *Manager) UnlockedForeign() bool { return m.unlockedForeign }
 // case the lock may stand: the error of the release is returned, and the token
 // is kept. An error of the release that is not a missing endpoint is returned
 // as it is, as Unlock gives it. Only the release of this path is read so: a 404
-// or 501 anywhere else is an error as it always was.
+// or 501 anywhere else is an error like any other.
 func (m *Manager) ReleaseAdoptedToken(ctx context.Context) (noLockAPI bool, err error) {
 	err = m.Unlock(ctx)
 	if err == nil {

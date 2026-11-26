@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package config parses, normalises, and validates CertiStack test plans.
+// Package config parses, normalizes, and validates CertiStack test plans.
 //
 // A plan is a single literal YAML document (no environment interpolation).
 // LoadFromFile and LoadFromReader apply the controller rules; the *ForWorker
@@ -10,7 +10,7 @@
 // report signing key: the Community Edition writes its reports unsigned, and
 // accepts compliance.sign_key_path only so that plans stay portable between the
 // editions. Every accepted, aliased, and rejected key is documented in
-// the keys section of docs/plan-reference.md.
+// docs/plan-reference.md.
 package config
 
 import (
@@ -72,7 +72,7 @@ func (a AdmissionControl) BootSettle() time.Duration {
 	return DefaultBootSettleSec * time.Second
 }
 
-// Plan represents a complete CertiStack disaster recovery test plan.
+// Plan is a complete CertiStack restore test plan.
 type Plan struct {
 	Version          string           `yaml:"version" json:"version"`
 	PlanID           string           `yaml:"plan_id" json:"plan_id"`
@@ -170,7 +170,7 @@ func (n Network) VXLANPeerAddresses() ([]string, error) {
 
 // ProbeAddressCIDR returns the host-side sandbox address in CIDR notation.
 // The address is attached only to the transient VNet while CertiStack is
-// running, giving Stage 2 probes an explicit local route into the air-gapped
+// running, giving the wire probes an explicit local route into the air-gapped
 // subnet without creating a gateway or a route outside it.
 func (n Network) ProbeAddressCIDR() (string, error) {
 	ip := net.ParseIP(strings.TrimSpace(n.ProbeIP))
@@ -343,7 +343,7 @@ type NetworkRecovery struct {
 
 // EffectiveMode returns the safe-by-construction default. Adaptation never
 // modifies the protected guest or its backup; it writes only the disposable
-// COW overlay used by the isolated recovery VM.
+// COW overlay used by the sandbox VM.
 func (n NetworkRecovery) EffectiveMode() string {
 	mode := strings.ToLower(strings.TrimSpace(n.Mode))
 	if mode == "" {
@@ -484,7 +484,7 @@ type SourcePBS struct {
 }
 
 // SourceDrive maps one PBS archive to the SCSI slot it occupied on the source
-// VM. Cloud-init and other non-backed-up media are deliberately not modelled.
+// VM. Cloud-init and other non-backed-up media are deliberately not modeled.
 type SourceDrive struct {
 	Slot    string `yaml:"slot" json:"slot"`
 	Archive string `yaml:"archive" json:"archive"`
@@ -733,24 +733,23 @@ func ValidateForWorker(p *Plan) []ValidationError {
 func validate(p *Plan) []ValidationError {
 	var errors []ValidationError
 
-	// 1. version must equal "v1" or "certistack/v1"
 	if p.Version != "v1" && p.Version != "certistack/v1" {
 		errors = append(errors, ValidationError{Field: "version", Message: "must equal 'v1' or 'certistack/v1'"})
 	}
-	// 2. plan_id must match regex ^[a-zA-Z0-9_-]{1,128}$ and not be empty (the evidence hub keeps no report with a longer one)
+	// The evidence hub keeps no report whose plan_id is longer than the
+	// pattern allows.
 	if p.PlanID == "" {
 		errors = append(errors, ValidationError{Field: "plan_id", Message: "must not be empty"})
 	} else if !planIDRegex.MatchString(p.PlanID) {
 		errors = append(errors, ValidationError{Field: "plan_id", Message: "must match regex ^[a-zA-Z0-9_-]{1,128}$ (letters, digits, _ and -, at most 128 characters)"})
 	}
-	// 3. name must not be empty
 	if p.Name == "" {
 		errors = append(errors, ValidationError{Field: "name", Message: "must not be empty"})
 	}
-	// 4-5. compliance.frameworks and compliance.retention_days: both are
-	// signed into every report, and both are required.
+	// compliance.frameworks and compliance.retention_days are recorded in every
+	// report, and both are required.
 	errors = append(errors, ComplianceErrors(p)...)
-	// 6-9. The admission limits, the RTO target and every duration.
+	// The admission limits, the RTO target and every duration.
 	errors = append(errors, NumericBoundsErrors(p)...)
 	errors = append(errors, aliasConflictErrors(p)...)
 	errors = append(errors, textControlErrors(p)...)
@@ -763,14 +762,12 @@ func validate(p *Plan) []ValidationError {
 	} else if s > 0 && p.AdmissionControl.MaxConcurrentBoots == 0 {
 		errors = append(errors, ValidationError{Field: "admission_control.boot_settle_sec", Message: "has no effect without admission_control.max_concurrent_boots"})
 	}
-	// 10. network.mode
 	if p.Network.Mode != "simple" && p.Network.Mode != "vxlan" {
 		errors = append(errors, ValidationError{Field: "network.mode", Message: "must be 'simple' or 'vxlan'"})
 	}
 	if lifecycle := p.Network.EffectiveLifecycle(); lifecycle != "ephemeral" && lifecycle != "preprovisioned" {
 		errors = append(errors, ValidationError{Field: "network.lifecycle", Message: "must be 'ephemeral' or 'preprovisioned'"})
 	}
-	// 11. network.zone_id
 	if p.Network.ZoneID == "" {
 		errors = append(errors, ValidationError{Field: "network.zone_id", Message: "must not be empty"})
 	} else if !pveSDNIDRegex.MatchString(p.Network.ZoneID) {
@@ -789,7 +786,6 @@ func validate(p *Plan) []ValidationError {
 	if n := p.Storage.MaxCopyGiB; n < 0 || n > 1<<20 {
 		errors = append(errors, ValidationError{Field: "storage.max_copy_gib", Message: "must be between 0 (no cap) and 1048576"})
 	}
-	// 12. network.vnet_id
 	if p.Network.VNetID == "" {
 		errors = append(errors, ValidationError{Field: "network.vnet_id", Message: "must not be empty"})
 	} else if !pveSDNIDRegex.MatchString(p.Network.VNetID) {
@@ -805,7 +801,6 @@ func validate(p *Plan) []ValidationError {
 		// the run only validates them.
 		errors = append(errors, ValidationError{Field: "network.vnet_id", Message: "must differ from network.zone_id (Proxmox allows the same id for both, but CertiStack tracks zone and VNet ids in one set); for example zone_id csZone01 and vnet_id csVnet01"})
 	}
-	// 13. network.tag
 	if p.Network.Tag < 0 {
 		errors = append(errors, ValidationError{Field: "network.tag", Message: "must be >= 0"})
 	}
@@ -828,7 +823,6 @@ func validate(p *Plan) []ValidationError {
 			errors = append(errors, ValidationError{Field: "network.tag", Message: "is only valid for vxlan mode (a simple network's VNet carries no tag, so a tag set here would never reach PVE)"})
 		}
 	}
-	// 14. network.ip_range
 	// ParseSandboxRange is the one reader of the range (the node-side overlap
 	// check and the engine call it too): a spelling it refuses never reaches PVE
 	// or `ip addr add`, and a range it accepts is the one network all of them see.
@@ -895,7 +889,6 @@ func validate(p *Plan) []ValidationError {
 	if p.Network.MTU != 0 {
 		errors = append(errors, ValidationError{Field: "network.mtu", Message: "is not implemented; must be unset"})
 	}
-	// 15. tiers must contain at least 1 tier
 	if len(p.Tiers) == 0 {
 		errors = append(errors, ValidationError{Field: "tiers", Message: "must contain at least 1 tier"})
 	}
@@ -907,7 +900,6 @@ func validate(p *Plan) []ValidationError {
 
 	for i, tier := range p.Tiers {
 		prefix := fmt.Sprintf("tiers[%d]", i)
-		// 16. Each tier level must be >= 1
 		if tier.Level < 1 {
 			errors = append(errors, ValidationError{Field: prefix + ".level", Message: "must be >= 1"})
 		}
@@ -915,34 +907,30 @@ func validate(p *Plan) []ValidationError {
 			errors = append(errors, ValidationError{Field: prefix + ".level", Message: "must be unique across the plan"})
 		}
 		seenTierLevels[tier.Level] = true
-		// 17. Each tier must have at least 1 VM
 		if len(tier.VMs) == 0 {
 			errors = append(errors, ValidationError{Field: prefix + ".vms", Message: "must contain at least 1 VM"})
 		}
-		// 18. Each tier name must not be empty
 		if tier.Name == "" {
 			errors = append(errors, ValidationError{Field: prefix + ".name", Message: "must not be empty"})
 		}
 
 		for j, vm := range tier.VMs {
 			vmPrefix := fmt.Sprintf("%s.vms[%d]", prefix, j)
-			// 19. VMIDs must be unique across the ENTIRE plan
 			if seenVMIDs[vm.VMID] {
 				errors = append(errors, ValidationError{Field: vmPrefix + ".vmid", Message: "must be unique across the entire plan"})
 			}
 			seenVMIDs[vm.VMID] = true
 
-			// 20. Each VM name must not be empty, and must be a name PVE
-			// accepts, so a bad one is refused here and not when the run
+			// A name PVE would not accept is refused here, not when the run
 			// creates the VM.
 			if vm.Name == "" {
 				errors = append(errors, ValidationError{Field: vmPrefix + ".name", Message: "must not be empty"})
 			} else if !pveVMNameRegex.MatchString(vm.Name) {
 				errors = append(errors, ValidationError{Field: vmPrefix + ".name", Message: "must be a DNS name of at most 63 characters (letters, digits, '-' and '.', starting and ending with a letter or digit), which Proxmox VE requires"})
 			}
-			// 21. Each VM's IDs and hardware overrides are checked by
-			// NumericBoundsErrors: vmid must be a Proxmox VM ID, the range
-			// init allocates sandbox IDs from.
+			// A VM's IDs and hardware overrides are checked by
+			// NumericBoundsErrors.
+			//
 			// The disposable restore must never be registered under the ID of
 			// the VM it was backed up from; the runtime occupancy guard would
 			// refuse it anyway, but only after contacting PVE and PBS.
@@ -962,7 +950,8 @@ func validate(p *Plan) []ValidationError {
 					errors = append(errors, ValidationError{Field: vmPrefix + ".source_pbs.namespace", Message: fmt.Sprintf("must match the plan's other PBS namespace %q; one run reads one namespace", planNamespace)})
 				}
 			}
-			// 22. source_pbs must be defined unless global storage is configured
+			// source_pbs is required unless the plan's storage names a PBS
+			// repository.
 			if vm.SourcePBS.StorageID == "" && p.Storage.PBSRepository == "" {
 				errors = append(errors, ValidationError{Field: vmPrefix + ".source_pbs.storage_id", Message: "must not be empty"})
 			}
@@ -1076,9 +1065,9 @@ func validate(p *Plan) []ValidationError {
 			// network recovery mode. A preserve-mode VM keeps its guest's own
 			// addresses, so no sandbox_ip claims them above; without this a
 			// probe of one VM could name another VM's address, and the other
-			// VM's service would answer it and credit the pass to the wrong
-			// VM. Earlier tiers stay up until teardown, so
-			// this holds across tiers as well as within one.
+			// VM's service would answer it and credit the pass to the wrong VM.
+			// Earlier tiers stay up until teardown, so this holds across tiers
+			// as well as within one.
 			for k, probe := range vm.Probes {
 				if !isWireProbe(probe.Type) {
 					continue
@@ -1094,8 +1083,8 @@ func validate(p *Plan) []ValidationError {
 				}
 			}
 
-			// 23. Fail-closed: Each VM MUST define at least one probe, and one
-			// that is sure to assert something in the guest.
+			// Fail closed: each VM must define at least one probe, and one that
+			// is sure to assert something in the guest.
 			if len(vm.Probes) == 0 {
 				errors = append(errors, ValidationError{Field: vmPrefix + ".probes", Message: "must define at least 1 probe"})
 			} else if problem := guestAssertionProblem(vm.Probes); problem != "" {
@@ -1108,7 +1097,6 @@ func validate(p *Plan) []ValidationError {
 				// caller ran Normalize: a direct Validate must not hold qga_ping
 				// to less than qga.
 				probe := canonicalProbe(given)
-				// 24. Probe type
 				if !validProbeType(given.Type) {
 					errors = append(errors, ValidationError{Field: probePrefix + ".type", Message: "must be one of: tcp, http, qga, qmp, screendump, dns, ldap, mssql, smb"})
 				}
@@ -1283,8 +1271,7 @@ func validate(p *Plan) []ValidationError {
 // nothing about what the guest did: a guest in a boot loop, at a "No
 // bootable device" screen or at a kernel panic passes both. They are
 // supporting evidence, and a VM is verified only by a guest-level assertion.
-// The evidence verdict (cmd/certistack) applies the same rule to a signed
-// report.
+// The acceptance rules (pkg/acceptance) apply the same rule to a report.
 func IsGuestLevelProbe(probeType string) bool {
 	switch strings.ToLower(strings.TrimSpace(probeType)) {
 	case "qga", "qga_ping":
@@ -1375,13 +1362,13 @@ var validFrameworks = map[string]bool{
 	"CIS_V8":           true,
 }
 
-// ComplianceErrors checks the compliance metadata every signed report carries.
+// ComplianceErrors checks the compliance metadata every report carries.
 // frameworks must name at least one standard, and retention_days must be a
 // positive number of days up to a century: the report records both, and a
 // report with no framework or a zero retention would leave the reader unable
 // to tell an intentional choice from an omission. validate applies it, and a
 // run applies it again to a plan it is handed directly, before anything is
-// signed.
+// written.
 func ComplianceErrors(p *Plan) []ValidationError {
 	var errors []ValidationError
 	const frameworkList = "NONE (no standard), DORA, SOC2, HIPAA, ISO27001, CIS_V8 (or an article code such as DORA-Article-12)"
@@ -1392,14 +1379,14 @@ func ComplianceErrors(p *Plan) []ValidationError {
 		field := fmt.Sprintf("compliance.frameworks[%d]", i)
 		switch {
 		case f == FrameworkPlaceholder:
-			errors = append(errors, ValidationError{Field: field, Message: FrameworkPlaceholder + " is the placeholder an earlier certistack init wrote: replace it with the frameworks this report maps to, one of: " + frameworkList})
+			errors = append(errors, ValidationError{Field: field, Message: FrameworkPlaceholder + " is a placeholder, not a framework: replace it with the frameworks this report maps to, one of: " + frameworkList})
 		case f == FrameworkNone && len(p.Compliance.Frameworks) > 1:
 			errors = append(errors, ValidationError{Field: field, Message: FrameworkNone + " means the report is mapped to no standard, so it cannot be listed together with others: use [" + FrameworkNone + "] alone, or name the standards"})
 		case !validFrameworks[f]:
 			errors = append(errors, ValidationError{Field: field, Message: "must be one of: " + frameworkList})
 		}
 	}
-	// It is signed into every report, and evidence stores turn it into a
+	// It is recorded in every report, and evidence stores turn it into a
 	// duration.
 	switch days := p.Compliance.RetentionDays; {
 	case days == 0:
@@ -1419,13 +1406,13 @@ const MaxDurationSec = 7 * 24 * 60 * 60
 // MaxDeferRetries bounds admission_control.max_defer_retries.
 const MaxDeferRetries = 10000
 
-// NumericBoundsErrors checks the plan's numbers that become admission
-// limits, the RTO target and durations: every float must be finite, since
-// NaN compares false both ways and would pass any range check (a NaN I/O
-// wait limit admits every load), and every duration must fit in a
-// time.Duration. It also holds each VM's IDs and hardware to the
-// ranges the rest of the product uses. validate
-// applies it, and a run applies it again to a plan it is handed directly.
+// NumericBoundsErrors checks the plan's numbers that become admission limits,
+// the RTO target and durations: every float must be finite, since NaN compares
+// false both ways and would pass any range check (a NaN I/O wait limit admits
+// every load), and every duration must fit in a time.Duration. It also holds
+// each VM's IDs and hardware to the ranges the rest of the product uses.
+// validate applies it, and a run applies it again to a plan it is handed
+// directly.
 func NumericBoundsErrors(p *Plan) []ValidationError {
 	var errors []ValidationError
 	finite := func(field string, value float64) bool {
@@ -1441,7 +1428,7 @@ func NumericBoundsErrors(p *Plan) []ValidationError {
 		}
 	}
 	// compliance.rto_target_seconds, when set, is enforced as a real pass/fail
-	// criterion after the run (pkg/runner) and recorded in the signed report;
+	// criterion after the run (pkg/runner) and recorded in the report;
 	// omitting it is the only way to set no objective. A zero the plan gave or a
 	// negative number would be read as "not set" (zero is the field's unset
 	// value), so each is refused instead of silently passing every run; a key with
@@ -1456,7 +1443,7 @@ func NumericBoundsErrors(p *Plan) []ValidationError {
 			errors = append(errors, ValidationError{Field: "compliance.rto_target_seconds", Message: "must be a number of seconds above 0: a value of 0 would be read as no objective and every run would pass it; leave the key out to set no objective"})
 		}
 	}
-	// The admission alias block and the I/O wait alias key are normalised
+	// The admission alias block and the I/O wait alias key are normalized
 	// into admission_control only when positive; a non-finite value there
 	// must not be dropped silently.
 	for _, alias := range []struct {
@@ -1470,17 +1457,13 @@ func NumericBoundsErrors(p *Plan) []ValidationError {
 	} {
 		finite(alias.field, alias.value)
 	}
-	// 6. admission_control.max_host_ram_percent
 	if value := p.AdmissionControl.MaxHostRAMPercent; finite("admission_control.max_host_ram_percent", value) && (value <= 0 || value > 100) {
 		errors = append(errors, ValidationError{Field: "admission_control.max_host_ram_percent", Message: "must be > 0 and <= 100"})
 	}
-	// 7. admission_control.max_host_iowait_percent
 	if value := p.AdmissionControl.MaxHostIOWaitPercent; finite("admission_control.max_host_iowait_percent", value) && (value <= 0 || value > 100) {
 		errors = append(errors, ValidationError{Field: "admission_control.max_host_iowait_percent", Message: "must be > 0 and <= 100"})
 	}
-	// 8. admission_control.defer_retry_interval_sec
 	seconds("admission_control.defer_retry_interval_sec", p.AdmissionControl.DeferRetryIntervalSec, 1)
-	// 9. admission_control.max_defer_retries
 	if n := p.AdmissionControl.MaxDeferRetries; n <= 0 || n > MaxDeferRetries {
 		errors = append(errors, ValidationError{Field: "admission_control.max_defer_retries", Message: fmt.Sprintf("must be between 1 and %d", MaxDeferRetries)})
 	}
@@ -1683,7 +1666,7 @@ func loadFromBytes(data []byte) (*Plan, error) {
 	var p Plan
 	// Plans can be submitted through the Enterprise API. Expanding the daemon's
 	// environment here would make credentials available to QGA command text and
-	// subsequently to signed report evidence. Runtime configuration belongs in
+	// subsequently to report evidence. Runtime configuration belongs in
 	// protected environment files, never in an untrusted plan.
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
@@ -1701,7 +1684,7 @@ func loadFromBytes(data []byte) (*Plan, error) {
 		return nil, fmt.Errorf("failed to parse trailing YAML document: %w", err)
 	}
 
-	// Which keys the plan gives, before normalisation fills any: a value
+	// Which keys the plan gives, before normalization fills any: a value
 	// written as zero is not a key left out.
 	document, err := parsePlanDocument(data)
 	if err != nil {
@@ -1843,7 +1826,7 @@ func MarshalWorkerPlan(plan *Plan) ([]byte, error) {
 	return data, nil
 }
 
-// readsBackAs reports whether a marshalled plan, decoded, holds every value
+// readsBackAs reports whether a marshaled plan, decoded, holds every value
 // of want that a plan's YAML gives.
 func readsBackAs(data []byte, want *Plan) bool {
 	var again Plan
@@ -1923,7 +1906,7 @@ func copyPlanTexts(v reflect.Value, replace func(string) string) reflect.Value {
 }
 
 // CopyWorkerPlan is an independent copy of a worker plan, as the worker loaded
-// it: the plan is marshalled as it is sent to a node and loaded again, so the
+// it: the plan is marshaled as it is sent to a node and loaded again, so the
 // copy shares nothing with plan and has the same canonical digest. A caller
 // that hands plan to code which writes into it (the runner pins snapshots and
 // inherits hardware as it goes) keeps the copy to describe the plan it was
@@ -1936,13 +1919,14 @@ func CopyWorkerPlan(plan *Plan) (*Plan, error) {
 	return LoadFromReaderForWorker(bytes.NewReader(data))
 }
 
+// WorkerPlanDigestFormat names how CanonicalWorkerPlanSHA256 forms its digest.
+const WorkerPlanDigestFormat = "worker-plan-yaml-v1"
+
 // CanonicalWorkerPlanSHA256 identifies the complete effective worker plan.
 // Version 1 hashes MarshalWorkerPlan's deterministic canonical YAML: aliases
 // are removed and the controller-only signing-key path is redacted. Loaders
 // have applied defaults before this is called; the runner calls it again after
 // backup configuration resolution. The digest contains no credential bytes.
-const WorkerPlanDigestFormat = "worker-plan-yaml-v1"
-
 func CanonicalWorkerPlanSHA256(plan *Plan) (string, error) {
 	data, err := MarshalWorkerPlan(plan)
 	if err != nil {

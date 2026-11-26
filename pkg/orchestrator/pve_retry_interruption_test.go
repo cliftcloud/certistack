@@ -19,7 +19,7 @@ import (
 // A signal that arrives while the PVE client waits to retry a transient
 // failure is named by the run's error, not reported as that failure: the
 // classifier that names a signal looks for a cancellation in the error, so
-// without one the signed failure_reason would name a proxy error and lose the
+// without one the failure_reason would name a proxy error and lose the
 // signal and the node shutdown.
 func TestSignalDuringAPVERetryDelayIsNamedByTheRunsError(t *testing.T) {
 	var hits atomic.Int32

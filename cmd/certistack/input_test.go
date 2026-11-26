@@ -115,7 +115,7 @@ func TestTextCommandsFailWhenTheirResultCannotBeWritten(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.name == "doctor text" && runtime.GOOS != "linux" {
-				tc.controlErr = ""
+				tc.controlErr = "no preflight check was run"
 			}
 			// A working stdout: the command's own answer, no write failure.
 			var out bytes.Buffer

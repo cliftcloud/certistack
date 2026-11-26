@@ -24,10 +24,10 @@ var (
 	ifupdownTools = map[string]bool{"ifreload": true, "ifup": true, "ifdown": true}
 )
 
-// SettleTimeout bounds SettleBridge on a cluster of nodes nodes: PVE
-// reloads them one after another, about 6.5 s each, in an order that varies,
-// so this node may be last. At least 3 minutes, and 10 s a node; 3 minutes
-// when the count is unknown (0).
+// SettleTimeout bounds SettleBridge on a cluster of the given number of nodes:
+// PVE reloads them one after another, about 6.5 s each, in an order that
+// varies, so this node may be last. It is at least 3 minutes, and 10 s a node;
+// 3 minutes when the count is unknown (0).
 func SettleTimeout(nodes int) time.Duration {
 	return max(3*time.Minute, time.Duration(nodes)*10*time.Second)
 }

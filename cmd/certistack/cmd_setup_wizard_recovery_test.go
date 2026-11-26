@@ -57,6 +57,18 @@ func TestTheWizardKeepsANewTokensSecretWhenTheRunStopsLater(t *testing.T) {
 	if strings.Contains(strings.Join(f.changes, "|"), "pve token remove") || !strings.Contains(out, "(left by a setup that did not finish)") {
 		t.Errorf("changes = %q\n%s", f.changes, out)
 	}
+	// The PVE part run with the kept secret reports the token as kept, not
+	// with the advice to replace a token whose secret was lost; the first run,
+	// which made the token, had no secret to keep.
+	if len(f.pveScripts) != 2 {
+		t.Fatalf("%d PVE parts ran, want 2", len(f.pveScripts))
+	}
+	if first := f.pveScripts[0]; strings.Contains(first, "certistack setup holds the secret") || !strings.Contains(first, "certistack setup does not hold its secret, so nothing was granted to it.") {
+		t.Errorf("the first run's PVE part, with no secret to keep:\n%s", first)
+	}
+	if again := f.pveScripts[1]; !strings.Contains(again, "certistack setup holds the secret of this token and keeps using it.") || strings.Contains(again, "nothing was granted") {
+		t.Errorf("the run again's PVE part, with the kept secret:\n%s", again)
+	}
 	values, _ := loadControllerEnvironment(filepath.Join(dir, "controller.env"))
 	if values["PVE_TOKEN_SECRET"] != wizardPVESecret || values["PBS_PASSWORD"] != wizardPBSSecret {
 		t.Errorf("values = %v", values)
@@ -114,6 +126,10 @@ func TestTheWizardGrantsANewDatastoreWithTheKeptSecret(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(f.changes, "|"), "pbs access on root@pbs.example.com") || strings.Contains(strings.Join(f.changes, "|"), "delete-token") {
 		t.Errorf("changes = %q: the PBS part runs for the new grant and keeps the token", f.changes)
+	}
+	// The PBS part that runs again for the grant reports the token as kept.
+	if last := f.pbsScripts[len(f.pbsScripts)-1]; !strings.Contains(last, "certistack setup holds the secret of this token and keeps using it.") || strings.Contains(last, "nothing was granted") {
+		t.Errorf("the PBS part run with the kept secret:\n%s", last)
 	}
 	values, _ := loadControllerEnvironment(filepath.Join(dir, "controller.env"))
 	if values["PBS_REPOSITORY"] != "certistack-ro@pbs!ro@pbs.example.com:8007:datastore2" || values["PBS_PASSWORD"] != wizardPBSSecret {

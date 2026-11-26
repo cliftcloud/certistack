@@ -294,7 +294,7 @@ func TestQGAPingAliasIsHeldToTheCommandAllowlist(t *testing.T) {
 	if errs := ProbeCommandErrors(plan); len(errs) != 1 || errs[0].Field != "tiers[0].vms[0].probes[0].command" {
 		t.Errorf("ProbeCommandErrors = %v, want the one command", errs)
 	}
-	// The loader path, which normalises first, was always protected.
+	// The loader path, which normalizes first, was always protected.
 	if _, err := LoadFromReader(strings.NewReader(planText(t, plan))); err == nil || !strings.Contains(err.Error()+validationText(err), "arbitrary guest shell commands are not permitted") {
 		t.Errorf("the loader accepts it: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestQGAPingAliasIsHeldToTheCommandAllowlist(t *testing.T) {
 
 // Every alias is validated as its canonical type does. For each
 // spelling of each type, and commands good and bad, a direct Validate (no
-// Normalize) gives the errors Validate of the normalised copy gives.
+// Normalize) gives the errors Validate of the normalized copy gives.
 func TestEveryProbeAliasValidatesAsItsCanonicalType(t *testing.T) {
 	commands := []string{"", "ping", "guest-ping", "hostname", "printf x", "rm -rf /", "systemctl is-active ssh", "systemctl is-active ssh; id", "sc query W3SVC", "sc query W3SVC & whoami", " id "}
 	for alias, canonical := range probeTypeAliases {
@@ -322,9 +322,9 @@ func TestEveryProbeAliasValidatesAsItsCanonicalType(t *testing.T) {
 					probe.Description = "qga probe"
 				}
 				direct := probePlan(probe)
-				normalised := probePlan(probe)
-				normalised.Normalize()
-				if got, want := errorText(Validate(direct)), errorText(Validate(normalised)); !reflect.DeepEqual(got, want) {
+				normalized := probePlan(probe)
+				normalized.Normalize()
+				if got, want := errorText(Validate(direct)), errorText(Validate(normalized)); !reflect.DeepEqual(got, want) {
 					t.Errorf("%s with command %q (require_qga %v):\n  direct Validate:     %v\n  after Normalize:     %v", alias, command, require, got, want)
 				}
 			}

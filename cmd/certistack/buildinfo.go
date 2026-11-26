@@ -10,7 +10,7 @@ import (
 
 // applyBuildInfo fills in the build identity from the module and VCS metadata
 // the Go toolchain embeds when a binary is produced without the Makefile's
-// -ldflags, for example by `go install github.com/cliftcloud/certistack/cmd/certistack@v0.1.0`
+// -ldflags, for example by `go install github.com/cliftcloud/certistack/cmd/certistack@latest`
 // or a plain `go build` inside a clone. Values injected through -ldflags
 // always take precedence, so release builds are unaffected.
 //

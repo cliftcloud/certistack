@@ -91,12 +91,12 @@ func TestFailedAdmissionAndSDNKeepTheirDurations(t *testing.T) {
 
 // An admission the operator cancels while it waits to retry keeps the time it
 // waited, too.
-func TestACancelledAdmissionKeepsTheTimeItWaited(t *testing.T) {
+func TestACanceledAdmissionKeepsTheTimeItWaited(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("admission reads the node's /proc counters")
 	}
 	plan := networkOnlyPlan()
-	plan.PlanID = "cancelled-admission-timing"
+	plan.PlanID = "canceled-admission-timing"
 	plan.AdmissionControl.MaxHostRAMPercent = 0.00001
 	plan.AdmissionControl.MaxDeferRetries = 5
 	plan.AdmissionControl.DeferRetryIntervalSec = 30
@@ -105,10 +105,10 @@ func TestACancelledAdmissionKeepsTheTimeItWaited(t *testing.T) {
 	defer cancel()
 	result, err := o.Run(ctx)
 	if err == nil {
-		t.Fatal("a cancelled admission succeeded")
+		t.Fatal("a canceled admission succeeded")
 	}
 	if timings := result.PhaseTimings; timings.AdmissionCheckSec < 1.0 {
-		t.Errorf("an admission cancelled after 1.5s recorded %.3fs", timings.AdmissionCheckSec)
+		t.Errorf("an admission canceled after 1.5s recorded %.3fs", timings.AdmissionCheckSec)
 	}
 }
 
@@ -243,7 +243,7 @@ func TestAFailedRestorePhaseKeepsItsDuration(t *testing.T) {
 	})
 }
 
-// The phases a unit test cannot drive to a delayed failure (the Stage 1 wait for
+// The phases a unit test cannot drive to a delayed failure (the QMP wait for
 // the hypervisor, and the tier's startup grace period and soak, which need a
 // running VM) are held by their shape: a phase timer is stopped, or its stop
 // deferred, before any return that follows its start, and a tier wait adds its
@@ -295,7 +295,7 @@ func TestEveryPhaseIsTimedWhicheverWayItEnds(t *testing.T) {
 		})
 	}
 	if started < 6 {
-		t.Errorf("found %d phase timers in orchestrator.go, want at least 6 (admission, SDN, overlay, registration, start, Stage 1)", started)
+		t.Errorf("found %d phase timers in orchestrator.go, want at least 6 (admission, SDN, overlay, registration, start, QMP check)", started)
 	}
 
 	// A tier wait (the startup grace and the soak) starts its clock in a

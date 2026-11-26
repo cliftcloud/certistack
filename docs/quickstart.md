@@ -9,9 +9,10 @@ From nothing to your first restore-test report on one standalone Proxmox VE node
   SSH to as root.
 - **A PBS** (3.x or 4.x) the node can reach, with a recent backup of a **small Linux VM** (under about 20 GiB, `sshd`
   on port 22).
-- **A controller**: a small Debian or Ubuntu VM. It may run on the same node, but not on the Proxmox VE host itself or
-  your workstation: it keeps an SSH key that is root on the node, and the API token.
-- **Free space on the node** for the VM's disk size plus 5 GiB, and **free VM IDs from 9100 up**.
+- **A controller**: a small Debian or Ubuntu VM. It may be a VM on the same node, but do not run it on the Proxmox VE
+  host itself or on your workstation: it keeps an SSH key that is root on the node, and the API token.
+- **Free space on the node** for the VM's disk size plus 5 GiB, and **a free VM ID** for each VM you restore (`init`
+  picks IDs from 9100 up).
 
 Setup gives the controller root on the node and an API token that can manage VMs: read
 [What it changes](manual-setup.md#what-it-changes) first.
@@ -66,8 +67,8 @@ You answer, in this order:
    secret it printed (the string after `"value":`).
 
 Setup also asks before each change it makes: refreshing the package lists and installing packages (it lists what apt
-will install, upgrade and remove), adding the overlay storage, creating the PVE role, user and token, and running the PBS script. Enter accepts
-each, except a removal (default No): on PVE 8, apt replaces `fuse` with `fuse3`, which is
+will install, upgrade and remove), adding the overlay storage, creating the PVE role, user and token, and running the
+PBS script. Enter accepts each, except a removal (default No): on PVE 8, apt replaces `fuse` with `fuse3`, which is
 [safe](manual-setup.md#1-prepare-the-node), so answer `y`.
 
 For an encrypted PBS storage, setup offers to copy its key (default no); a passphrase goes in `controller.env` as
@@ -96,9 +97,9 @@ certistack init --vm 102 -o my-first-plan.yaml
 
 `init -o` refuses to overwrite an existing plan file: use another name or `--force`.
 
-`init` estimates the run's time and RAM (the VM's memory plus 256 MiB). The plan is valid as it is: its probe checks that SSH answers on port 22. To check the service the VM provides
-instead (an HTTP check for a web server), change the probe marked `CHANGE`; the [plan reference](plan-reference.md)
-lists the probes. `init` also asks once about
+`init` estimates the run's time and RAM (the VM's memory plus 256 MiB). The plan is valid as it is: its probe checks
+that SSH answers on port 22. To check the service the VM provides instead (an HTTP check for a web server), change the
+probe marked `CHANGE`; the [plan reference](plan-reference.md) lists the probes. `init` also asks once about
 [usage statistics](telemetry.md); Enter keeps them off.
 
 ## 4. Run it
@@ -121,7 +122,8 @@ To stop it, press Ctrl-C **once** and let it clean up. A second Ctrl-C leaves th
 
 ## 5. Read the report
 
-The run's last line is the command that shows its report. With no file named, it shows the newest:
+The run's last line is the command that shows its report. With no file named, it shows the newest report in the reports
+directory: `CERTISTACK_OUTPUT_DIR` in the environment file setup recorded, else `/var/lib/certistack/reports`.
 
 ```bash
 certistack report show
@@ -150,10 +152,10 @@ On the controller (a minimal Debian or Ubuntu needs `sudo apt install gnupg git 
 ```bash
 mkdir -p ~/certistack-download && cd ~/certistack-download
 for f in certistack-linux-amd64 CONTAINER-IMAGE.txt SHA256SUMS-bin.txt SHA256SUMS-bin.txt.asc; do
-  curl -fLO "https://github.com/cliftcloud/certistack/releases/download/v0.1.3/$f"
+  curl -fLO "https://github.com/cliftcloud/certistack/releases/download/v0.1.4/$f"
 done
 sudo install -d -m 0700 -o "$USER" /secure/certistack /var/lib/certistack/reports
-git clone --depth 1 --branch v0.1.3 https://github.com/cliftcloud/certistack.git
+git clone --depth 1 --branch v0.1.4 https://github.com/cliftcloud/certistack.git
 gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg \
   --import certistack/release/release-public-key.asc
 gpg --no-default-keyring --keyring /secure/certistack/release-signing-key.gpg --fingerprint
@@ -181,16 +183,17 @@ curl -fsSL https://certistack.dev/install.sh | CERTISTACK_BIN_DIR="$HOME/bin" ba
 ```
 
 If `certistack` is not found, run `export PATH="$HOME/bin:$PATH"`. When setup asks for its directory, accept
-`~/certistack/secure`; reports then go to a `reports` directory next to it. By hand, in the first block above, replace
-the `sudo install -d` line by `install -d -m 0700 YOUR_DIR` and `/secure/certistack` in the three `--keyring` paths by
-`YOUR_DIR`, then `install -D -m 0755 certistack-linux-amd64 ~/bin/certistack`.
+`~/certistack/secure`; reports then go to a `reports` directory next to it, which setup records as
+`CERTISTACK_OUTPUT_DIR` and `report show` reads. By hand, in the first block above, replace the `sudo install -d` line
+by `install -d -m 0700 YOUR_DIR` and `/secure/certistack` in the three `--keyring` paths by `YOUR_DIR`, then
+`install -D -m 0755 certistack-linux-amd64 ~/bin/certistack`.
 
 Either way, use your directory for `/secure/certistack` in every command.
 
 ## Upgrade
 
 Finish or recover every run first. Run the installer again; it keeps the current binary as
-`/usr/local/bin/certistack.prev` (to pick a release, put `CERTISTACK_VERSION=v0.1.3` before `bash`). Then run
+`/usr/local/bin/certistack.prev` (to pick a release, put `CERTISTACK_VERSION=v0.1.4` before `bash`). Then run
 `certistack check` and one plan. To roll back:
 `sudo install -m 0755 /usr/local/bin/certistack.prev /usr/local/bin/certistack`.
 

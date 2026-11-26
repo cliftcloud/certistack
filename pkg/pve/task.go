@@ -151,7 +151,7 @@ func isNodeAlphaNumeric(r rune) bool {
 
 // WaitForTask polls a task UPID on the specified node until it completes.
 // Returns nil if the task completed with exitstatus "OK".
-// Returns an error if the task failed, timed out, or if the context was cancelled.
+// Returns an error if the task failed, timed out, or if the context was canceled.
 func (c *Client) WaitForTask(ctx context.Context, node, upid string, pollInterval, timeout time.Duration) error {
 	if upid == "" {
 		return fmt.Errorf("task UPID must not be empty")

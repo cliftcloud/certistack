@@ -371,7 +371,7 @@ func apiTicket(ctx context.Context, client *http.Client, base url.URL, authID, p
 
 // apiTransportError keeps the cause but not the server's name or address,
 // which the URL, a dial error and a DNS error all carry: the reason ends up
-// in the signed report.
+// in the report.
 func apiTransportError(err error) error {
 	var dnsErr *net.DNSError
 	var opErr *net.OpError

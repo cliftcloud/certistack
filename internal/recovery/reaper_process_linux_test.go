@@ -23,7 +23,7 @@ import (
 
 // fakeClientMode makes this test binary stand in for a proxmox-backup-client
 // map daemon: started with it in its environment, before any test runs, it
-// prints "ready" and waits to be signalled. It is only ever started by
+// prints "ready" and waits to be signaled. It is only ever started by
 // startFakeClient, as a child of a test.
 const fakeClientMode = "CERTISTACK_TEST_FAKE_MAP_CLIENT"
 
@@ -180,7 +180,7 @@ func intentFor(t *testing.T, c *fakeClient) journal.MapIntent {
 // found by its command line, its environment's repository, namespace and
 // token, stops on SIGINT; a map of the same snapshot and archive from
 // another repository, one from another namespace, another run's, and a
-// restore into "map" run on, unsignalled.
+// restore into "map" run on, unsignaled.
 func TestRealMapProcessesAreToldApartByTheirEnvironment(t *testing.T) {
 	own := startFakeClient(t, "stop", realMapArgv(ownRepo), realMapEnv(ownRepo, "team-a", ownToken))
 	intent := intentFor(t, own)
@@ -244,7 +244,7 @@ func TestRealJournaledMapProcessIsStoppedOnRetry(t *testing.T) {
 }
 
 // A signal goes only to the process the journal names. A PID that
-// names another process now (a different start time) is not signalled, and
+// names another process now (a different start time) is not signaled, and
 // a process that has already exited is not an error.
 func TestSignalRecordedNeverSignalsAReusedPID(t *testing.T) {
 	c := startFakeClient(t, "stop", realMapArgv(ownRepo), realMapEnv(ownRepo, "team-a", ownToken))
@@ -253,13 +253,13 @@ func TestSignalRecordedNeverSignalsAReusedPID(t *testing.T) {
 		t.Fatalf("signal to a reused PID: %v", err)
 	}
 	if c.exited(300 * time.Millisecond) {
-		t.Fatal("a process that is not the journaled one was signalled")
+		t.Fatal("a process that is not the journaled one was signaled")
 	}
 	if err := signalRecorded(c.id, syscall.SIGINT); err != nil {
 		t.Fatalf("signal: %v", err)
 	}
 	if !c.exited(5 * time.Second) {
-		t.Fatal("the journaled process was not signalled")
+		t.Fatal("the journaled process was not signaled")
 	}
 	// A stop that races with an exit: the process is gone when the signal is
 	// sent.

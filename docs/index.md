@@ -1,6 +1,6 @@
 # Overview
 
-CertiStack proves your Proxmox backups restore. It takes a VM's backup from Proxmox Backup Server, boots it in an
+CertiStack restore-tests your Proxmox backups. It takes a VM's backup from Proxmox Backup Server, boots it in an
 isolated sandbox on your Proxmox VE node, checks that its services answer, removes everything, and writes a
 report.
 
@@ -34,11 +34,12 @@ A run passes only when every check passed **and** the cleanup was verified. Cert
 ## What it changes on your node
 
 - Setup adds the controller's SSH key to root's `authorized_keys`, the package `libguestfs-tools` (and `nftables` if
-  missing), a directory storage `certistack-scratch` for the overlays, a PVE API token that can manage VMs and SDN, and a read-only
-  PBS user.
-- A run adds a sandbox VM (IDs from 9100 up), a temporary SDN zone and VNet, and a worker, and removes them again. On a
-  cluster, applying SDN reloads the network on every node.
-- Between runs, only `/var/lib/certistack` (the run journal) stays on the node.
+  missing), a directory storage `certistack-scratch` for the overlays, a PVE API token that can manage VMs and SDN, and
+  a read-only PBS user.
+- A run adds a sandbox VM (the plan's `vmid`; `init` picks IDs from 9100 up), a temporary SDN zone and VNet, and a
+  worker, and removes them again. On a cluster, applying SDN reloads the network on every node.
+- Between runs, a run leaves on the node `/var/lib/certistack` (the run journal), libguestfs's cache
+  (`/var/tmp/.guestfs-0`) and an empty entry in PVE's SDN bookkeeping for each zone name it used.
 - The full list, the access you grant and how to take it back: [Your node](manual-setup.md#what-it-changes).
 
 ## Safety
@@ -46,14 +47,17 @@ A run passes only when every check passed **and** the cleanup was verified. Cert
 - **Your backups are only read.** They are mapped read-only, and the PBS user can only read.
 - **Your VMs are never touched.** The sandbox is a new VM, and a run refuses a VM ID that already exists.
 - **The sandbox has no way out.** Its network has no gateway, uplink or NAT, and a firewall rule on the node drops new
-  traffic from it. CertiStack does not scan for malware, but a VM whose files were encrypted fails its probes.
-- **Cleanup is proven.** A resource counts as removed only when CertiStack can show it was the run's own and is gone.
+  traffic from it. CertiStack does not scan for malware: a VM passes when the probes you chose pass, so use probes that
+  touch the data (a page that queries its database) if an encrypted VM should fail.
+- **Cleanup is verified.** A resource counts as removed only when CertiStack can show it was the run's own and is gone.
   Recovery touches only what the run recorded, never anything else on the host.
 - **An interrupted run is cleaned up.** The node keeps a journal of what each run created. It cleans up on its own when
   the controller goes silent, the next run finishes it first, and `certistack recover` does it on demand
   ([Issue 35](troubleshooting.md#issue-35)).
-- **Root only on the node.** Mapping a backup needs root, so the controller logs in to the node as root. The controller
-  itself runs as an ordinary user.
+- **Root on the node, not on the controller.** Mapping a backup needs root, so the controller logs in to the node as
+  root, or through a passwordless `sudo` rule, which is root-equivalent
+  ([the rule](manual-setup.md#the-sudoers-rule-for-a-non-root-account)). The controller itself runs as an ordinary
+  user.
 - **Nothing leaves your network.** CertiStack talks only to your PVE, PBS, node and sandbox guests.
   [Usage statistics](telemetry.md) are off unless you opt in.
 

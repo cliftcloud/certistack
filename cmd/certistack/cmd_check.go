@@ -104,7 +104,7 @@ const (
 	layerSandbox     = "Sandbox network"
 )
 
-// checkCmdWithCleanupContext is check; cleanupContext, when set, is cancelled by
+// checkCmdWithCleanupContext is check; cleanupContext, when set, is canceled by
 // the operator's second interrupt and abandons the removal of the temporary
 // worker's workspace on the node.
 func checkCmdWithCleanupContext(cleanupContext context.Context) *cobra.Command {

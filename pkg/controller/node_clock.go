@@ -16,14 +16,14 @@ import (
 // timestamp is allowed (reportClockSkew).
 const nodeClockWarning = reportClockSkew / 2
 
-// maxReportJudgementLag is the longest the controller can take, after the
+// maxReportJudgmentLag is the longest the controller can take, after the
 // worker has stamped its report, to judge it: the worker ends, the controller
 // reads its result and verifies the run's journal on the node, which is bounded
 // by interruptionCleanupTimeout, and only then holds the report to the
 // allowance (checkWorkerReport). Ten minutes are added for the SSH commands
 // around those. A node's clock that is ahead is saved by this lag and no more:
 // see judge.
-const maxReportJudgementLag = interruptionCleanupTimeout + 10*time.Minute
+const maxReportJudgmentLag = interruptionCleanupTimeout + 10*time.Minute
 
 // checkNodeClock reads the node's clock before anything is staged on the node
 // and refuses a node whose report the check at the end of the run
@@ -38,7 +38,7 @@ const maxReportJudgementLag = interruptionCleanupTimeout + 10*time.Minute
 // What can be known depends on the side. A node AHEAD of the controller by
 // more than the allowance stamps its report in the future whatever the run
 // length, and only the time the controller takes between the stamp and the
-// check can save it (maxReportJudgementLag): beyond both, the run is refused. A
+// check can save it (maxReportJudgmentLag): beyond both, the run is refused. A
 // node BEHIND stamps its report early by its lag, and the run's own length
 // brings the stamp back: its report is accepted when the run lasts longer than
 // the lag less the allowance. No run has a length the controller knows in
@@ -116,14 +116,14 @@ const (
 
 // judge refuses a node that is ahead by more than the allowance and the lag
 // the controller can take to check a report (reportClockSkew and
-// maxReportJudgementLag), on every reading the exchange allows: nothing a run
+// maxReportJudgmentLag), on every reading the exchange allows: nothing a run
 // can do brings such a report back inside the allowance. It does not refuse a
 // node that is behind, however far: a run that lasts that long, less the
 // allowance, is accepted by the check at the end. It warns of a difference of
 // half the allowance or more on either side.
 func (d clockDifference) judge() clockVerdict {
 	switch {
-	case d.lowest > reportClockSkew+maxReportJudgementLag:
+	case d.lowest > reportClockSkew+maxReportJudgmentLag:
 		return clockRefused
 	case d.estimate >= nodeClockWarning, d.estimate <= -nodeClockWarning:
 		return clockWarned
@@ -155,5 +155,5 @@ func absDuration(d time.Duration) time.Duration {
 
 func nodeClockError(node, side string, by time.Duration) error {
 	return fmt.Errorf("the clock of node %s is about %s %s the controller's, and a report is accepted only when its timestamp is within %s of the run on the controller's clock. The node stamps its report as its run ends and the controller checks it within about %s of that, so a node this far ahead has its report refused whatever the run's length: this run would end with its report refused and no evidence written. Nothing was started on the node. Set the node's time from a reliable source (chronyc tracking on the node), or correct the controller's clock, and run again",
-		node, roughly(absDuration(by)), side, roughly(reportClockSkew), roughly(maxReportJudgementLag))
+		node, roughly(absDuration(by)), side, roughly(reportClockSkew), roughly(maxReportJudgmentLag))
 }

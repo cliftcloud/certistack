@@ -86,7 +86,7 @@ func TestReleaseWorkflowStartsOnlyOnStableTags(t *testing.T) {
 // workflow's softprops/action-gh-release pin was such an object
 // (5113cdc, the v3 tag; its commit is efb3536, which is also v3.0.3). The
 // known tag objects are refused here, the release action's pin must be
-// labelled with a full version, and a pin is checked against the remote
+// labeled with a full version, and a pin is checked against the remote
 // with `git ls-remote <repository> <sha>`, which lists a commit, not a tag
 // object, only under a branch or a peeled (^{}) tag.
 func TestWorkflowActionPinsAreCommitsNotTagObjects(t *testing.T) {
@@ -109,7 +109,7 @@ func TestWorkflowActionPinsAreCommitsNotTagObjects(t *testing.T) {
 			if use[1] == "softprops/action-gh-release" {
 				sawRelease = true
 				if !fullVersion.MatchString(use[3]) {
-					t.Errorf("softprops/action-gh-release is pinned to %s labelled %q, want a commit labelled with its full version (vX.Y.Z), not a moving major tag", use[2], use[3])
+					t.Errorf("softprops/action-gh-release is pinned to %s labeled %q, want a commit labeled with its full version (vX.Y.Z), not a moving major tag", use[2], use[3])
 				}
 			}
 		}

@@ -622,7 +622,7 @@ func TestHaltDuringAnOutageIsStillFound(t *testing.T) {
 
 // Cancellation while PVE cannot be read ends the wait with the run's error and
 // does not call the VM unobservable.
-func TestWaitCancelledWhileStatusIsUnavailableIsTheRunsInterruption(t *testing.T) {
+func TestWaitCanceledWhileStatusIsUnavailableIsTheRunsInterruption(t *testing.T) {
 	fastHaltPolls(t)
 	f := newStatusPVE(t)
 	f.mode.Store(pveErrored)
@@ -762,7 +762,7 @@ func TestSoakTreatsAGuestAgentThatWentSilentAsFailedOnlyIfItAnsweredBefore(t *te
 // unreadable VM, even when the VM has been unreadable for longer than the
 // limit: the wait ends with the run's error, so an interrupted run is not
 // reported as one whose VM could not be watched.
-func TestWaitCancelledMidReadIsTheRunsInterruptionNotAnUnreadableVM(t *testing.T) {
+func TestWaitCanceledMidReadIsTheRunsInterruptionNotAnUnreadableVM(t *testing.T) {
 	fastHaltPolls(t)
 	f := newStatusPVE(t)
 	f.mode.Store(pveHangs)

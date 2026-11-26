@@ -2,7 +2,7 @@
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
 // Package preflight performs read-only environment, hardware, and dependency
-// checks prior to executing a disaster recovery test plan.
+// checks before a run.
 package preflight
 
 import (
@@ -395,7 +395,7 @@ func CheckMemory(requiredMiB int) error {
 	}
 
 	if available < uint64(requiredMiB)*(1<<20) {
-		return fmt.Errorf("available RAM %.0f MB is below required %d MB", float64(available)/(1<<20), requiredMiB)
+		return fmt.Errorf("available RAM %.0f MiB is below required %d MiB", float64(available)/(1<<20), requiredMiB)
 	}
 	return nil
 }

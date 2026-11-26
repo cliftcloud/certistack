@@ -73,8 +73,11 @@ backup snapshot it was restored from, how its network was prepared, the integrit
 result of every disk, every probe with what it asserted and how it ended, and the
 teardown result.
 
-With no file named, it shows the newest report in the reports directory
-(--reports-dir, by default where run saves them) and names it on standard error.
+With no file named, it shows the newest report in the directory run saves
+reports to and names the directory and the report on standard error. That
+directory is --reports-dir when given, else the CERTISTACK_OUTPUT_DIR of the
+environment file certistack setup recorded (or of the process environment when
+PVE_URL is set), else /var/lib/certistack/reports.
 
 Without --keyring the signature is NOT checked: the output is what the file says,
 and it says so. A report with no signature at all (the Community Edition writes
@@ -98,7 +101,14 @@ is not a report of a schema this build understands, or fails the signature check
 			if len(args) == 1 {
 				path = args[0]
 			} else {
-				newest, err := newestReport(reportsDir)
+				dir, source, err := reportsDirectory(cmd, reportsDir)
+				if err != nil {
+					return err
+				}
+				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "Looking in %s (%s)\n", dir, source); err != nil {
+					return err
+				}
+				newest, err := newestReport(dir)
 				if err != nil {
 					return err
 				}
@@ -135,7 +145,7 @@ is not a report of a schema this build understands, or fails the signature check
 	}
 	cmd.Flags().StringVar(&keyringPath, "keyring", "", "path to a trusted signers keyring; verifies the signature and judges acceptance as verify-report does")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "print the same facts as JSON")
-	cmd.Flags().StringVar(&reportsDir, "reports-dir", defaultReportsDir, "where to look for the newest report when no file is named")
+	cmd.Flags().StringVar(&reportsDir, "reports-dir", "", "where to look for the newest report when no file is named (default: CERTISTACK_OUTPUT_DIR from the environment file certistack setup recorded, else "+defaultReportsDir+")")
 	return cmd
 }
 

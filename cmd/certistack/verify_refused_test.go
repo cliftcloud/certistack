@@ -32,7 +32,7 @@ func TestVerifyReportRefusesAKeptRefusedResult(t *testing.T) {
 	if err := os.MkdirAll(planDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	reportPath := writeSignedFixture(t, planDir, campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass}), private)
+	reportPath := writeSignedFixture(t, planDir, fixtureReport(plan, reportFixture{mode: accept.OutcomePass}), private)
 	signed, err := os.ReadFile(reportPath)
 	if err != nil {
 		t.Fatal(err)

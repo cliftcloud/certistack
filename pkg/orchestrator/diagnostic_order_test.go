@@ -20,7 +20,7 @@ import (
 	"github.com/cliftcloud/certistack/pkg/pve"
 )
 
-// livePVE is the one sandbox VM of a test as PVE keeps it, with the behaviour
+// livePVE is the one sandbox VM of a test as PVE keeps it, with the behavior
 // that matters to the diagnostic read: a stop leaves the VM stopped, and
 // destroying a stopped VM frees the volumes it owns. The disposable overlays are
 // attached to the sandbox VM as volumes of a directory storage, so PVE's

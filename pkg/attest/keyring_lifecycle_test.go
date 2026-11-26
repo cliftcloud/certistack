@@ -18,7 +18,7 @@ import (
 // A keyring is the set of keys accepted today and has no memory of time. The
 // documented signer procedures (revoke a signer by deleting its entry, keep
 // the old keyring to verify its reports; docs/troubleshooting.md) rest on
-// exactly these behaviours: a retained key accepts a report whatever date it
+// exactly these behaviors: a retained key accepts a report whatever date it
 // claims, including one after the key was replaced, one before the key existed
 // and one made to look old; the entry's created_at is a label nothing
 // evaluates; and removing the key rejects the genuine history it signed. If the

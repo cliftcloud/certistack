@@ -103,10 +103,11 @@ func TestReportScanRefusesMemberNamesThatDifferOnlyByCaseFolding(t *testing.T) {
 	}
 }
 
-// The corners as the reviewer built them: a report signed with a value that
-// holds U+FFFD verified with the same signature under three other spellings of
-// that character; and a signed document with a fold-equal pair read as the
-// shadowing member. Neither verifies now.
+// A signed report does not verify under another spelling of what it says: a
+// report signed with a value that holds U+FFFD does not verify with the same
+// signature under three other spellings of that character, and a signed
+// document with a fold-equal pair does not verify with either read as the
+// shadowing member.
 func TestAnAlternateSpellingOfASignedReportDoesNotVerify(t *testing.T) {
 	public, private, err := GenerateKeyPair()
 	if err != nil {

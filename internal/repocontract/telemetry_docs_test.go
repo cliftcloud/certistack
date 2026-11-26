@@ -133,7 +133,7 @@ func TestTelemetryDocumentHoldsThePayloadToTheStruct(t *testing.T) {
 }
 
 // What the page promises is what the constants in pkg/telemetry say.
-func TestTelemetryDocumentStatesTheBehaviourTheCodeHas(t *testing.T) {
+func TestTelemetryDocumentStatesTheBehaviorTheCodeHas(t *testing.T) {
 	doc := strings.Join(strings.Fields(readRepoText(t, "docs", "telemetry.md")), " ")
 	for _, want := range []string{
 		telemetry.DefaultURL,

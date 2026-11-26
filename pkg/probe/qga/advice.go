@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// errSyncHandshake begins the error of a guest-sync handshake that failed. Its
-// text is the one reports have always carried.
+// errSyncHandshake begins the error of a guest-sync handshake that failed. The
+// text is fixed: IsAgentSilent and the reports carry it.
 var errSyncHandshake = errors.New("QGA sync handshake failed")
 
 // IsGuestExecDisabled reports whether err is the guest agent refusing
@@ -38,7 +38,7 @@ func IsAgentSilent(err error) bool {
 }
 
 // agentSilentAdvice and guestExecDisabledAdvice are appended to the errors
-// above. They are fixed text: the report signs them, and they hold nothing of
+// above. They are fixed text: the report records them, and they hold nothing of
 // the guest.
 const (
 	agentSilentAdvice = " (the guest agent did not answer in time: qemu-guest-agent is not running in the guest, or the guest had not finished starting. " +

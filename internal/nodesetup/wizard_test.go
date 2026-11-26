@@ -522,10 +522,14 @@ func TestSameDiskKnowsZFSAndBtrfs(t *testing.T) {
 	if !dirs[0].Disabled || dirs[0].OnNode("pve1") || !dirs[0].OnNode("pve3") || dirs[1].Disabled || !dirs[1].OnNode("pve1") {
 		t.Errorf("dir storages = %+v", dirs)
 	}
-	for _, bad := range []string{"ab", "-x", "a b", "x/y"} {
+	for _, bad := range []string{"ab", "-x", ".x", "a b", "x/y"} {
 		if CheckDatastore(bad) == nil {
 			t.Errorf("datastore %q accepted", bad)
 		}
+	}
+	// PBS allows a leading underscore, as the shape check of PBS_REPOSITORY does.
+	if CheckDatastore("_backup") != nil || CheckDatastore("data.store-1_") != nil {
+		t.Error("a datastore name PBS allows was refused")
 	}
 	if CheckDatastore("datastore1") != nil || CheckNamespace("") != nil || CheckNamespace("prod/web") != nil || CheckNamespace("a b") == nil {
 		t.Error("the datastore or namespace checks are wrong")

@@ -115,7 +115,7 @@ func TestReportAcceptanceSaysWhenAnEarlierSchemaCouldNotRecordTheSoakChecks(t *t
 // summary.
 func TestReportAcceptanceDoesNotRequireASoakSummaryOfAFaultDrill(t *testing.T) {
 	plan := soakPlan()
-	report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault})
+	report := fixtureReport(plan, reportFixture{mode: accept.OutcomeFault})
 	for i := range report.VMRecords {
 		report.VMRecords[i].Soak = nil
 	}
@@ -123,7 +123,7 @@ func TestReportAcceptanceDoesNotRequireASoakSummaryOfAFaultDrill(t *testing.T) {
 }
 
 // verify-report shows what a soak checked, and the text it prints from a
-// signed report goes through the same sanitiser as the rest.
+// signed report goes through the same sanitizer as the rest.
 func TestVerifyReportPrintsTheSoakChecks(t *testing.T) {
 	plan := soakPlan()
 	report := passReport(plan)
@@ -144,7 +144,7 @@ func TestVerifyReportPrintsTheSoakChecks(t *testing.T) {
 	writeSoakSummary(&out, failed)
 	for _, bad := range []string{"\x1b", "\u202e", "\nsecond"} {
 		if strings.Contains(out.String(), bad) {
-			t.Errorf("output carries %q unsanitised:\n%s", bad, out.String())
+			t.Errorf("output carries %q unsanitized:\n%s", bad, out.String())
 		}
 	}
 	if !strings.Contains(out.String(), "failed 1 time(s): refused") || !strings.Contains(out.String(), "first PVE status error: HTTP 401") {

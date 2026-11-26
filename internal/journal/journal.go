@@ -27,7 +27,7 @@ const LockHeldMessage = "another CertiStack operation holds the host lock"
 // A PID and its start ticks (time since boot) name a process only within one
 // boot of the host. BootID is the boot (/proc/sys/kernel/random/boot_id) the
 // process was recorded in: a process recorded in another boot is gone, and one
-// whose boot cannot be compared with this one is not signalled. A record
+// whose boot cannot be compared with this one is not signaled. A record
 // without a BootID is re-checked by PID and start ticks only, and is not given
 // a boot it never had.
 type Process struct {
@@ -79,7 +79,7 @@ type MapIntent struct {
 	// carries it was started from this map.
 	Token string `json:"token,omitempty"`
 	// Processes are the proxmox-backup-client processes recovery proved to
-	// be the map's own, journaled before it signalled them. A later attempt
+	// be the map's own, journaled before it signaled them. A later attempt
 	// stops them again while they run, and knows the map's leftovers by the
 	// PID in their pid file once they are gone.
 	Processes []Process `json:"processes,omitempty"`
@@ -105,7 +105,7 @@ func (m *MapIntent) AddProcess(p Process) {
 	m.Processes = append(m.Processes, p)
 }
 
-// TrackedVM records an ephemeral VM created during a test plan.
+// TrackedVM records a sandbox VM created during a run.
 type TrackedVM struct {
 	VMID    int     `json:"vmid"`
 	Node    string  `json:"node"`
@@ -143,7 +143,7 @@ type TrackedHostAddress struct {
 	BootID string `json:"boot_id,omitempty"`
 }
 
-// Record holds the durable on-disk state of an active DR test run.
+// Record holds the durable on-disk state of an active run.
 type Record struct {
 	RunID             string               `json:"run_id"`
 	Phase             string               `json:"phase"`
@@ -390,12 +390,12 @@ func (r *Record) ForgetReleasedMaps(first int) {
 	}
 }
 
-// AddVM registers an ephemeral VM into the journal record.
+// AddVM registers a sandbox VM into the journal record.
 func (r *Record) AddVM(vmid int, node string, pid int, startTicks string) {
 	r.AddVMProcess(vmid, node, Process{PID: pid, StartTicks: startTicks})
 }
 
-// AddVMProcess registers an ephemeral VM with its QEMU process, including the
+// AddVMProcess registers a sandbox VM with its QEMU process, including the
 // boot it was recorded in (Process.BootID), without which a recorded PID and
 // start time cannot be told from a later boot's process.
 func (r *Record) AddVMProcess(vmid int, node string, p Process) {

@@ -60,9 +60,9 @@ func TestAnAlreadyCorrectDiagnosticLinkIsLeftAlone(t *testing.T) {
 				if guest.files[link] != "-> "+target {
 					t.Fatalf("%s = %q, want a link to %s", link, guest.files[link], target)
 				}
-				// The signed list still says what is in the guest.
+				// The reported list still says what is in the guest.
 				if !containsString(result.Files, link+" -> "+target) {
-					t.Fatalf("the signed list lacks %s: %v", link, result.Files)
+					t.Fatalf("the reported list lacks %s: %v", link, result.Files)
 				}
 			}
 		})

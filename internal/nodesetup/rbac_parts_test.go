@@ -28,7 +28,7 @@ func TestRBACWholeScriptOnAPVENodeEndsWellAtPart2(t *testing.T) {
 	skipIfPBSHere(t)
 	s := newRBACSandboxWith(t, rbacWithPBS, "pveum")
 	for run := 1; run <= 2; run++ {
-		stdout, stderr, code := s.run()
+		stdout, stderr, code := s.run(keepToken)
 		if code != 0 {
 			t.Fatalf("run %d: exit %d, want 0\nstdout:\n%s\nstderr:\n%s", run, code, stdout, stderr)
 		}
@@ -150,7 +150,7 @@ func TestRBACEachPartCanBeRunAgain(t *testing.T) {
 			if got := strings.Count(acls, "\n"); got != test.wantAcls {
 				t.Errorf("%d ACLs after the first run, want %d:\n%s", got, test.wantAcls, acls)
 			}
-			stdout, stderr, code = s.run()
+			stdout, stderr, code = s.run(keepToken)
 			if code != 0 {
 				t.Fatalf("second run exited %d\nstdout:\n%s\nstderr:\n%s", code, stdout, stderr)
 			}
@@ -211,7 +211,7 @@ func TestRBACScriptRunsFromStandardInputAsShDashS(t *testing.T) {
 			for run := 1; run <= 2; run++ {
 				cmd := exec.Command(s.command, "-s")
 				cmd.Stdin = strings.NewReader(script)
-				cmd.Env = []string{"PATH=" + s.bin + string(os.PathListSeparator) + os.Getenv("PATH"), "STUB_STATE=" + s.state, "HOME=" + s.state, "LC_ALL=C"}
+				cmd.Env = []string{"PATH=" + s.bin + string(os.PathListSeparator) + os.Getenv("PATH"), "STUB_STATE=" + s.state, "HOME=" + s.state, "LC_ALL=C", keepToken}
 				var stdout, stderr bytes.Buffer
 				cmd.Stdout, cmd.Stderr = &stdout, &stderr
 				if err := cmd.Run(); err != nil {

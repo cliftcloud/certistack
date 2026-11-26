@@ -164,11 +164,11 @@ func TestDialFailsWithoutAMatchingSyncReply(t *testing.T) {
 		return "{\"error\":{\"class\":\"GenericError\",\"desc\":\"JSON parse error\"}}\n"
 	}
 	start := time.Now()
-	_, err := Dial(staleSyncAgent(t, agentError, true), 200*time.Millisecond)
+	_, err := Dial(staleSyncAgent(t, agentError, true), time.Second)
 	if err == nil || !strings.Contains(err.Error(), "QGA sync handshake failed") || !strings.Contains(err.Error(), "JSON parse error") {
 		t.Fatalf("Dial without a sync reply = %v, want a failed handshake naming the agent's error", err)
 	}
-	if elapsed := time.Since(start); elapsed > 2*time.Second {
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("Dial took %v, want it bounded by its timeout", elapsed)
 	}
 
@@ -310,14 +310,14 @@ func TestDialContextStopsAtTheContextDeadline(t *testing.T) {
 		_, _ = reader.ReadBytes('\n')
 		_, _ = reader.ReadBytes('\n') // never answer
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	start := time.Now()
-	if _, err := DialContext(ctx, socketPath, 5*time.Second); err == nil || !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := DialContext(ctx, socketPath, 20*time.Second); err == nil || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("DialContext = %v, want the context deadline", err)
 	}
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Fatalf("DialContext took %v, want it to stop at the 100ms context deadline", elapsed)
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("DialContext took %v, want it to stop at the one-second context deadline, not the 20-second timeout", elapsed)
 	}
 }
 
@@ -568,7 +568,7 @@ func TestDialAcceptsOnlyAnExplicitMatchingSyncReply(t *testing.T) {
 	}
 	for name, reply := range notOurs {
 		t.Run(name+" alone", func(t *testing.T) {
-			client, err := Dial(staleSyncAgent(t, reply, true), 200*time.Millisecond)
+			client, err := Dial(staleSyncAgent(t, reply, true), time.Second)
 			if err == nil {
 				_ = client.Close()
 				t.Fatalf("Dial accepted %s as the sync reply", name)

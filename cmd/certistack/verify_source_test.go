@@ -44,7 +44,7 @@ func TestReportAcceptanceHoldsEveryRecordToItsBackup(t *testing.T) {
 			if tc.pinned {
 				plan.Tiers[0].VMs[0].SourcePBS.Snapshot = pinned
 			}
-			report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+			report := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 			if tc.mutate != nil {
 				tc.mutate(report)
 			}
@@ -73,7 +73,7 @@ func TestReportAcceptanceHoldsEveryRecordToItsBackup(t *testing.T) {
 // and the rule is the same.
 func TestAFaultDrillsRecordNamesItsBackup(t *testing.T) {
 	plan := mustLoadFixturePlan()
-	report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomeFault})
+	report := fixtureReport(plan, reportFixture{mode: accept.OutcomeFault})
 	if acceptance := accept.Evaluate(report, fixtureExpectations(plan, accept.OutcomeFault)); acceptance.Verdict != accept.Accepted {
 		t.Fatalf("the control was rejected: %q", acceptance.Reasons)
 	}
@@ -98,7 +98,7 @@ func TestTheVerifierAppliesTheControllersProbePolicyRules(t *testing.T) {
 		"another source address": func(r *probe.VMValidationRecord) { r.ProbeResults[0].SourceAddress = "10.9.9.9" },
 		"a negative count":       func(r *probe.VMValidationRecord) { r.ProbeResults[1].Attempts = -1 },
 	} {
-		report := campaignFixtureReport(plan, campaignFixture{mode: accept.OutcomePass})
+		report := fixtureReport(plan, reportFixture{mode: accept.OutcomePass})
 		mutate(&report.VMRecords[0])
 		want := attest.ProbePolicyProblems(report.VMRecords[0], findPlanVM(plan, report.VMRecords[0].VMID), plan)
 		if len(want) == 0 {

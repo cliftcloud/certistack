@@ -15,7 +15,7 @@ separate commercial license ([LICENSING-FAQ.md](LICENSING-FAQ.md) explains why).
 4. The bot updates the check once your signature is recorded. You sign once for all future contributions.
 
 A pull request cannot be merged until the check passes. The check identifies each commit author by GitHub account, so
-author your commits with an e-mail address linked to your account; a commit GitHub cannot link to an account cannot be
+author your commits with an email address linked to your account; a commit GitHub cannot link to an account cannot be
 signed for. The check refuses a pull request of more than 100 commits: squash or split it. Only pull requests opened
 by GitHub's Dependabot account or by the maintainer's account are exempt.
 
@@ -25,7 +25,7 @@ Report bugs and request features in the [issue tracker](https://github.com/clift
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 A bug report needs the output of `certistack version`, your Proxmox VE and PBS versions, the steps to reproduce,
-expected and actual behaviour, and the relevant `--debug` output.
+expected and actual behavior, and the relevant `--debug` output.
 
 ## Development
 
@@ -33,10 +33,10 @@ You need Go 1.27.4, the version in `go.mod`, and Linux (or Windows with WSL). In
 test cluster.
 
 ```bash
-# Build all binaries
+# Build bin/certistack for this machine
 make build
 
-# Cross-compile for Linux (for deploying to PVE nodes)
+# Build bin/certistack-linux-amd64, the executable a release ships
 make build-linux
 
 # Run tests
@@ -74,12 +74,11 @@ CI runs the unit tests (including the contract tests in `internal/repocontract`)
 `make vet` and `govulncheck` on every pull request. Before a release, a maintainer also runs the built executable
 against a real Proxmox VE and PBS: restores of each supported kind of VM, an injected probe fault that must fail exactly
 that probe, and an interrupted run that recovery must clean up, with every report judged by `verify-report --expect-*`.
-The executable that passes is the one released ([How releases are built](SECURITY.md#how-releases-are-built)). The
-scripts in `scripts/` that drive those runs are maintainer tooling.
+The executable that passes is the one released ([How releases are built](SECURITY.md#how-releases-are-built)).
 
 ### Layout
 
-The Community Edition is a CLI and a local recovery-validation engine. It has no web server, dashboard, daemon, webhook
+The Community Edition is a CLI and a local restore-test engine. It has no web server, dashboard, daemon, webhook
 listener or entitlement code; rendering, delivery, scheduling and multi-tenant features belong to the
 [Enterprise Edition](https://certistack.dev/docs/editions/). When you add or change a plan field, update "The keys"
 in `docs/plan-reference.md` in the same pull request.
@@ -87,7 +86,7 @@ in `docs/plan-reference.md` in the same pull request.
 | Path | Purpose |
 | --- | --- |
 | `cmd/certistack` | The CLI, and the hidden `node-run`, `node-plan`, `node-discover`, `node-inspect` and `node-check` modes the controller runs on a PVE node. |
-| `pkg/config` | Plan parser, alias normalisation and validator ([the keys](https://certistack.dev/docs/plan-reference/#the-keys)). |
+| `pkg/config` | Plan parser, alias normalization and validator ([the keys](https://certistack.dev/docs/plan-reference/#the-keys)). |
 | `pkg/initplan` | `init`: read-only discovery of VMs with backups, overlay storages and free IDs, and a first plan that validates. |
 | `pkg/runner` | The local execution path: host lock, journal, PVE and PBS clients, orchestrator, RTO check, report writing. |
 | `pkg/controller` | SSH bootstrap of the node worker, result retrieval, teardown verification, controller-side report writing. |
@@ -95,6 +94,7 @@ in `docs/plan-reference.md` in the same pull request.
 | `pkg/orchestrator` | Tiered recovery: admission, snapshot resolution, mapping, overlays, sandbox VM lifecycle, guest network, probes, soak, teardown evidence. |
 | `pkg/pbs`, `pkg/pve`, `pkg/sdn` | PBS map/unmap client; PVE REST client with task tracking; sandbox SDN zone and VNet. |
 | `pkg/admission` | Host admission control and capacity reservation from `/proc/meminfo` and `/proc/stat`. |
+| `pkg/acceptance` | The one rule that judges whether a report is acceptable, shared by `verify-report` and the Enterprise Edition. |
 | `pkg/probe` | Probes: `qmp`, `synthetic` (TCP, HTTP/TLS, DNS, LDAP, SQL Server, SMB), `qga` and `screendump`. |
 | `pkg/attest` | Canonical JSON (RFC 8785), the `Signer` hook the Enterprise Edition fills, keyring loading, report verification and limits, and the report schema (`attest.CurrentReportSchemaVersion`). Community has no code that makes a signature. |
 | `pkg/cleanup` | LIFO teardown stack with signal and panic unwinding. |
@@ -102,6 +102,8 @@ in `docs/plan-reference.md` in the same pull request.
 | `pkg/progress`, `pkg/runphase` | The run's progress timeline and its `[Phase N of M]` lines. |
 | `pkg/recovery` | Public crash-recovery entry point for programs built on the engine. |
 | `internal/journal`, `internal/process` | The run journal (`active.json`) and host lock; process identity so recovery never acts on a reused PID. |
+| `internal/nodeidentity` | Checks that the node name a command was given is the PVE name of the host it runs on. |
+| `internal/recoverhint` | The wording of what to do about what an interrupted run left on a node, shared by every message that says it. |
 | `internal/preflight` | Node preflight checks used by `doctor` and by the worker. |
 | `internal/recovery` | Journal-scoped cleanup of loops, overlays, VMs, host addresses and SDN objects. |
 | `internal/guestnet` | Guest network adapter for the sandbox, applied to the overlay with `guestfish`. |
@@ -113,7 +115,7 @@ in `docs/plan-reference.md` in the same pull request.
 | `internal/repocontract` | Tests that tie the workflows, deployment files and documentation to the code. |
 | `examples/`, `testdata/plans` | Plans to copy, and larger fixtures; the tests validate both. |
 | `deploy/controller`, `deploy/appliance`, `terraform/` | Controller image and Compose file; Packer VM template; Terraform module for the PVE role, user and token. |
-| `scripts/`, `release/` | Release build and checksum tooling, the release registry, maintainer test tooling. |
+| `scripts/`, `release/` | The installer, the release build, the controller image checks and the third-party notices generator; the release registry and public key. |
 | `docs/`, `mkdocs.yml` | The documentation site (`make docs`). |
 
 `certistack run` loads a plan and stages a worker on the node over SSH (`pkg/controller`). The worker's `node-run` takes

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2024-2026 Clift Cloud LLC
 
-// Package probe defines the deterministic verification hierarchy for CertiStack.
+// Package probe defines the result of a probe, the Prober interface and the
+// per-VM record a run keeps of its probes and restore.
 package probe
 
 import (
@@ -63,7 +64,7 @@ type Result struct {
 	Error       string `json:"error,omitempty"` // Error message if failed
 }
 
-// Prober is the common interface implemented by all deterministic verification probes.
+// Prober is the interface every probe implements.
 type Prober interface {
 	Probe(ctx context.Context) Result
 }
@@ -89,7 +90,8 @@ func Expired(ctx context.Context) error {
 	return nil
 }
 
-// VMValidationRecord records the complete audit trace for a VM in the DR test.
+// VMValidationRecord is what a run records of one VM: its restore, its boot
+// and its probes.
 type VMValidationRecord struct {
 	VMID                int           `json:"vmid"`
 	SourceVMID          int           `json:"source_vmid,omitempty"`
@@ -119,9 +121,8 @@ type VMValidationRecord struct {
 	ExcludedSourceDisks     []string `json:"excluded_source_disks,omitempty"`
 	SourceDrive             string   `json:"source_drive,omitempty"`
 	SourceManifestReference string   `json:"source_manifest_reference,omitempty"`
-	// SourceChunkHashes is retained for backward compatibility. New reports
-	// use SourceImageDigest: CertiStack calculates a whole mapped-image SHA-256,
-	// not a PBS manifest/chunk-tree root.
+	// SourceChunkHashes is not written. SourceImageDigest is a SHA-256 of the
+	// whole mapped image, not a PBS manifest or chunk-tree root.
 	SourceChunkHashes []string             `json:"source_chunk_hashes,omitempty"`
 	SourceImageDigest string               `json:"source_image_digest,omitempty"`
 	SourceDisks       []SourceDiskEvidence `json:"source_disks,omitempty"`
@@ -304,8 +305,8 @@ func KnownDiskStatus(status string) bool {
 }
 
 // SourceDiskEvidence records the immutable PBS evidence for one restored disk.
-// The legacy SourceDrive fields in VMValidationRecord retain the boot disk's
-// evidence (scsi0 on most VMs) for older report consumers.
+// SourceDrive, SourceManifestReference and SourceImageDigest of the VM's record
+// hold the boot disk's evidence alone (scsi0 on most VMs).
 type SourceDiskEvidence struct {
 	Slot              string `json:"slot"`
 	Archive           string `json:"archive"`
@@ -316,7 +317,7 @@ type SourceDiskEvidence struct {
 	// other value (see DiskNotAttempted and the values beside it) is how far a
 	// failed restore got with this disk, and no VM with such a disk is a pass.
 	IntegrityStatus string   `json:"integrity_status"`
-	ChunkHashes     []string `json:"chunk_hashes,omitempty"` // Legacy compatibility only.
+	ChunkHashes     []string `json:"chunk_hashes,omitempty"` // Not written; ImageDigest covers the image.
 	ImageDigest     string   `json:"image_digest,omitempty"`
 	// BootSource is "local-copy" when the sandbox booted this disk from a
 	// verified local copy; empty when it booted from the PBS map.

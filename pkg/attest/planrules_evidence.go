@@ -15,8 +15,9 @@ import (
 
 // More of the rules that hold a report's VM records to their plan (see
 // planrules.go): the backup a record says it restored from, and the policy its
-// probes say they ran under. The controller applies them before it signs, and
-// verify-report to the report it is given, from this one implementation.
+// probes say they ran under. The controller applies them before it writes the
+// report, and verify-report to the report it is given, from this one
+// implementation.
 
 // ExpectedSourceVMID is the source VM a planned VM restores: its explicit
 // source_vmid, or the group of a vm/<id>/... snapshot selector. Zero means the

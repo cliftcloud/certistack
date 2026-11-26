@@ -56,9 +56,9 @@ func TestControllerRefusesAWorkerReportThatContradictsTheRequest(t *testing.T) {
 		// The worker is this build's own executable, which records both
 		// worker-plan digests on every path; a report without them is not its
 		// report, and PolicyEvidenceProblems lets an absent digest pass.
-		{"no validated plan digest", func(r *attest.Report) { r.ValidatedPlanSHA256 = "" }, "the report records no complete validated and resolved worker-plan digests"},
-		{"no resolved plan digest", func(r *attest.Report) { r.ResolvedPlanSHA256 = "" }, "the report records no complete validated and resolved worker-plan digests"},
-		{"neither plan digest", func(r *attest.Report) { r.ValidatedPlanSHA256, r.ResolvedPlanSHA256 = "", "" }, "the report records no complete validated and resolved worker-plan digests"},
+		{"no validated plan digest", func(r *attest.Report) { r.ValidatedPlanSHA256 = "" }, "the report does not record both the validated and the resolved worker-plan digest"},
+		{"no resolved plan digest", func(r *attest.Report) { r.ResolvedPlanSHA256 = "" }, "the report does not record both the validated and the resolved worker-plan digest"},
+		{"neither plan digest", func(r *attest.Report) { r.ValidatedPlanSHA256, r.ResolvedPlanSHA256 = "", "" }, "the report does not record both the validated and the resolved worker-plan digest"},
 		{"a stale timestamp", func(r *attest.Report) { r.Timestamp = "2001-01-01T00:00:00Z" }, "is not from this run"},
 		{"a timestamp in the future", func(r *attest.Report) { r.Timestamp = time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339) }, "is not from this run"},
 		{"a timestamp that is not a time", func(r *attest.Report) { r.Timestamp = "yesterday" }, "is not an RFC 3339 time"},
@@ -223,7 +223,7 @@ func TestControllerSignsTheEvidenceOfAFailedRun(t *testing.T) {
 	report.VMRecords[0].SourceDisks[0].ImageDigest = ""
 	fake := &fakeCommandRunner{nodeResult: nodeapi.RunResult{Report: report, Error: report.FailureReason}, journalPhase: "cleaned"}
 	result, err := (&Executor{runner: fake}).Run(context.Background(), opts)
-	if err == nil || !strings.Contains(err.Error(), "DR validation failed: recovery tier 1 failed") {
+	if err == nil || !strings.Contains(err.Error(), "the run failed: recovery tier 1 failed") {
 		t.Fatalf("err = %v", err)
 	}
 	if result == nil || result.ReportPath == "" || !signatureVerifies(t, result.Report, opts.Signer) {
@@ -274,7 +274,7 @@ func TestFailedVMRecordCannotKeepAVerifiedDiskWithoutItsEvidence(t *testing.T) {
 	t.Run("a verified disk with its evidence is signed", func(t *testing.T) {
 		executor, opts, _ := failedRun(t, func(*probe.SourceDiskEvidence) {})
 		result, err := executor.Run(context.Background(), opts)
-		if err == nil || !strings.Contains(err.Error(), "DR validation failed: recovery tier 1 failed") {
+		if err == nil || !strings.Contains(err.Error(), "the run failed: recovery tier 1 failed") {
 			t.Fatalf("err = %v", err)
 		}
 		if result == nil || result.ReportPath == "" || !signatureVerifies(t, result.Report, opts.Signer) {

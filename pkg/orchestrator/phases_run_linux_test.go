@@ -93,11 +93,11 @@ func TestRunThatFailsAnnouncesItsTeardownWithItsPlace(t *testing.T) {
 	)
 }
 
-// A run cancelled during a tier's start-up grace wait ends the wait at once
+// A run canceled during a tier's start-up grace wait ends the wait at once
 // (not after the 600 s it was given), records the tier's VM as incomplete with
 // the reason, tears the sandbox down and verifies the cleanup. The wait itself
 // was tested on its own (waitWatchingVMs); this is the whole run.
-func TestRunCancelledDuringTheStartupGraceEndsTheWaitAndCleansUp(t *testing.T) {
+func TestRunCanceledDuringTheStartupGraceEndsTheWaitAndCleansUp(t *testing.T) {
 	plan, client := soakRunPlan(t, 0)
 	plan.Tiers[0].StartupGracePeriodSec = 600
 	dir := shortSocketDir(t)

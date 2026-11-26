@@ -10,8 +10,8 @@ Every command takes `--debug` and `--help`.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Success. For `run`: the validation passed and the teardown was verified |
-| `1` | No: an invalid or refused plan, a failed validation with verified teardown, a report not accepted |
+| `0` | Success. For `run`: every probe passed and the teardown was verified |
+| `1` | No: an invalid or refused plan, a run whose probes failed with verified teardown, a report not accepted |
 | `2` | Anything else: an error, an untrusted report, or a `run` whose cleanup was not verified or whose report was not saved |
 | `130` | Interrupted |
 
@@ -50,13 +50,13 @@ trust source for a signed one.
 ### report show
 
 Prints one report in reading order and judges nothing ([Reports](reports.md#read-a-report)). With no file named, it
-shows the newest report run saved.
+shows the newest report in the reports directory.
 
 | Flag | Meaning |
 | --- | --- |
 | `--keyring` | Verify the signature against this keyring and add `verify-report`'s verdict |
 | `--json` | Same facts as JSON |
-| `--reports-dir` | Where to look for the newest report (default `/var/lib/certistack/reports`) |
+| `--reports-dir` | Where to look for the newest report. Default: `CERTISTACK_OUTPUT_DIR` from the environment file `setup` recorded, else `/var/lib/certistack/reports` |
 
 <a id="schema"></a>
 
@@ -118,7 +118,8 @@ authority`.
 ### setup rbac
 
 Prints, and never runs, a script: part 1 for root on the node (the PVE role, user, token and ACLs), part 2 for root
-on the PBS (the read-only PBS user and token). Rerunning is safe.
+on the PBS (the read-only PBS user and token). Rerunning is safe. When the token exists already, a script grants
+nothing to it unless `CERTISTACK_KEEP_TOKEN=yes` is set, which says you hold its secret.
 
 | Flag | Meaning |
 | --- | --- |
@@ -274,9 +275,9 @@ the node's key.
 | `CERTISTACK_SSH_USER` | SSH account. Default `certistack` |
 | `CERTISTACK_SSH_PORT` | Default `22` |
 | `CERTISTACK_SSH_IDENTITY` | The SSH private key's path |
-| `CERTISTACK_SSH_KNOWN_HOSTS` | `known_hosts` file `setup trust-node` writes. Default `~/.ssh/known_hosts` |
+| `CERTISTACK_SSH_KNOWN_HOSTS` | `known_hosts` file the commands check the node's key against, and the one `setup trust-node` writes. Default `~/.ssh/known_hosts`; for `setup trust-node`, `/secure/certistack/known_hosts` |
 | `CERTISTACK_SSH_SUDO` | `1`, `true` or `yes`: run the worker through passwordless `sudo` ([the rule](manual-setup.md#the-sudoers-rule-for-a-non-root-account)). Default off |
-| `CERTISTACK_OUTPUT_DIR` | The controller's report directory, which no group or other user may write. Default `/var/lib/certistack/reports` |
+| `CERTISTACK_OUTPUT_DIR` | The controller's report directory, which no group or other user may write. `report show` with no file reads it. Default `/var/lib/certistack/reports` |
 | `CERTISTACK_STATE_DIR` | Node directory for the journal, workspaces and logs. Default `/var/lib/certistack` |
 | `CERTISTACK_SCRATCH_DIR` | The node's private work directory. Default the plan's, else `/var/lib/certistack/scratch` |
 | `CERTISTACK_OVERLAY_STORAGE` | PVE storage for the overlays. Default the plan's |
@@ -290,7 +291,8 @@ the node's key.
 
 ### The environment file
 
-- `NAME=value` lines, at most 256 KiB, UTF-8, owner-only (`0600`), outside any repository. `#` starts a comment line.
+- `NAME=value` lines, at most 256 KiB, UTF-8, readable by no group or other user (`0600`). Keep it out of any
+  repository. `#` starts a comment line.
 - Never shell-sourced: `$VAR` stays literal; one pair of matching quotes is removed. Relative paths resolve from the
   file's directory.
 - Only the names above, once each, without `export`. The four usage statistics variables are read from the process

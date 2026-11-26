@@ -220,7 +220,7 @@ func TestTheCallersDeadlineBoundsTheWait(t *testing.T) {
 	}
 }
 
-func TestACancelledContextSendsNothing(t *testing.T) {
+func TestACanceledContextSendsNothing(t *testing.T) {
 	srv := newFakeServer(t, 200)
 	h := newHarness(t, srv.URL)
 	mustEnable(t, h, false)

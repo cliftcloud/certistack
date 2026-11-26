@@ -38,7 +38,7 @@ func TestRecoveryDoesNotSignalAProcessOfALaterBootThatHasTheRecordedPIDAndStartT
 		t.Fatalf("recovery = %v, want the earlier boot's process taken as gone", err)
 	}
 	if !runs(child.Process.Pid) {
-		t.Fatal("recovery signalled a process of the later boot that has the recorded PID and start time")
+		t.Fatal("recovery signaled a process of the later boot that has the recorded PID and start time")
 	}
 	if _, statErr := os.Stat(overlay); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("overlay kept for a process that is gone: %v", statErr)

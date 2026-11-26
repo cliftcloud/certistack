@@ -5,10 +5,9 @@ package pve
 
 import "testing"
 
-// The hardware CreateVM requests, which signed evidence records,
-// carries the CPU weight it sends as cpuunits, so the evidence of two
-// configurations that differ only in weight tells them apart, as their create
-// requests do.
+// The hardware CreateVM requests, which the report records, carries the CPU
+// weight it sends as cpuunits, so the evidence of two configurations that
+// differ only in weight tells them apart, as their create requests do.
 func TestEffectiveHardwareCarriesTheCPUWeightCreateSends(t *testing.T) {
 	base := VMConfig{VMID: 9900, Name: "restore", Bridge: "csVn01", Cores: 4, Sockets: 2, MemoryMB: 8192,
 		DiskOverlays: []DiskOverlay{{Slot: "scsi0", Path: "/tmp/delta.qcow2"}}}

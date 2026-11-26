@@ -21,10 +21,10 @@ import (
 // (TestLiveSystemdRunMatchesTheModel checks the model against a real
 // systemd-run) between the controller's command and the shell.
 
-// TestSystemdModelFollowsMeasuredBehaviour pins the model to what a real
+// TestSystemdModelFollowsMeasuredBehavior pins the model to what a real
 // systemd 249 was measured to hand to sh (Ubuntu 22.04, PID 1, systemd-run
 // --wait --pipe): each row is a word and what the shell received.
-func TestSystemdModelFollowsMeasuredBehaviour(t *testing.T) {
+func TestSystemdModelFollowsMeasuredBehavior(t *testing.T) {
 	for _, tc := range []struct{ word, want string }{
 		{`a${x##*\) }b`, `ab`},
 		{`a${x#y}b`, `ab`},
@@ -94,11 +94,11 @@ func newSupervisorFixture(t *testing.T, stateDir string, sudo bool) supervisorFi
 	return supervisorFixture{command: command, script: supervisorScript(workspaceShellVariables(lease, worker, stateDir, env, progress, workspace), pid, result, workspace, nodeRun)}
 }
 
-// TestSupervisorCommandReachesTheShellUnaltered: the script the shell
-// receives from the command the controller sends is,
-// byte for byte, the script the supervisor is meant to run, for a state
-// directory that holds no special character and for ones that hold every one
-// the controller accepts in a path ("$" and "%" among them).
+// TestSupervisorCommandReachesTheShellUnaltered: the script the shell receives
+// from the command the controller sends is, byte for byte, the script the
+// supervisor is meant to run, for a state directory that holds no special
+// character and for ones that hold every one the controller accepts in a path
+// ("$" and "%" among them).
 func TestSupervisorCommandReachesTheShellUnaltered(t *testing.T) {
 	for _, stateDir := range []string{
 		"/var/lib/certistack",

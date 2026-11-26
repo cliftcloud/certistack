@@ -58,7 +58,7 @@ func TestVerifyReportSignerLifecycle(t *testing.T) {
 	historical := keyring("historical", oldEntry)       // for archived reports only
 	signedAt := func(name string, key ed25519.PrivateKey, timestamp string) string {
 		t.Helper()
-		report := campaignFixtureReport(mustLoadFixturePlan(), campaignFixture{mode: accept.OutcomePass})
+		report := fixtureReport(mustLoadFixturePlan(), reportFixture{mode: accept.OutcomePass})
 		report.ValidationMode = attest.ValidationModeFullIntegrity
 		report.Timestamp = timestamp
 		if err := attesttest.SignReport(report, key); err != nil {

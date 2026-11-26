@@ -197,7 +197,7 @@ func TestVerifyReportPrintsTheObjectiveAndTheAdmissionPolicy(t *testing.T) {
 
 // A decision a report supplies is printed through the sanitizer, whatever it
 // says, and the report is rejected for it.
-func TestAnUnknownAdmissionDecisionIsSanitisedAndRejected(t *testing.T) {
+func TestAnUnknownAdmissionDecisionIsSanitizedAndRejected(t *testing.T) {
 	public, private, err := attesttest.GenerateKeyPair()
 	if err != nil {
 		t.Fatal(err)

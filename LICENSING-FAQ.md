@@ -10,9 +10,9 @@ The GNU Affero General Public License, version 3 or any later version (AGPL-3.0-
 source license. You may use, modify and redistribute CertiStack. If you distribute it, you pass on the source under the
 same license. If you run a modified version as a network service, you offer that service's users your modified source.
 
-A permissive license (MIT, Apache 2.0) would let a provider build a competing hosted service on CertiStack without
-contributing anything back. The AGPL prevents that without restricting private use, your own fork or your own on-premises
-deployment.
+A permissive license (MIT, Apache 2.0) would let a provider run a modified CertiStack as a hosted service without
+sharing its changes. The AGPL requires that provider to offer its users the modified source, and does not restrict
+private use, your own fork or your own on-premises deployment.
 
 ## Can I use the Community Edition commercially?
 
@@ -25,8 +25,9 @@ There is no capacity cap, VM limit or "non-commercial only" restriction.
 
 ## What if I can't comply with the AGPL's network clause?
 
-A commercial license grants you rights to CertiStack with no copyleft obligation and no requirement to publish your
-changes. It comes with the Enterprise Edition, the separately packaged management service, dashboard and HTTP API.
+The Enterprise Edition's commercial license, on the plans that allow it, grants you rights to CertiStack with no
+copyleft obligation and no requirement to publish your changes. The Enterprise Edition is the separately packaged
+management service, dashboard and HTTP API.
 
 ## Does the Enterprise Edition have to be open source too?
 

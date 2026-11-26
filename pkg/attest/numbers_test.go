@@ -16,11 +16,11 @@ import (
 
 // RFC 8785 canonicalizes every number as an IEEE-754 double. From 2^53 on a
 // double stands for several integers, so a report whose signed integer were
-// changed to a neighbour that rounds to the same double would verify:
-// changing retention_days 9007199254740993 to 9007199254740992 would keep
-// the signature. Such an integer is refused when
-// a report is signed and when one is verified, so the claim that changing any
-// signed value invalidates the signature is true.
+// changed to a neighbor that rounds to the same double would verify: changing
+// retention_days 9007199254740993 to 9007199254740992 would keep the signature.
+// Such an integer is refused when a report is signed and when one is verified,
+// so the claim that changing any signed value invalidates the signature is
+// true.
 func TestIntegersBeyondTheExactDoubleRangeCannotBeSignedOrVerified(t *testing.T) {
 	pub, priv := newKey(t)
 

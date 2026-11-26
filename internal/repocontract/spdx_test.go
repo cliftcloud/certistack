@@ -60,14 +60,14 @@ func beginsWithShebang(path string) bool {
 }
 
 // spdxSkippedDir lists directories that hold data, generated output or
-// someone else's files rather than the project's source. .lab is a local,
-// unversioned directory.
+// someone else's files rather than the project's source, and the local,
+// untracked directories.
 func spdxSkippedDir(name string) bool {
 	switch name {
-	case ".git", ".lab", "node_modules", "vendor", "testdata", ".terraform", "dist", "bin", "cases":
+	case ".git", "node_modules", "vendor", "testdata", ".terraform", "dist", "bin", "cases":
 		return true
 	}
-	return false
+	return localDir(name)
 }
 
 func spdxOf(text string) string {
